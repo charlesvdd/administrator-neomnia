@@ -1,8 +1,0 @@
-Listening on 127.0.0.1:35913
-[2025-02-22 14:12:26] info Disposed of connection to running server.
-[2025-02-22 14:12:26] info Checking /home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/log.txt and /home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/pid.txt for a running server...
-[2025-02-22 14:12:26] info Found running server (pid=2846)
-[2025-02-22 14:14:59] warn error handling call: NoAttachedServerError(NoAttachedServerError)
-[2025-02-22 14:15:01] warn error handling call: NoAttachedServerError(NoAttachedServerError)
-[2025-02-22 14:15:06] warn error handling call: NoAttachedServerError(NoAttachedServerError)
-[2025-02-22 14:15:11] warn error handling call: NoAttachedServerError(NoAttachedServerError)
