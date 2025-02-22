@@ -1,0 +1,4 @@
+📜 Licence
+Ce projet est sous licence MIT.
+Créé par neoweb2212.
+application interne
