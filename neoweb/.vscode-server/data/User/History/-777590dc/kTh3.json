@@ -1,0 +1,23 @@
+{
+    "workbench.editorAssociations": {
+        "*.tlp": "default"
+    },
+    "cmake.showOptionsMovedNotification": false,
+    "files.defaultLanguage": "\"files.defaultLanguage\": \"python\"",
+    "workbench.editor.empty.hint": "hidden",
+    "database-client.autoSync": true,
+    "mssql.enableRichExperiencesDoNotShowPrompt": true,
+    "remoteHub.commitDirectlyWarning": "off",
+    "workbench.colorTheme": "Poolside",
+    "security.workspace.trust.untrustedFiles": "open",
+    "remote-explorer.foldersSortOrder": "alphabetical",
+    "remote.SSH.remotePlatform": {
+        "test": "linux",
+        "popurank": "linux",
+        "148.113.46.144": "linux",
+        "AttolProJect": "linux"
+    },
+    "workbench.editor.defaultBinaryEditor": "default",
+    "explorer.confirmDragAndDrop": false,
+    "debug.disassemblyView.showSourceCode": false
+}

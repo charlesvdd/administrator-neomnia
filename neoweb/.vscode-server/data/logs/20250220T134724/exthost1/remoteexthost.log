@@ -1,0 +1,161 @@
+2025-02-20 13:47:27.148 [info] Extension host with pid 104499 started
+2025-02-20 13:47:27.148 [error] Error: EEXIST: file already exists, open '/home/neoweb/.vscode-server/data/User/workspaceStorage/1e348afde0b44d0d2158dc5a2b784ea6/vscode.lock'
+2025-02-20 13:47:27.149 [info] Lock '/home/neoweb/.vscode-server/data/User/workspaceStorage/1e348afde0b44d0d2158dc5a2b784ea6/vscode.lock': Could not acquire lock, checking if the file is stale.
+2025-02-20 13:47:27.158 [info] Lock '/home/neoweb/.vscode-server/data/User/workspaceStorage/1e348afde0b44d0d2158dc5a2b784ea6/vscode.lock': The pid 101769 appears to be gone.
+2025-02-20 13:47:27.158 [info] Lock '/home/neoweb/.vscode-server/data/User/workspaceStorage/1e348afde0b44d0d2158dc5a2b784ea6/vscode.lock': Deleting a stale lock.
+2025-02-20 13:47:27.160 [info] Lock '/home/neoweb/.vscode-server/data/User/workspaceStorage/1e348afde0b44d0d2158dc5a2b784ea6/vscode.lock': Lock acquired.
+2025-02-20 13:47:28.427 [info] ExtensionService#_doActivateExtension vscode.git-base, startup: false, activationEvent: '*', root cause: vscode.git
+2025-02-20 13:47:29.684 [info] ExtensionService#_doActivateExtension vscode.git, startup: false, activationEvent: '*'
+2025-02-20 13:47:29.685 [info] ExtensionService#_doActivateExtension vscode.github, startup: false, activationEvent: '*'
+2025-02-20 13:47:30.599 [info] ExtensionService#_doActivateExtension vscode.configuration-editing, startup: false, activationEvent: 'onLanguage:jsonc'
+2025-02-20 13:47:30.599 [info] ExtensionService#_doActivateExtension vscode.json-language-features, startup: false, activationEvent: 'onLanguage:jsonc'
+2025-02-20 13:47:30.599 [info] ExtensionService#_doActivateExtension vscode.typescript-language-features, startup: false, activationEvent: 'onLanguage:jsonc'
+2025-02-20 13:47:30.600 [info] ExtensionService#_doActivateExtension vscode.emmet, startup: false, activationEvent: 'onLanguage'
+2025-02-20 13:47:30.700 [info] Eager extensions activated
+2025-02-20 13:47:30.700 [info] ExtensionService#_doActivateExtension vscode.debug-auto-launch, startup: false, activationEvent: 'onStartupFinished'
+2025-02-20 13:47:30.701 [info] ExtensionService#_doActivateExtension vscode.merge-conflict, startup: false, activationEvent: 'onStartupFinished'
+2025-02-20 14:00:09.436 [info] ExtensionService#_doActivateExtension vscode.npm, startup: false, activationEvent: 'onTerminalQuickFixRequest:ms-vscode.npm-command'
+2025-02-20 14:58:10.344 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1161
+2025-02-20 14:58:10.517 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1161
+2025-02-20 14:58:10.717 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1161
+2025-02-20 14:58:11.006 [info] ExtensionService#_doActivateExtension vscode.extension-editing, startup: false, activationEvent: 'onLanguage:markdown'
+2025-02-20 14:58:11.006 [info] ExtensionService#_doActivateExtension vscode.markdown-language-features, startup: false, activationEvent: 'onLanguage:markdown'
+2025-02-20 14:58:11.948 [info] ExtensionService#_doActivateExtension vscode.markdown-math, startup: false, activationEvent: 'api', root cause: vscode.markdown-language-features
+2025-02-20 15:00:32.793 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1161
+2025-02-20 15:02:53.055 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1161
+2025-02-20 15:04:48.847 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1161
+2025-02-20 15:05:50.152 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1161
+2025-02-20 15:19:55.128 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1161
+2025-02-20 15:20:00.166 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1161
+2025-02-20 15:22:27.722 [info] ExtensionService#_doActivateExtension vscode.html-language-features, startup: false, activationEvent: 'onLanguage:html'
+2025-02-20 15:24:03.704 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1161
+2025-02-20 15:31:56.388 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1162
+2025-02-20 15:32:08.538 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1162
+2025-02-20 15:32:41.346 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1162
+2025-02-20 15:33:07.999 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1162
+2025-02-20 15:33:27.284 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1162
+2025-02-20 15:41:27.872 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1162
+2025-02-20 15:42:59.512 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1162
+2025-02-20 15:51:20.900 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1162
+2025-02-20 15:57:07.286 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1163
+2025-02-20 15:57:29.454 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1164
+2025-02-20 16:08:01.282 [warning] [Decorations] CAPPING events from decorations provider vscode.git 1163
+2025-02-20 19:56:07.398 [info] Extension host terminating: renderer disconnected for too long (1)
+2025-02-20 19:56:07.399 [info] Lock '/home/neoweb/.vscode-server/data/User/workspaceStorage/1e348afde0b44d0d2158dc5a2b784ea6/vscode.lock': Marking the lockfile as scheduled to be released in 6000 ms.
+2025-02-20 19:56:07.438 [error] Canceled: Canceled
+	at new XT (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:29:153701)
+	at Uy.U (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:29:158311)
+	at s.<computed>.n.charCodeAt.s.<computed> (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:29:155805)
+	at mw.g (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:32221)
+	at mw.executeCommand (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:31725)
+	at r.registerCommand.description (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:31055)
+	at mw.h (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:32741)
+	at mw.g (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:31818)
+	at mw.executeCommand (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:31725)
+	at Object.executeCommand (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:172:37254)
+	at Ah.L [as value] (/home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/git/dist/main.js:2:997602)
+	at D.B (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:27:2373)
+	at D.C (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:27:2443)
+	at D.fire (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:27:2660)
+	at Object.p [as dispose] (/home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/git/dist/main.js:2:1020242)
+	at /home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/git/dist/main.js:2:1026621
+	at Array.forEach (<anonymous>)
+	at b.dispose (/home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/git/dist/main.js:2:1026607)
+	at cv.<anonymous> (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:106:20084)
+	at cv.dispose (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:106:20180)
+	at cv.<anonymous> (/home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/git/dist/main.js:2:1000086)
+	at cv.dispose (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:106:20180)
+	at ui (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:25:699)
+	at file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:116:14992
+	at file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:25:1009
+	at Object.dispose (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:8:705)
+	at PW.eb (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:116:11919)
+	at file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:116:9874
+	at Array.map (<anonymous>)
+	at PW.$ (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:116:9862)
+	at PW.terminate (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:116:10105)
+	at wC.terminate (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:117:1434)
+	at ts (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:190:15080)
+	at M5.a (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:190:11932)
+	at M5.h (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:28:74449)
+	at listOnTimeout (node:internal/timers:581:17)
+	at process.processTimers (node:internal/timers:519:7) setContext undefined
+2025-02-20 19:56:07.438 [error] Canceled: Canceled
+	at new XT (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:29:153701)
+	at Uy.U (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:29:158311)
+	at s.<computed>.n.charCodeAt.s.<computed> (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:29:155805)
+	at mw.g (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:32221)
+	at mw.executeCommand (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:31725)
+	at r.registerCommand.description (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:31055)
+	at mw.h (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:32741)
+	at mw.g (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:31818)
+	at mw.executeCommand (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:31725)
+	at Object.executeCommand (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:172:37254)
+	at Ah.L [as value] (/home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/git/dist/main.js:2:997602)
+	at D.B (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:27:2373)
+	at D.C (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:27:2443)
+	at D.fire (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:27:2660)
+	at Object.p [as dispose] (/home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/git/dist/main.js:2:1020242)
+	at /home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/git/dist/main.js:2:1026621
+	at Array.forEach (<anonymous>)
+	at b.dispose (/home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/git/dist/main.js:2:1026607)
+	at cv.<anonymous> (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:106:20084)
+	at cv.dispose (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:106:20180)
+	at cv.<anonymous> (/home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/git/dist/main.js:2:1000086)
+	at cv.dispose (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:106:20180)
+	at ui (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:25:699)
+	at file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:116:14992
+	at file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:25:1009
+	at Object.dispose (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:8:705)
+	at PW.eb (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:116:11919)
+	at file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:116:9874
+	at Array.map (<anonymous>)
+	at PW.$ (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:116:9862)
+	at PW.terminate (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:116:10105)
+	at wC.terminate (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:117:1434)
+	at ts (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:190:15080)
+	at M5.a (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:190:11932)
+	at M5.h (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:28:74449)
+	at listOnTimeout (node:internal/timers:581:17)
+	at process.processTimers (node:internal/timers:519:7) setContext undefined
+2025-02-20 19:56:07.438 [error] Canceled: Canceled
+	at new XT (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:29:153701)
+	at Uy.U (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:29:158311)
+	at s.<computed>.n.charCodeAt.s.<computed> (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:29:155805)
+	at mw.g (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:32221)
+	at mw.executeCommand (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:31725)
+	at r.registerCommand.description (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:31055)
+	at mw.h (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:32741)
+	at mw.g (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:31818)
+	at mw.executeCommand (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:31725)
+	at Object.executeCommand (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:172:37254)
+	at set hasGitHubRepositories [as hasGitHubRepositories] (/home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/github/dist/extension.js:2:344164)
+	at /home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/github/dist/extension.js:2:345123
+	at Ah.value (/home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/git/dist/main.js:2:1117802)
+	at D.B (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:27:2373)
+	at D.C (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:27:2443)
+	at D.fire (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:27:2660)
+	at Object.p [as dispose] (/home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/git/dist/main.js:2:1020242)
+	at /home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/git/dist/main.js:2:1026621
+	at Array.forEach (<anonymous>)
+	at b.dispose (/home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/git/dist/main.js:2:1026607)
+	at cv.<anonymous> (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:106:20084)
+	at cv.dispose (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:106:20180)
+	at cv.<anonymous> (/home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/extensions/git/dist/main.js:2:1000086)
+	at cv.dispose (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:106:20180)
+	at ui (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:25:699)
+	at file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:116:14992
+	at file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:25:1009
+	at Object.dispose (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:8:705)
+	at PW.eb (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:116:11919)
+	at file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:116:9874
+	at Array.map (<anonymous>)
+	at PW.$ (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:116:9862)
+	at PW.terminate (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:116:10105)
+	at wC.terminate (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:117:1434)
+	at ts (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:190:15080)
+	at M5.a (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:190:11932)
+	at M5.h (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:28:74449)
+	at listOnTimeout (node:internal/timers:581:17)
+	at process.processTimers (node:internal/timers:519:7) setContext undefined
+2025-02-20 19:56:07.441 [info] Extension host with pid 104499 exiting with code 0

@@ -1,0 +1,22 @@
+Activating GitHub Actions extension...
+
+Cannot fetch github context
+Error: Cannot fetch github context
+	at Et (/home/neoweb/.vscode-server/extensions/github.vscode-github-actions-0.27.1/dist/extension-node.js:2:1449407)
+	at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+	at async /home/neoweb/.vscode-server/extensions/github.vscode-github-actions-0.27.1/dist/extension-node.js:2:1630855
+	at async ia (/home/neoweb/.vscode-server/extensions/github.vscode-github-actions-0.27.1/dist/extension-node.js:2:1629927)
+	at async aw.n (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:4447)
+	at async aw.m (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:4410)
+	at async aw.l (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:3866)
+
+Cannot fetch github context
+Error: Cannot fetch github context
+	at Et (/home/neoweb/.vscode-server/extensions/github.vscode-github-actions-0.27.1/dist/extension-node.js:2:1449407)
+	at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+	at async Dt (/home/neoweb/.vscode-server/extensions/github.vscode-github-actions-0.27.1/dist/extension-node.js:2:1449737)
+	at async ia (/home/neoweb/.vscode-server/extensions/github.vscode-github-actions-0.27.1/dist/extension-node.js:2:1641609)
+	at async aw.n (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:4447)
+	at async aw.m (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:4410)
+	at async aw.l (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/vs/workbench/api/node/extensionHostProcess.js:112:3866)
+...initialized

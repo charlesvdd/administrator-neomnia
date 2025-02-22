@@ -1,0 +1,18 @@
+2025-02-22 09:27:28.414 [info] 
+
+
+
+
+2025-02-22 09:27:28.423 [info] Extension host agent started.
+2025-02-22 09:27:28.874 [info] [<unknown>][900b3387][ExtensionHostConnection] New connection established.
+2025-02-22 09:27:28.874 [info] [<unknown>][ae9d8a4d][ManagementConnection] New connection established.
+2025-02-22 09:27:29.080 [info] [<unknown>][900b3387][ExtensionHostConnection] <137691> Launched Extension Host Process.
+2025-02-22 09:27:43.911 [error] [File Watcher] Unexpected error: Permission denied (EUNKNOWN) (path: /)
+2025-02-22 09:27:43.912 [error] [File Watcher (universal)] Permission denied
+2025-02-22 09:32:28.424 [info] New EH opened, aborting shutdown
+2025-02-22 09:54:21.987 [info] [<unknown>][900b3387][ExtensionHostConnection] <137691> Extension Host Process exited with code: null, signal: SIGKILL.
+2025-02-22 09:54:21.991 [info] Last EH closed, waiting before shutting down
+2025-02-22 09:54:44.567 [error] [<unknown>][900b3387][ExtensionHostConnection] Unknown reconnection token (seen before).
+2025-02-22 09:54:45.471 [info] [<unknown>][5f2f2b3d][ExtensionHostConnection] New connection established.
+2025-02-22 09:54:45.476 [info] [<unknown>][5f2f2b3d][ExtensionHostConnection] <138224> Launched Extension Host Process.
+2025-02-22 09:59:21.992 [info] New EH opened, aborting shutdown

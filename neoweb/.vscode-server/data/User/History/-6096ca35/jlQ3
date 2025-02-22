@@ -1,0 +1,1171 @@
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# On branch master
+# Your branch is up to date with 'origin/master'.
+#
+# Changes to be committed:
+#	modified:   .buildpacks
+#	modified:   .dockerignore
+#	new file:   .env.developpement
+#	modified:   .env.example
+#	new file:   .env.production
+#	modified:   .github/FUNDING.yml
+#	modified:   .github/renovate.json5
+#	modified:   .github/workflows/ci.yml
+#	modified:   .gitignore
+#	modified:   .irbrc
+#	modified:   .s2i/bin/run
+#	modified:   CHANGES.md
+#	modified:   Capfile
+#	modified:   Gemfile
+#	modified:   Gemfile.lock
+#	modified:   Guardfile
+#	modified:   LICENSE
+#	modified:   Procfile
+#	modified:   Procfile.CF
+#	modified:   README.md
+#	modified:   Rakefile
+#	modified:   VERSION
+#	modified:   app.json
+#	modified:   app/assets/config/manifest.js
+#	modified:   app/assets/images/odin.jpg
+#	modified:   app/assets/images/spinner-arrows.gif
+#	modified:   app/assets/javascripts/ace.js
+#	modified:   app/assets/javascripts/application.js
+#	modified:   app/assets/javascripts/components/core.js
+#	modified:   app/assets/javascripts/components/form_configurable.js
+#	modified:   app/assets/javascripts/components/json-editor.js.erb
+#	modified:   app/assets/javascripts/components/search.js
+#	modified:   app/assets/javascripts/components/utils.js
+#	modified:   app/assets/javascripts/components/worker-checker.js
+#	modified:   app/assets/javascripts/diagram.js
+#	modified:   app/assets/javascripts/graphing.js
+#	modified:   app/assets/javascripts/map_marker.js
+#	modified:   app/assets/javascripts/pages/agent-edit-page.js
+#	modified:   app/assets/javascripts/pages/agent-show-page.js
+#	modified:   app/assets/javascripts/pages/scenario-form-page.js
+#	modified:   app/assets/javascripts/pages/scenario-show-page.js
+#	modified:   app/assets/javascripts/pages/user-credential-page.js
+#	modified:   app/assets/javascripts/tweets.js
+#	modified:   app/assets/stylesheets/agent_views/peak_detector_agent/show.scss
+#	modified:   app/assets/stylesheets/application.scss.erb
+#	modified:   app/assets/stylesheets/diagram.scss
+#	modified:   app/assets/stylesheets/jobs.scss
+#	modified:   app/assets/stylesheets/scenarios.scss
+#	modified:   app/assets/stylesheets/tables.scss
+#	modified:   app/assets/stylesheets/typeahead.scss
+#	modified:   app/concerns/agent_controller_concern.rb
+#	modified:   app/concerns/assignable_types.rb
+#	modified:   app/concerns/dropbox_concern.rb
+#	modified:   app/concerns/dry_runnable.rb
+#	modified:   app/concerns/email_concern.rb
+#	modified:   app/concerns/event_headers_concern.rb
+#	modified:   app/concerns/evernote_concern.rb
+#	modified:   app/concerns/file_handling.rb
+#	modified:   app/concerns/form_configurable.rb
+#	modified:   app/concerns/google_oauth2_concern.rb
+#	modified:   app/concerns/has_guid.rb
+#	modified:   app/concerns/inheritance_tracking.rb
+#	modified:   app/concerns/json_serialized_field.rb
+#	modified:   app/concerns/liquid_droppable.rb
+#	modified:   app/concerns/liquid_interpolatable.rb
+#	modified:   app/concerns/long_runnable.rb
+#	modified:   app/concerns/markdown_class_attributes.rb
+#	modified:   app/concerns/oauthable.rb
+#	modified:   app/concerns/sortable_events.rb
+#	modified:   app/concerns/tumblr_concern.rb
+#	modified:   app/concerns/twitter_concern.rb
+#	modified:   app/concerns/web_request_concern.rb
+#	modified:   app/concerns/weibo_concern.rb
+#	modified:   app/concerns/working_helpers.rb
+#	modified:   app/controllers/admin/users_controller.rb
+#	modified:   app/controllers/agents/dry_runs_controller.rb
+#	modified:   app/controllers/agents_controller.rb
+#	modified:   app/controllers/application_controller.rb
+#	modified:   app/controllers/concerns/sortable_table.rb
+#	modified:   app/controllers/diagrams_controller.rb
+#	modified:   app/controllers/events_controller.rb
+#	modified:   app/controllers/home_controller.rb
+#	modified:   app/controllers/jobs_controller.rb
+#	modified:   app/controllers/logs_controller.rb
+#	modified:   app/controllers/omniauth_callbacks_controller.rb
+#	modified:   app/controllers/scenario_imports_controller.rb
+#	modified:   app/controllers/scenarios_controller.rb
+#	modified:   app/controllers/services_controller.rb
+#	modified:   app/controllers/user_credentials_controller.rb
+#	modified:   app/controllers/users/registrations_controller.rb
+#	modified:   app/controllers/web_requests_controller.rb
+#	modified:   app/controllers/worker_status_controller.rb
+#	modified:   app/helpers/agent_helper.rb
+#	modified:   app/helpers/application_helper.rb
+#	modified:   app/helpers/dot_helper.rb
+#	modified:   app/helpers/jobs_helper.rb
+#	modified:   app/helpers/logs_helper.rb
+#	modified:   app/helpers/markdown_helper.rb
+#	modified:   app/helpers/scenario_helper.rb
+#	modified:   app/helpers/users_helper.rb
+#	modified:   app/importers/default_scenario_importer.rb
+#	modified:   app/importers/scenario_import.rb
+#	modified:   app/jobs/agent_check_job.rb
+#	modified:   app/jobs/agent_cleanup_expired_job.rb
+#	modified:   app/jobs/agent_propagate_job.rb
+#	modified:   app/jobs/agent_receive_job.rb
+#	modified:   app/jobs/agent_reemit_job.rb
+#	modified:   app/jobs/agent_run_schedule_job.rb
+#	modified:   app/mailers/system_mailer.rb
+#	modified:   app/models/agent.rb
+#	modified:   app/models/agent_log.rb
+#	modified:   app/models/agents/adioso_agent.rb
+#	modified:   app/models/agents/aftership_agent.rb
+#	modified:   app/models/agents/attribute_difference_agent.rb
+#	modified:   app/models/agents/change_detector_agent.rb
+#	modified:   app/models/agents/commander_agent.rb
+#	modified:   app/models/agents/csv_agent.rb
+#	modified:   app/models/agents/data_output_agent.rb
+#	modified:   app/models/agents/de_duplication_agent.rb
+#	modified:   app/models/agents/delay_agent.rb
+#	modified:   app/models/agents/digest_agent.rb
+#	modified:   app/models/agents/dropbox_file_url_agent.rb
+#	modified:   app/models/agents/dropbox_watch_agent.rb
+#	modified:   app/models/agents/email_agent.rb
+#	modified:   app/models/agents/email_digest_agent.rb
+#	modified:   app/models/agents/event_formatting_agent.rb
+#	modified:   app/models/agents/evernote_agent.rb
+#	modified:   app/models/agents/ftpsite_agent.rb
+#	modified:   app/models/agents/gap_detector_agent.rb
+#	modified:   app/models/agents/google_calendar_publish_agent.rb
+#	modified:   app/models/agents/google_translation_agent.rb
+#	modified:   app/models/agents/hipchat_agent.rb
+#	modified:   app/models/agents/http_status_agent.rb
+#	modified:   app/models/agents/human_task_agent.rb
+#	modified:   app/models/agents/imap_folder_agent.rb
+#	modified:   app/models/agents/jabber_agent.rb
+#	modified:   app/models/agents/java_script_agent.rb
+#	modified:   app/models/agents/jq_agent.rb
+#	modified:   app/models/agents/json_parse_agent.rb
+#	modified:   app/models/agents/key_value_store_agent.rb
+#	modified:   app/models/agents/liquid_output_agent.rb
+#	modified:   app/models/agents/local_file_agent.rb
+#	modified:   app/models/agents/manual_event_agent.rb
+#	modified:   app/models/agents/mqtt_agent.rb
+#	modified:   app/models/agents/pdf_info_agent.rb
+#	modified:   app/models/agents/peak_detector_agent.rb
+#	modified:   app/models/agents/phantom_js_cloud_agent.rb
+#	modified:   app/models/agents/post_agent.rb
+#	modified:   app/models/agents/public_transport_agent.rb
+#	modified:   app/models/agents/pushbullet_agent.rb
+#	modified:   app/models/agents/pushover_agent.rb
+#	modified:   app/models/agents/read_file_agent.rb
+#	modified:   app/models/agents/rss_agent.rb
+#	modified:   app/models/agents/s3_agent.rb
+#	modified:   app/models/agents/scheduler_agent.rb
+#	modified:   app/models/agents/sentiment_agent.rb
+#	modified:   app/models/agents/shell_command_agent.rb
+#	modified:   app/models/agents/slack_agent.rb
+#	modified:   app/models/agents/stubhub_agent.rb
+#	modified:   app/models/agents/telegram_agent.rb
+#	modified:   app/models/agents/trigger_agent.rb
+#	modified:   app/models/agents/tumblr_likes_agent.rb
+#	modified:   app/models/agents/tumblr_publish_agent.rb
+#	modified:   app/models/agents/twilio_agent.rb
+#	modified:   app/models/agents/twilio_receive_text_agent.rb
+#	modified:   app/models/agents/twitter_action_agent.rb
+#	modified:   app/models/agents/twitter_favorites.rb
+#	modified:   app/models/agents/twitter_publish_agent.rb
+#	modified:   app/models/agents/twitter_search_agent.rb
+#	modified:   app/models/agents/twitter_stream_agent.rb
+#	modified:   app/models/agents/twitter_user_agent.rb
+#	modified:   app/models/agents/user_location_agent.rb
+#	modified:   app/models/agents/weather_agent.rb
+#	modified:   app/models/agents/webhook_agent.rb
+#	modified:   app/models/agents/website_agent.rb
+#	modified:   app/models/agents/weibo_publish_agent.rb
+#	modified:   app/models/agents/weibo_user_agent.rb
+#	modified:   app/models/agents/witai_agent.rb
+#	modified:   app/models/control_link.rb
+#	modified:   app/models/event.rb
+#	modified:   app/models/link.rb
+#	modified:   app/models/scenario.rb
+#	modified:   app/models/scenario_membership.rb
+#	modified:   app/models/service.rb
+#	modified:   app/models/user.rb
+#	modified:   app/models/user_credential.rb
+#	modified:   app/presenters/form_configurable_agent_presenter.rb
+#	modified:   app/validators/owned_by_validator.rb
+#	modified:   app/views/admin/users/_form.html.erb
+#	modified:   app/views/admin/users/edit.html.erb
+#	modified:   app/views/admin/users/index.html.erb
+#	modified:   app/views/admin/users/new.html.erb
+#	modified:   app/views/agents/_action_menu.html.erb
+#	modified:   app/views/agents/_form.html.erb
+#	modified:   app/views/agents/_mini_action_menu.html.erb
+#	modified:   app/views/agents/_oauth_dropdown.html.erb
+#	modified:   app/views/agents/_options.erb
+#	modified:   app/views/agents/_table.html.erb
+#	modified:   app/views/agents/agent_views/data_output_agent/_show.html.erb
+#	modified:   app/views/agents/agent_views/liquid_output_agent/_show.html.erb
+#	modified:   app/views/agents/agent_views/manual_event_agent/_show.html.erb
+#	modified:   app/views/agents/agent_views/peak_detector_agent/_show.html.erb
+#	modified:   app/views/agents/agent_views/twitter_stream_agent/_show.html.erb
+#	modified:   app/views/agents/agent_views/user_location_agent/_show.html.erb
+#	modified:   app/views/agents/agent_views/webhook_agent/_show.html.erb
+#	modified:   app/views/agents/dry_runs/create.html.erb
+#	modified:   app/views/agents/dry_runs/index.html.erb
+#	modified:   app/views/agents/edit.html.erb
+#	modified:   app/views/agents/index.html.erb
+#	modified:   app/views/agents/new.html.erb
+#	modified:   app/views/agents/show.html.erb
+#	modified:   app/views/application/_upgrade_warning.html.erb
+#	modified:   app/views/application/undefined_agents.html.erb
+#	modified:   app/views/devise/confirmations/new.html.erb
+#	modified:   app/views/devise/mailer/confirmation_instructions.html.erb
+#	modified:   app/views/devise/mailer/reset_password_instructions.html.erb
+#	modified:   app/views/devise/mailer/unlock_instructions.html.erb
+#	modified:   app/views/devise/passwords/edit.html.erb
+#	modified:   app/views/devise/passwords/new.html.erb
+#	modified:   app/views/devise/registrations/_common_registration_fields.html.erb
+#	modified:   app/views/devise/registrations/edit.html.erb
+#	modified:   app/views/devise/registrations/new.html.erb
+#	modified:   app/views/devise/sessions/new.html.erb
+#	modified:   app/views/devise/shared/_error_messages.html.erb
+#	modified:   app/views/devise/shared/_links.html.erb
+#	modified:   app/views/devise/unlocks/new.html.erb
+#	modified:   app/views/diagrams/show.html.erb
+#	modified:   app/views/events/index.html.erb
+#	modified:   app/views/events/show.html.erb
+#	modified:   app/views/home/_signed_in_index.html.erb
+#	modified:   app/views/home/_signed_out_index.html.erb
+#	modified:   app/views/home/about.html.erb
+#	modified:   app/views/home/index.html.erb
+#	modified:   app/views/jobs/index.html.erb
+#	modified:   app/views/layouts/_messages.html.erb
+#	modified:   app/views/layouts/_navigation.html.erb
+#	modified:   app/views/layouts/application.html.erb
+#	modified:   app/views/logs/index.html.erb
+#	modified:   app/views/scenario_imports/_step_one.html.erb
+#	modified:   app/views/scenario_imports/_step_two.html.erb
+#	modified:   app/views/scenario_imports/new.html.erb
+#	modified:   app/views/scenarios/_confirm_deletion_modal.html.erb
+#	modified:   app/views/scenarios/_enable_agents_modal.html.erb
+#	modified:   app/views/scenarios/_form.html.erb
+#	modified:   app/views/scenarios/edit.html.erb
+#	modified:   app/views/scenarios/index.html.erb
+#	modified:   app/views/scenarios/new.html.erb
+#	modified:   app/views/scenarios/share.html.erb
+#	modified:   app/views/scenarios/show.html.erb
+#	modified:   app/views/services/index.html.erb
+#	modified:   app/views/system_mailer/send_message.html.erb
+#	modified:   app/views/system_mailer/send_message.text.erb
+#	modified:   app/views/user_credentials/_form.html.erb
+#	modified:   app/views/user_credentials/edit.html.erb
+#	modified:   app/views/user_credentials/index.html.erb
+#	modified:   app/views/user_credentials/new.html.erb
+#	modified:   config.ru
+#	modified:   config/application.rb
+#	modified:   config/boot.rb
+#	modified:   config/database.yml
+#	modified:   config/deploy.rb
+#	modified:   config/deploy/production.rb
+#	modified:   config/environment.rb
+#	modified:   config/environments/development.rb
+#	modified:   config/environments/production.rb
+#	modified:   config/environments/test.rb
+#	modified:   config/icons.yml
+#	modified:   config/initializers/action_mailer.rb
+#	modified:   config/initializers/application_controller_renderer.rb
+#	modified:   config/initializers/assets.rb
+#	modified:   config/initializers/aws.rb
+#	modified:   config/initializers/backtrace_silencers.rb
+#	modified:   config/initializers/content_security_policy.rb
+#	modified:   config/initializers/cookies_serializer.rb
+#	modified:   config/initializers/delayed_job.rb
+#	modified:   config/initializers/devise.rb
+#	modified:   config/initializers/faraday_patch.rb
+#	modified:   config/initializers/filter_parameter_logging.rb
+#	modified:   config/initializers/inflections.rb
+#	modified:   config/initializers/liquid.rb
+#	modified:   config/initializers/mail_encoding_patch.rb
+#	modified:   config/initializers/mime_types.rb
+#	modified:   config/initializers/multi_xml_patch.rb
+#	modified:   config/initializers/mysqlpls.rb
+#	modified:   config/initializers/permissions_policy.rb
+#	modified:   config/initializers/requires.rb
+#	modified:   config/initializers/secret_token.rb
+#	modified:   config/initializers/session_store.rb
+#	modified:   config/initializers/silence_worker_status_logger.rb
+#	modified:   config/initializers/timezone.rb
+#	modified:   config/initializers/wrap_parameters.rb
+#	modified:   config/locales/devise.en.yml
+#	modified:   config/locales/en.yml
+#	modified:   config/routes.rb
+#	modified:   config/spring.rb
+#	modified:   config/unicorn.rb.example
+#	modified:   data/anew.csv
+#	modified:   data/default_scenario.json
+#	modified:   db/migrate/20120728210244_devise_create_users.rb
+#	modified:   db/migrate/20120728215449_add_admin_to_users.rb
+#	modified:   db/migrate/20120919061122_enable_lockable_strategy_for_devise.rb
+#	modified:   db/migrate/20120919063304_add_username_to_users.rb
+#	modified:   db/migrate/20121216025930_create_events.rb
+#	modified:   db/migrate/20121220053905_create_agents.rb
+#	modified:   db/migrate/20121222074732_create_links.rb
+#	modified:   db/migrate/20121223203701_create_delayed_jobs.rb
+#	modified:   db/migrate/20121231170705_add_memory_to_agents.rb
+#	modified:   db/migrate/20130107050049_add_invitation_code_to_users.rb
+#	modified:   db/migrate/20130124050117_add_indexes.rb
+#	modified:   db/migrate/20130126080736_change_memory_to_long_text.rb
+#	modified:   db/migrate/20130509053743_add_last_webhook_at_to_agents.rb
+#	modified:   db/migrate/20130819160603_create_agent_logs.rb
+#	modified:   db/migrate/20131105063248_add_expires_at_to_events.rb
+#	modified:   db/migrate/20131222211558_add_keep_events_for_to_agents.rb
+#	modified:   db/migrate/20131223032112_switch_to_json_serialization.rb
+#	modified:   db/migrate/20131227000021_add_cached_dates_to_agent.rb
+#	modified:   db/migrate/20140121075418_create_user_credentials.rb
+#	modified:   db/migrate/20140127164931_change_handler_to_medium_text.rb
+#	modified:   db/migrate/20140210062747_add_mode_to_user_credentials.rb
+#	modified:   db/migrate/20140213053001_add_event_id_at_creation_to_links.rb
+#	modified:   db/migrate/20140216201250_add_propagate_immediately_to_agent.rb
+#	modified:   db/migrate/20140403043556_add_disabled_to_agent.rb
+#	modified:   db/migrate/20140408150825_rename_webhook_to_web_request.rb
+#	modified:   db/migrate/20140505201716_migrate_agents_to_liquid_templating.rb
+#	modified:   db/migrate/20140509170420_create_scenarios.rb
+#	modified:   db/migrate/20140509170443_create_scenario_memberships.rb
+#	modified:   db/migrate/20140515211100_create_services.rb
+#	modified:   db/migrate/20140525150040_add_service_id_to_agents.rb
+#	modified:   db/migrate/20140525150140_migrate_agents_to_service_authentication.rb
+#	modified:   db/migrate/20140531232016_add_fields_to_scenarios.rb
+#	modified:   db/migrate/20140602014917_add_indices_to_scenarios.rb
+#	modified:   db/migrate/20140603104211_rename_digest_email_to_email_digest.rb
+#	modified:   db/migrate/20140605032822_add_guid_to_agents.rb
+#	modified:   db/migrate/20140722131220_convert_efa_skip_agent.rb
+#	modified:   db/migrate/20140723110551_adopt_xpath_in_website_agent.rb
+#	modified:   db/migrate/20140730005210_convert_efa_skip_created_at.rb
+#	modified:   db/migrate/20140809211540_remove_service_index_on_user_id.rb
+#	modified:   db/migrate/20140811200922_add_uid_column_to_services.rb
+#	modified:   db/migrate/20140813110107_set_charset_for_mysql.rb
+#	modified:   db/migrate/20140820003139_add_tag_color_to_scenarios.rb
+#	modified:   db/migrate/20140901143732_add_control_links.rb
+#	modified:   db/migrate/20140906030139_set_events_count_default.rb
+#	modified:   db/migrate/20150219213604_add_type_option_attribute_to_pushbullet_agents.rb
+#	modified:   db/migrate/20150507153436_update_keep_events_for_to_be_in_seconds.rb
+#	modified:   db/migrate/20150808115436_remove_requirement_from_users_invitation_code.rb
+#	modified:   db/migrate/20160108221620_website_agent_does_not_use_event_url.rb
+#	modified:   db/migrate/20160224120316_add_mode_option_to_ftpsite_agents.rb
+#	modified:   db/migrate/20160301113717_add_confirmable_attributes_to_users.rb
+#	modified:   db/migrate/20160302095413_add_deactivated_at_to_users.rb
+#	modified:   db/migrate/20160307084729_add_deactivated_to_agents.rb
+#	modified:   db/migrate/20160307085545_warn_about_duplicate_usernames.rb
+#	modified:   db/migrate/20160405072512_post_agent_set_event_header_style.rb
+#	modified:   db/migrate/20160419150930_add_icon_to_scenarios.rb
+#	modified:   db/migrate/20160423163416_add_xml_namespace_option_to_data_output_agents.rb
+#	modified:   db/migrate/20160607055850_change_events_order_to_events_list_order.rb
+#	modified:   db/migrate/20160807000122_remove_queue_from_email_digest_agent_memory.rb
+#	modified:   db/migrate/20160823151303_set_emit_error_event_for_twitter_action_agents.rb
+#	modified:   db/migrate/20161004120214_update_pushover_agent_options.rb
+#	modified:   db/migrate/20161007030910_reset_data_output_agents.rb
+#	modified:   db/migrate/20161124061256_convert_website_agent_template_for_merge.rb
+#	modified:   db/migrate/20161124065838_add_templates_to_resolve_url.rb
+#	modified:   db/migrate/20170419073748_set_rss_content_type.rb
+#	modified:   db/migrate/20170731191002_migrate_growl_agent_to_liquid.rb
+#	modified:   db/migrate/20230622140301_delete_empty_keys_and_values_from_key_value_store_agents.rb
+#	modified:   db/migrate/20241027081918_website_agent_rename_array_to_single_array.rb
+#	modified:   db/seeds.rb
+#	modified:   db/seeds/seeder.rb
+#	modified:   deployment/heroku/Procfile.heroku
+#	modified:   deployment/heroku/unicorn.rb
+#	modified:   deployment/logrotate/huginn
+#	modified:   deployment/nginx/huginn
+#	modified:   deployment/nginx/huginn-ssl
+#	modified:   doc/README.md
+#	modified:   doc/deployment/backup/example_backup.rb
+#	modified:   doc/deployment/capistrano/deploy.rb
+#	modified:   doc/deployment/nginx/production.conf
+#	modified:   doc/deployment/unicorn/production.rb
+#	modified:   doc/docker/install.md
+#	modified:   doc/heroku/install.md
+#	modified:   doc/heroku/update.md
+#	modified:   doc/imgs/diagram.png
+#	modified:   doc/imgs/my-locations.png
+#	modified:   doc/imgs/new-agent.png
+#	modified:   doc/imgs/peaks.png
+#	modified:   doc/imgs/the-name.png
+#	modified:   doc/imgs/your-agents.png
+#	modified:   doc/manual/README.md
+#	modified:   doc/manual/capistrano.md
+#	modified:   doc/manual/installation.md
+#	modified:   doc/manual/requirements.md
+#	modified:   doc/manual/update.md
+#	modified:   docker/README.md
+#	modified:   docker/multi-process/Dockerfile
+#	modified:   docker/multi-process/Makefile
+#	modified:   docker/multi-process/README.md
+#	modified:   docker/multi-process/develop.yml
+#	modified:   docker/multi-process/scripts/bootstrap.conf
+#	modified:   docker/multi-process/scripts/foreman.conf
+#	modified:   docker/multi-process/scripts/mysqld.conf
+#	modified:   docker/multi-process/scripts/supervisord.conf
+#	modified:   docker/mysql.env
+#	modified:   docker/postgres.env
+#	modified:   docker/secrets.env
+#	modified:   docker/single-process/Dockerfile
+#	modified:   docker/single-process/README.md
+#	modified:   docker/single-process/develop.yml
+#	modified:   docker/single-process/docker-compose.yml
+#	modified:   docker/single-process/postgresql.yml
+#	modified:   docker/test/Dockerfile
+#	modified:   docker/test/README.md
+#	modified:   docker/test/develop.yml
+#	modified:   lib/agent_runner.rb
+#	modified:   lib/agents_exporter.rb
+#	modified:   lib/capistrano/sync.rb
+#	modified:   lib/delayed_job_worker.rb
+#	modified:   lib/feedjira_extension.rb
+#	modified:   lib/gemfile_helper.rb
+#	modified:   lib/google_calendar.rb
+#	modified:   lib/huginn_scheduler.rb
+#	modified:   lib/json_with_indifferent_access.rb
+#	modified:   lib/liquid_migrator.rb
+#	modified:   lib/location.rb
+#	modified:   lib/rdbms_functions.rb
+#	modified:   lib/tasks/database_test.rake
+#	modified:   lib/tasks/icon.rake
+#	modified:   lib/tasks/production.rake
+#	modified:   lib/tasks/rspec.rake
+#	modified:   lib/time_tracker.rb
+#	modified:   lib/utils.rb
+#	modified:   lib/utils/html_transformer.rb
+#	modified:   manifest.yml.sample
+#	modified:   media/huginn-icon-16.png
+#	modified:   media/huginn-icon-64.png
+#	modified:   media/huginn-icon-square.svg
+#	modified:   media/huginn-icon.svg
+#	modified:   media/huginn-logo.png
+#	modified:   media/huginn-logo.svg
+#	modified:   media/iOS/Icon-40.png
+#	modified:   media/iOS/Icon-40@2x.png
+#	modified:   media/iOS/Icon-60@2x.png
+#	modified:   media/iOS/Icon-60@3x.png
+#	modified:   media/iOS/Icon-76.png
+#	modified:   media/iOS/Icon-76@2x.png
+#	modified:   media/iOS/Icon-Small.png
+#	modified:   media/iOS/Icon-Small@2x.png
+#	modified:   media/iOS/Icon-Small@3x.png
+#	modified:   media/iOS/iTunesArtwork.png
+#	modified:   media/iOS/iTunesArtwork@2x.png
+#	modified:   openshift/templates/huginn-mysql.json
+#	modified:   openshift/templates/huginn-postgresql.json
+#	modified:   public/404.html
+#	modified:   public/422.html
+#	modified:   public/500.html
+#	modified:   public/android-chrome-144x144.png
+#	modified:   public/android-chrome-192x192.png
+#	modified:   public/android-chrome-36x36.png
+#	modified:   public/android-chrome-48x48.png
+#	modified:   public/android-chrome-72x72.png
+#	modified:   public/android-chrome-96x96.png
+#	modified:   public/apple-touch-icon-114x114.png
+#	modified:   public/apple-touch-icon-120x120.png
+#	modified:   public/apple-touch-icon-144x144.png
+#	modified:   public/apple-touch-icon-152x152.png
+#	modified:   public/apple-touch-icon-180x180.png
+#	modified:   public/apple-touch-icon-57x57.png
+#	modified:   public/apple-touch-icon-60x60.png
+#	modified:   public/apple-touch-icon-72x72.png
+#	modified:   public/apple-touch-icon-76x76.png
+#	new file:   public/assets/.sprockets-manifest-b4565d8fcd5a45e0f4828c143e2e8064.json
+#	new file:   public/assets/ace-000015bf5181291df3c6b02803e5ce305efe77a26d1160338f954a9c4bb6970a.js
+#	new file:   public/assets/ace-000015bf5181291df3c6b02803e5ce305efe77a26d1160338f954a9c4bb6970a.js.gz
+#	new file:   public/assets/ace/mode-abap-95b862c5a61cd9f3d58022c81d7c960e057ad7233729b93ff06dde1a73d996ee.js
+#	new file:   public/assets/ace/mode-abap-95b862c5a61cd9f3d58022c81d7c960e057ad7233729b93ff06dde1a73d996ee.js.gz
+#	new file:   public/assets/ace/mode-abc-616c44a1e3cdc06a0272e2ca8b4a2f6559c802e4b16caa6d24a720a25f6ca467.js
+#	new file:   public/assets/ace/mode-abc-616c44a1e3cdc06a0272e2ca8b4a2f6559c802e4b16caa6d24a720a25f6ca467.js.gz
+#	new file:   public/assets/ace/mode-actionscript-ddeeff80e3a41e2a04a0d7c11a6fb8bea6ce16b2c3d4817a593f71929c32753a.js
+#	new file:   public/assets/ace/mode-actionscript-ddeeff80e3a41e2a04a0d7c11a6fb8bea6ce16b2c3d4817a593f71929c32753a.js.gz
+#	new file:   public/assets/ace/mode-ada-069ec0a06c0f39a3e463bc973ef84647ee003dc1373fea30be83081eef107322.js
+#	new file:   public/assets/ace/mode-ada-069ec0a06c0f39a3e463bc973ef84647ee003dc1373fea30be83081eef107322.js.gz
+#	new file:   public/assets/ace/mode-alda-b9fccf66cfea9d020871b0b157fd88cdff207addc48b71e0821eb4604aea76e3.js
+#	new file:   public/assets/ace/mode-alda-b9fccf66cfea9d020871b0b157fd88cdff207addc48b71e0821eb4604aea76e3.js.gz
+#	new file:   public/assets/ace/mode-apache_conf-18156e5b62107a0a03532235ebc54a7420eb5237e305080f9d43c6dd0ac68686.js
+#	new file:   public/assets/ace/mode-apache_conf-18156e5b62107a0a03532235ebc54a7420eb5237e305080f9d43c6dd0ac68686.js.gz
+#	new file:   public/assets/ace/mode-apex-60d45732eaf2ecf5a83a9b93b1cb7f9583f6bc8670199b206d48a5da4672fb93.js
+#	new file:   public/assets/ace/mode-apex-60d45732eaf2ecf5a83a9b93b1cb7f9583f6bc8670199b206d48a5da4672fb93.js.gz
+#	new file:   public/assets/ace/mode-applescript-afa3a268a9c0f91c3822bbf0af74d7033b8286b3d8ebb7ca77cae225e2d2bb71.js
+#	new file:   public/assets/ace/mode-applescript-afa3a268a9c0f91c3822bbf0af74d7033b8286b3d8ebb7ca77cae225e2d2bb71.js.gz
+#	new file:   public/assets/ace/mode-aql-9956ad05e4a41ef32254aeb9bd0170b8d7586248cdf1d19f8ed69d432a1083f7.js
+#	new file:   public/assets/ace/mode-aql-9956ad05e4a41ef32254aeb9bd0170b8d7586248cdf1d19f8ed69d432a1083f7.js.gz
+#	new file:   public/assets/ace/mode-asciidoc-f273163c08097501ce485f1e47a25754464629ad09d79c8d765bb57b13f0e8fc.js
+#	new file:   public/assets/ace/mode-asciidoc-f273163c08097501ce485f1e47a25754464629ad09d79c8d765bb57b13f0e8fc.js.gz
+#	new file:   public/assets/ace/mode-asl-de91da0ad5640cec144e7d9893e9a65a633d08f4c776ea1a9335d203b73ee9cb.js
+#	new file:   public/assets/ace/mode-asl-de91da0ad5640cec144e7d9893e9a65a633d08f4c776ea1a9335d203b73ee9cb.js.gz
+#	new file:   public/assets/ace/mode-assembly_x86-c85ef43a7c28de8a180f35042ea46c2a6cae3888c7f5613ca781ca8a8afbd093.js
+#	new file:   public/assets/ace/mode-assembly_x86-c85ef43a7c28de8a180f35042ea46c2a6cae3888c7f5613ca781ca8a8afbd093.js.gz
+#	new file:   public/assets/ace/mode-autohotkey-281d952089c1d37fa18d55400f8f96572af415174a0908002fd8c8c207f2babf.js
+#	new file:   public/assets/ace/mode-autohotkey-281d952089c1d37fa18d55400f8f96572af415174a0908002fd8c8c207f2babf.js.gz
+#	new file:   public/assets/ace/mode-batchfile-7ee75fb14588922b994a7138e05b7c55714023e9aafa1d6d98574c3618274687.js
+#	new file:   public/assets/ace/mode-batchfile-7ee75fb14588922b994a7138e05b7c55714023e9aafa1d6d98574c3618274687.js.gz
+#	new file:   public/assets/ace/mode-c9search-6773da049b636ab3e5f74b2e4c26e1a3b7be7eeab4b576b58d92b3ef33bc2a65.js
+#	new file:   public/assets/ace/mode-c9search-6773da049b636ab3e5f74b2e4c26e1a3b7be7eeab4b576b58d92b3ef33bc2a65.js.gz
+#	new file:   public/assets/ace/mode-c_cpp-be187b606f8fc89ca6c6aeaff0a1f0f880a85cebef01c269356b5ab1d2ce3d4b.js
+#	new file:   public/assets/ace/mode-c_cpp-be187b606f8fc89ca6c6aeaff0a1f0f880a85cebef01c269356b5ab1d2ce3d4b.js.gz
+#	new file:   public/assets/ace/mode-cirru-ea30be5c90bf27f811326a3ba79d55ad2e7daf6e37ee7c9e16a0c05c111ef770.js
+#	new file:   public/assets/ace/mode-cirru-ea30be5c90bf27f811326a3ba79d55ad2e7daf6e37ee7c9e16a0c05c111ef770.js.gz
+#	new file:   public/assets/ace/mode-clojure-0e60f9c14a43ae1281e88e913f75d077d47595cc4d18abc8e6cc512518c0aa8d.js
+#	new file:   public/assets/ace/mode-clojure-0e60f9c14a43ae1281e88e913f75d077d47595cc4d18abc8e6cc512518c0aa8d.js.gz
+#	new file:   public/assets/ace/mode-cobol-767918d6431bc090f1296ae55ff723eef6e5c9512b9c6a2e5e01acf51e75a137.js
+#	new file:   public/assets/ace/mode-cobol-767918d6431bc090f1296ae55ff723eef6e5c9512b9c6a2e5e01acf51e75a137.js.gz
+#	new file:   public/assets/ace/mode-coffee-96dc7fa11bc60f1c840d86f107c9d68d1cca67e3c6c0b34df163c8cb1e56f9bc.js
+#	new file:   public/assets/ace/mode-coffee-96dc7fa11bc60f1c840d86f107c9d68d1cca67e3c6c0b34df163c8cb1e56f9bc.js.gz
+#	new file:   public/assets/ace/mode-coldfusion-1e6ec4a185e1d51362c2117aa83dfa21fcc82c54a1f8cbcbf0e87b2eb652a773.js
+#	new file:   public/assets/ace/mode-coldfusion-1e6ec4a185e1d51362c2117aa83dfa21fcc82c54a1f8cbcbf0e87b2eb652a773.js.gz
+#	new file:   public/assets/ace/mode-crystal-c4d9cbeb5768abd85da5841f4c3a040b48179499c14428aab2072400d0bcf1b6.js
+#	new file:   public/assets/ace/mode-crystal-c4d9cbeb5768abd85da5841f4c3a040b48179499c14428aab2072400d0bcf1b6.js.gz
+#	new file:   public/assets/ace/mode-csharp-dbb9aba96b0af2e9845175748f4f4aac25f40291114f5ea00b1b055fcae62273.js
+#	new file:   public/assets/ace/mode-csharp-dbb9aba96b0af2e9845175748f4f4aac25f40291114f5ea00b1b055fcae62273.js.gz
+#	new file:   public/assets/ace/mode-csound_document-6242a5f0a8e942c5605b0a7e6a53a9f2bd6d3f6bb39ca9947b14b0e67b99c278.js
+#	new file:   public/assets/ace/mode-csound_document-6242a5f0a8e942c5605b0a7e6a53a9f2bd6d3f6bb39ca9947b14b0e67b99c278.js.gz
+#	new file:   public/assets/ace/mode-csound_orchestra-cebabdfc6a45d0b8fe86c3de1b9c29ed1d5f783a77d3c242725db74527904320.js
+#	new file:   public/assets/ace/mode-csound_orchestra-cebabdfc6a45d0b8fe86c3de1b9c29ed1d5f783a77d3c242725db74527904320.js.gz
+#	new file:   public/assets/ace/mode-csound_score-a6996cb30f96a16840d6cf585de1d76ab3cd603a37d6a26a5d12ee3a31cb95e9.js
+#	new file:   public/assets/ace/mode-csound_score-a6996cb30f96a16840d6cf585de1d76ab3cd603a37d6a26a5d12ee3a31cb95e9.js.gz
+#	new file:   public/assets/ace/mode-csp-086a8eeba1bf146421f6f916ab3c47c96fc1a0554f21f49cc33c61da55ec6834.js
+#	new file:   public/assets/ace/mode-csp-086a8eeba1bf146421f6f916ab3c47c96fc1a0554f21f49cc33c61da55ec6834.js.gz
+#	new file:   public/assets/ace/mode-css-3ce371e5d8a57e8cbbad3af83bae6f057b0ae355e7dd761f3aa2022b96ba5081.js
+#	new file:   public/assets/ace/mode-css-3ce371e5d8a57e8cbbad3af83bae6f057b0ae355e7dd761f3aa2022b96ba5081.js.gz
+#	new file:   public/assets/ace/mode-curly-092f7345249d4855e363642f1b4e639e2a8ef20bf697a38906e62574d16b002a.js
+#	new file:   public/assets/ace/mode-curly-092f7345249d4855e363642f1b4e639e2a8ef20bf697a38906e62574d16b002a.js.gz
+#	new file:   public/assets/ace/mode-d-20ed3364773d0c24ab9f7eeecb4bb8fad6850a39c99032417820e81c2466bcd1.js
+#	new file:   public/assets/ace/mode-d-20ed3364773d0c24ab9f7eeecb4bb8fad6850a39c99032417820e81c2466bcd1.js.gz
+#	new file:   public/assets/ace/mode-dart-235021ae0ca711ca3247f7668dbc46c7bfc25c19507ab25b56b613d771b83e61.js
+#	new file:   public/assets/ace/mode-dart-235021ae0ca711ca3247f7668dbc46c7bfc25c19507ab25b56b613d771b83e61.js.gz
+#	new file:   public/assets/ace/mode-diff-c5ee53804ec6c53d2ab477e7cb7b6a29b645706235629bfd2e6a8473ef18e295.js
+#	new file:   public/assets/ace/mode-diff-c5ee53804ec6c53d2ab477e7cb7b6a29b645706235629bfd2e6a8473ef18e295.js.gz
+#	new file:   public/assets/ace/mode-django-fd7e0b4f667ab8214a95eca70e778364ebba527774c20bffe10abf7c8d16942c.js
+#	new file:   public/assets/ace/mode-django-fd7e0b4f667ab8214a95eca70e778364ebba527774c20bffe10abf7c8d16942c.js.gz
+#	new file:   public/assets/ace/mode-dockerfile-74727ce85be5ee776dc50b37adbe0b0b2fed5801ed6dedb81078010d3c3b0574.js
+#	new file:   public/assets/ace/mode-dockerfile-74727ce85be5ee776dc50b37adbe0b0b2fed5801ed6dedb81078010d3c3b0574.js.gz
+#	new file:   public/assets/ace/mode-dot-b7c0bfd5e47bf8d63fdeedcb18d32f4b8146f8cc534684162663ac938906b832.js
+#	new file:   public/assets/ace/mode-dot-b7c0bfd5e47bf8d63fdeedcb18d32f4b8146f8cc534684162663ac938906b832.js.gz
+#	new file:   public/assets/ace/mode-drools-738ee061e9241bef99252f15060da23cad8f0b7e51826d05eeb02d5fffeb617d.js
+#	new file:   public/assets/ace/mode-drools-738ee061e9241bef99252f15060da23cad8f0b7e51826d05eeb02d5fffeb617d.js.gz
+#	new file:   public/assets/ace/mode-edifact-e1bb3395dfcd88d4b07f28b8ae17053c32772d6602681b99a0419e7d8edabe3a.js
+#	new file:   public/assets/ace/mode-edifact-e1bb3395dfcd88d4b07f28b8ae17053c32772d6602681b99a0419e7d8edabe3a.js.gz
+#	new file:   public/assets/ace/mode-eiffel-2c43c040cfb6e039268bc503dc4e7312c108558ac1337c2d43aacdc8df89dec9.js
+#	new file:   public/assets/ace/mode-eiffel-2c43c040cfb6e039268bc503dc4e7312c108558ac1337c2d43aacdc8df89dec9.js.gz
+#	new file:   public/assets/ace/mode-ejs-b9c3610c6cc45a85714abe28ae4b14d9513671f4289caf0be3afae92a639069f.js
+#	new file:   public/assets/ace/mode-ejs-b9c3610c6cc45a85714abe28ae4b14d9513671f4289caf0be3afae92a639069f.js.gz
+#	new file:   public/assets/ace/mode-elixir-58638ee0a39418a11839f923159004c657d45970b664cee944db6d057bd8a95f.js
+#	new file:   public/assets/ace/mode-elixir-58638ee0a39418a11839f923159004c657d45970b664cee944db6d057bd8a95f.js.gz
+#	new file:   public/assets/ace/mode-elm-0c68aba5680f36c97a678ee840f9e732cb4cbf2d1816adc981752871b72fc9d2.js
+#	new file:   public/assets/ace/mode-elm-0c68aba5680f36c97a678ee840f9e732cb4cbf2d1816adc981752871b72fc9d2.js.gz
+#	new file:   public/assets/ace/mode-erlang-2f37b50193fa982fe30d03361ce0050e79968d54c9ef88261ba2fb8c69122e44.js
+#	new file:   public/assets/ace/mode-erlang-2f37b50193fa982fe30d03361ce0050e79968d54c9ef88261ba2fb8c69122e44.js.gz
+#	new file:   public/assets/ace/mode-forth-de3c5c40091b60b4906fd873d40af01a16e7daca4b611c1e2d97c04f2282f01e.js
+#	new file:   public/assets/ace/mode-forth-de3c5c40091b60b4906fd873d40af01a16e7daca4b611c1e2d97c04f2282f01e.js.gz
+#	new file:   public/assets/ace/mode-fortran-11a3cdaad15518bf1ed19d4abf714e8c1e25df09dcdf53326442360e4a571713.js
+#	new file:   public/assets/ace/mode-fortran-11a3cdaad15518bf1ed19d4abf714e8c1e25df09dcdf53326442360e4a571713.js.gz
+#	new file:   public/assets/ace/mode-fsharp-d59b4650629fcdafe2dc8d9b79001cbbd64dbe0d85957f788e448b6876bf456b.js
+#	new file:   public/assets/ace/mode-fsharp-d59b4650629fcdafe2dc8d9b79001cbbd64dbe0d85957f788e448b6876bf456b.js.gz
+#	new file:   public/assets/ace/mode-fsl-70269e95e0c72b0c34bad0e4a637b6211089ab01b4cde250ae3218d594729d76.js
+#	new file:   public/assets/ace/mode-fsl-70269e95e0c72b0c34bad0e4a637b6211089ab01b4cde250ae3218d594729d76.js.gz
+#	new file:   public/assets/ace/mode-ftl-b7d3f9455921ddb948a9d153bd03556ea17c78fd9517efa2e85ec46317cbf809.js
+#	new file:   public/assets/ace/mode-ftl-b7d3f9455921ddb948a9d153bd03556ea17c78fd9517efa2e85ec46317cbf809.js.gz
+#	new file:   public/assets/ace/mode-gcode-862acb39fe40c624c070917bf40e30bf4c88676992aa2994a550a7d049db4799.js
+#	new file:   public/assets/ace/mode-gcode-862acb39fe40c624c070917bf40e30bf4c88676992aa2994a550a7d049db4799.js.gz
+#	new file:   public/assets/ace/mode-gherkin-1d0c791e431fd3a65fcb0593959138d292ada42363cdaa8cb275df7a722a0f40.js
+#	new file:   public/assets/ace/mode-gherkin-1d0c791e431fd3a65fcb0593959138d292ada42363cdaa8cb275df7a722a0f40.js.gz
+#	new file:   public/assets/ace/mode-gitignore-0f823eda1e3e135295c9e86e466ec00b56c48fcc0b957ee3566658832c152a8d.js
+#	new file:   public/assets/ace/mode-gitignore-0f823eda1e3e135295c9e86e466ec00b56c48fcc0b957ee3566658832c152a8d.js.gz
+#	new file:   public/assets/ace/mode-glsl-a6fd2d88bf220dca9910cd96188ed093c124dc656b06d3235e0093e82da3720d.js
+#	new file:   public/assets/ace/mode-glsl-a6fd2d88bf220dca9910cd96188ed093c124dc656b06d3235e0093e82da3720d.js.gz
+#	new file:   public/assets/ace/mode-gobstones-c7846eec38dbd5d89344de5839ffd12dff3f78ef97563c618039e219d6b4ee61.js
+#	new file:   public/assets/ace/mode-gobstones-c7846eec38dbd5d89344de5839ffd12dff3f78ef97563c618039e219d6b4ee61.js.gz
+#	new file:   public/assets/ace/mode-golang-fa5a97369855dd45159fae40f98c847d8d4a2df5eb20c032881d9d2890dd5985.js
+#	new file:   public/assets/ace/mode-golang-fa5a97369855dd45159fae40f98c847d8d4a2df5eb20c032881d9d2890dd5985.js.gz
+#	new file:   public/assets/ace/mode-graphqlschema-d4cbe3002368133b48d0fd3c32cd6f59cb9b6a44696cdc047628cd1d162ebfc2.js
+#	new file:   public/assets/ace/mode-graphqlschema-d4cbe3002368133b48d0fd3c32cd6f59cb9b6a44696cdc047628cd1d162ebfc2.js.gz
+#	new file:   public/assets/ace/mode-groovy-1ef3882a80d29552e917186621f5dc2addec9be19925347320721045e095e71d.js
+#	new file:   public/assets/ace/mode-groovy-1ef3882a80d29552e917186621f5dc2addec9be19925347320721045e095e71d.js.gz
+#	new file:   public/assets/ace/mode-haml-fb5593b3ae71b5ea30846477d0d881d4ac0fc3e239a68ec643ba68ed22c98156.js
+#	new file:   public/assets/ace/mode-haml-fb5593b3ae71b5ea30846477d0d881d4ac0fc3e239a68ec643ba68ed22c98156.js.gz
+#	new file:   public/assets/ace/mode-handlebars-5d120a7f2bfb18f27c8c384c83301395f8af31b2edfcdd3d6c962f9bfc8fd5d9.js
+#	new file:   public/assets/ace/mode-handlebars-5d120a7f2bfb18f27c8c384c83301395f8af31b2edfcdd3d6c962f9bfc8fd5d9.js.gz
+#	new file:   public/assets/ace/mode-haskell-1a3d5d4ef609abeea8e51a3468a882d3164c1870099f307e82bbe890a3fff2d7.js
+#	new file:   public/assets/ace/mode-haskell-1a3d5d4ef609abeea8e51a3468a882d3164c1870099f307e82bbe890a3fff2d7.js.gz
+#	new file:   public/assets/ace/mode-haskell_cabal-b8063c3e29197a577e9b3e5765667a3d27b291350893f6d31d82e19482c19bb2.js
+#	new file:   public/assets/ace/mode-haskell_cabal-b8063c3e29197a577e9b3e5765667a3d27b291350893f6d31d82e19482c19bb2.js.gz
+#	new file:   public/assets/ace/mode-haxe-6dac0985159c5e9e5bd7eac9214e7ac769b7cbf1b9f7868e7628925a51f806eb.js
+#	new file:   public/assets/ace/mode-haxe-6dac0985159c5e9e5bd7eac9214e7ac769b7cbf1b9f7868e7628925a51f806eb.js.gz
+#	new file:   public/assets/ace/mode-hjson-f8f44599374dc8786a6254d0a84f06a57a4ff449d19c12e7575d469ea68a65c1.js
+#	new file:   public/assets/ace/mode-hjson-f8f44599374dc8786a6254d0a84f06a57a4ff449d19c12e7575d469ea68a65c1.js.gz
+#	new file:   public/assets/ace/mode-html-decad7b3cf12e55364d8eea4890b91194a032c084136ecf1bf1f692040813039.js
+#	new file:   public/assets/ace/mode-html-decad7b3cf12e55364d8eea4890b91194a032c084136ecf1bf1f692040813039.js.gz
+#	new file:   public/assets/ace/mode-html_elixir-b257675dec26438f7dbf1195d402a622524f06bd73dce9e38d28804cbd865131.js
+#	new file:   public/assets/ace/mode-html_elixir-b257675dec26438f7dbf1195d402a622524f06bd73dce9e38d28804cbd865131.js.gz
+#	new file:   public/assets/ace/mode-html_ruby-fbb2105ca0401b55e7420b265cf66933c43704828729009c896da51b46da9319.js
+#	new file:   public/assets/ace/mode-html_ruby-fbb2105ca0401b55e7420b265cf66933c43704828729009c896da51b46da9319.js.gz
+#	new file:   public/assets/ace/mode-ini-03467002a3a99b7e018aacad4ff8ee428715d83c95df0a813add1cedd226af52.js
+#	new file:   public/assets/ace/mode-ini-03467002a3a99b7e018aacad4ff8ee428715d83c95df0a813add1cedd226af52.js.gz
+#	new file:   public/assets/ace/mode-io-a5de0fbe5d68fb88435466604d909d0355d47628ead15072cc84391c40c33d2f.js
+#	new file:   public/assets/ace/mode-io-a5de0fbe5d68fb88435466604d909d0355d47628ead15072cc84391c40c33d2f.js.gz
+#	new file:   public/assets/ace/mode-jack-0a92c0c2784d25ead1c494b00ad82e67e3f51e979b56b6ee6d448953b0a51480.js
+#	new file:   public/assets/ace/mode-jack-0a92c0c2784d25ead1c494b00ad82e67e3f51e979b56b6ee6d448953b0a51480.js.gz
+#	new file:   public/assets/ace/mode-jade-bb83a45a7b7ba9353e70a4fb4a9e485e3eb29c796100d76f787b93147acc6b01.js
+#	new file:   public/assets/ace/mode-jade-bb83a45a7b7ba9353e70a4fb4a9e485e3eb29c796100d76f787b93147acc6b01.js.gz
+#	new file:   public/assets/ace/mode-java-417765adc90c8f25fed2e63b25463426a681bce1ad3c06fc844b5ee8196067fd.js
+#	new file:   public/assets/ace/mode-java-417765adc90c8f25fed2e63b25463426a681bce1ad3c06fc844b5ee8196067fd.js.gz
+#	new file:   public/assets/ace/mode-javascript-cda0d53b5ae7610dd5e9abbe161a5c80485a29eba7f860170cd6997b7a618393.js
+#	new file:   public/assets/ace/mode-javascript-cda0d53b5ae7610dd5e9abbe161a5c80485a29eba7f860170cd6997b7a618393.js.gz
+#	new file:   public/assets/ace/mode-json-4e563c91d5104dbaf30bdede83e5692424ab256ae0aa39aebe30cef17358910d.js
+#	new file:   public/assets/ace/mode-json-4e563c91d5104dbaf30bdede83e5692424ab256ae0aa39aebe30cef17358910d.js.gz
+#	new file:   public/assets/ace/mode-json5-eb06edd04133f649dc95e4b119c46e42dcfcd248548ff078d24ae98b780eaff1.js
+#	new file:   public/assets/ace/mode-json5-eb06edd04133f649dc95e4b119c46e42dcfcd248548ff078d24ae98b780eaff1.js.gz
+#	new file:   public/assets/ace/mode-jsoniq-5bc731044825f3daf182e7ff06fef67244156adde8ab87b72a218dfd93ba2cde.js
+#	new file:   public/assets/ace/mode-jsoniq-5bc731044825f3daf182e7ff06fef67244156adde8ab87b72a218dfd93ba2cde.js.gz
+#	new file:   public/assets/ace/mode-jsp-8e537f1ed5821f4611b02a97ee4b1ec115e48919bcb663e62c61c274aa8aa77f.js
+#	new file:   public/assets/ace/mode-jsp-8e537f1ed5821f4611b02a97ee4b1ec115e48919bcb663e62c61c274aa8aa77f.js.gz
+#	new file:   public/assets/ace/mode-jssm-2544bdfcdee12ea91432980d896c60f8e1d8ed53c5ad40756ed08b0ef6e0d610.js
+#	new file:   public/assets/ace/mode-jssm-2544bdfcdee12ea91432980d896c60f8e1d8ed53c5ad40756ed08b0ef6e0d610.js.gz
+#	new file:   public/assets/ace/mode-jsx-ae361b97de3e53133a643fa10966ba494fe9722fee7fdd896a0925d74fb296a5.js
+#	new file:   public/assets/ace/mode-jsx-ae361b97de3e53133a643fa10966ba494fe9722fee7fdd896a0925d74fb296a5.js.gz
+#	new file:   public/assets/ace/mode-julia-1b2dd0c37224a943b78c30b49d24d1d4e47759a1bdc2df671524372a62a3b7f7.js
+#	new file:   public/assets/ace/mode-julia-1b2dd0c37224a943b78c30b49d24d1d4e47759a1bdc2df671524372a62a3b7f7.js.gz
+#	new file:   public/assets/ace/mode-kotlin-c83e95b24459a72fa8f2ab33f0c904ba75377aee1c65dbc68dcca51b0a44bb20.js
+#	new file:   public/assets/ace/mode-kotlin-c83e95b24459a72fa8f2ab33f0c904ba75377aee1c65dbc68dcca51b0a44bb20.js.gz
+#	new file:   public/assets/ace/mode-latex-2ff6e6d7edfe0ec0467bd619d2f2e1b63460c44ddffbe38c80c15a073f603ad1.js
+#	new file:   public/assets/ace/mode-latex-2ff6e6d7edfe0ec0467bd619d2f2e1b63460c44ddffbe38c80c15a073f603ad1.js.gz
+#	new file:   public/assets/ace/mode-less-c6d6a20bae625e1e3a7f8212ceed6b463bc539de4f8adef7f8ad500ab999f92d.js
+#	new file:   public/assets/ace/mode-less-c6d6a20bae625e1e3a7f8212ceed6b463bc539de4f8adef7f8ad500ab999f92d.js.gz
+#	new file:   public/assets/ace/mode-liquid-a5b448dc19e848a5777a54a013ff64dcbedb073058b01e876fc6c478a553856a.js
+#	new file:   public/assets/ace/mode-liquid-a5b448dc19e848a5777a54a013ff64dcbedb073058b01e876fc6c478a553856a.js.gz
+#	new file:   public/assets/ace/mode-lisp-fd1e3e3d2a22bbed929cb48296be993492042a2c0abb66e5e3b56af5f8975e5a.js
+#	new file:   public/assets/ace/mode-lisp-fd1e3e3d2a22bbed929cb48296be993492042a2c0abb66e5e3b56af5f8975e5a.js.gz
+#	new file:   public/assets/ace/mode-livescript-718d07dd00f975e5aad95f0f8f5250e45db3a0db88ed6fff4dee10baf1dbd80d.js
+#	new file:   public/assets/ace/mode-livescript-718d07dd00f975e5aad95f0f8f5250e45db3a0db88ed6fff4dee10baf1dbd80d.js.gz
+#	new file:   public/assets/ace/mode-logiql-e4652b72fa4f73d311684d5ec39328b2ac1c0db0a1dee5b54633a841a090657b.js
+#	new file:   public/assets/ace/mode-logiql-e4652b72fa4f73d311684d5ec39328b2ac1c0db0a1dee5b54633a841a090657b.js.gz
+#	new file:   public/assets/ace/mode-logtalk-1fcc77b99d1b94e1ec8b5d0c2a08453bc2b336f9f033a4fcd4c3d538db9fdc73.js
+#	new file:   public/assets/ace/mode-logtalk-1fcc77b99d1b94e1ec8b5d0c2a08453bc2b336f9f033a4fcd4c3d538db9fdc73.js.gz
+#	new file:   public/assets/ace/mode-lsl-8a3192b155ccb768241f6c84d6c0fc7ba885b015d888f3898d9d58a465c71b81.js
+#	new file:   public/assets/ace/mode-lsl-8a3192b155ccb768241f6c84d6c0fc7ba885b015d888f3898d9d58a465c71b81.js.gz
+#	new file:   public/assets/ace/mode-lua-978178e1b72137ef350867c3991291e898c0e1dbbfe16d70a5f785bb2020cd13.js
+#	new file:   public/assets/ace/mode-lua-978178e1b72137ef350867c3991291e898c0e1dbbfe16d70a5f785bb2020cd13.js.gz
+#	new file:   public/assets/ace/mode-luapage-45177c67500facb5924b6180b0d5dc510607186f95b114acf73eee7be01cd2cc.js
+#	new file:   public/assets/ace/mode-luapage-45177c67500facb5924b6180b0d5dc510607186f95b114acf73eee7be01cd2cc.js.gz
+#	new file:   public/assets/ace/mode-lucene-b882ae9d42496e385af48c9898df144973c8be072db4bbbe12d9c8d75ac226ce.js
+#	new file:   public/assets/ace/mode-lucene-b882ae9d42496e385af48c9898df144973c8be072db4bbbe12d9c8d75ac226ce.js.gz
+#	new file:   public/assets/ace/mode-makefile-f4143beb86834da3b22664d1d5b269ae30632197a9fd5bbb1c1d02ec93b74f6f.js
+#	new file:   public/assets/ace/mode-makefile-f4143beb86834da3b22664d1d5b269ae30632197a9fd5bbb1c1d02ec93b74f6f.js.gz
+#	new file:   public/assets/ace/mode-markdown-91fa34fd719435af6ab9a568ee9336aa783c60825447606d49c409206b50900b.js
+#	new file:   public/assets/ace/mode-markdown-91fa34fd719435af6ab9a568ee9336aa783c60825447606d49c409206b50900b.js.gz
+#	new file:   public/assets/ace/mode-mask-2e62ad3ad9d2349f9aa55c1f7b7e045954af8a11d27a901b5105d2d4768d3e64.js
+#	new file:   public/assets/ace/mode-mask-2e62ad3ad9d2349f9aa55c1f7b7e045954af8a11d27a901b5105d2d4768d3e64.js.gz
+#	new file:   public/assets/ace/mode-matlab-91617a30fdd527ba6a0772d7ee647b6d44f9dd75078a75727d9333d74e877451.js
+#	new file:   public/assets/ace/mode-matlab-91617a30fdd527ba6a0772d7ee647b6d44f9dd75078a75727d9333d74e877451.js.gz
+#	new file:   public/assets/ace/mode-maze-66b4e3b03c3dc988a7cc4ba0656333f07ef871b4aea255fba8a2f853ee2b6919.js
+#	new file:   public/assets/ace/mode-maze-66b4e3b03c3dc988a7cc4ba0656333f07ef871b4aea255fba8a2f853ee2b6919.js.gz
+#	new file:   public/assets/ace/mode-mediawiki-04e816eeb9c82da6f057052ab571215858e4fdd1c0fbaccdbdd90ff0676a2e19.js
+#	new file:   public/assets/ace/mode-mediawiki-04e816eeb9c82da6f057052ab571215858e4fdd1c0fbaccdbdd90ff0676a2e19.js.gz
+#	new file:   public/assets/ace/mode-mel-6d552caf0dad470360b9a67436bf4a880f10e0c9662a1f685a641e96b01b2e26.js
+#	new file:   public/assets/ace/mode-mel-6d552caf0dad470360b9a67436bf4a880f10e0c9662a1f685a641e96b01b2e26.js.gz
+#	new file:   public/assets/ace/mode-mixal-e3ac87cb2dbd825ce7bc70c2bb7d59c04701fc81d3932dcf1e91df78200e056b.js
+#	new file:   public/assets/ace/mode-mixal-e3ac87cb2dbd825ce7bc70c2bb7d59c04701fc81d3932dcf1e91df78200e056b.js.gz
+#	new file:   public/assets/ace/mode-mushcode-1ef8b28952ea3c14b0394d4ac87fe03b5a21d7341608f91660eb50c18e0ba781.js
+#	new file:   public/assets/ace/mode-mushcode-1ef8b28952ea3c14b0394d4ac87fe03b5a21d7341608f91660eb50c18e0ba781.js.gz
+#	new file:   public/assets/ace/mode-mysql-6ca8e9b1b7afdc9e2469d5ceabb2fd032d20df92193b0a631ad2be7072a6f82b.js
+#	new file:   public/assets/ace/mode-mysql-6ca8e9b1b7afdc9e2469d5ceabb2fd032d20df92193b0a631ad2be7072a6f82b.js.gz
+#	new file:   public/assets/ace/mode-nginx-ae8f8d33013e56755ac356fbf5c651d71dfe23eac19369aa9fb7951cca7fbe48.js
+#	new file:   public/assets/ace/mode-nginx-ae8f8d33013e56755ac356fbf5c651d71dfe23eac19369aa9fb7951cca7fbe48.js.gz
+#	new file:   public/assets/ace/mode-nim-f64949f7c9d9d91989fe164adb0d6c5f540efb1d84ff44dbf4477cb58238dd22.js
+#	new file:   public/assets/ace/mode-nim-f64949f7c9d9d91989fe164adb0d6c5f540efb1d84ff44dbf4477cb58238dd22.js.gz
+#	new file:   public/assets/ace/mode-nix-25a712592df7c725c2483060c05caeba6e0a96c6a3b10e6f0cae73849c125b51.js
+#	new file:   public/assets/ace/mode-nix-25a712592df7c725c2483060c05caeba6e0a96c6a3b10e6f0cae73849c125b51.js.gz
+#	new file:   public/assets/ace/mode-nsis-6452c49af8e1d45bb0dc8a3cd44fb1eddfac72573d6908cf8c118f353169fcbe.js
+#	new file:   public/assets/ace/mode-nsis-6452c49af8e1d45bb0dc8a3cd44fb1eddfac72573d6908cf8c118f353169fcbe.js.gz
+#	new file:   public/assets/ace/mode-nunjucks-920572474b979749cedc64dd67d37533b61d566ae19dd87644bbd4c1b6f0dce3.js
+#	new file:   public/assets/ace/mode-nunjucks-920572474b979749cedc64dd67d37533b61d566ae19dd87644bbd4c1b6f0dce3.js.gz
+#	new file:   public/assets/ace/mode-objectivec-148d83c0e179551a3a39701400174992ed1dec2effcdee15d6fa9deceb6cd830.js
+#	new file:   public/assets/ace/mode-objectivec-148d83c0e179551a3a39701400174992ed1dec2effcdee15d6fa9deceb6cd830.js.gz
+#	new file:   public/assets/ace/mode-ocaml-c89212e9f3ef4f486f0f01af4171c12953874aa1e2c3db0a8df7bf9d80fcd27a.js
+#	new file:   public/assets/ace/mode-ocaml-c89212e9f3ef4f486f0f01af4171c12953874aa1e2c3db0a8df7bf9d80fcd27a.js.gz
+#	new file:   public/assets/ace/mode-pascal-bb75c18a446b166b4d905d9233c39b8d120a293719cf7a0b74dd19415a6a02ab.js
+#	new file:   public/assets/ace/mode-pascal-bb75c18a446b166b4d905d9233c39b8d120a293719cf7a0b74dd19415a6a02ab.js.gz
+#	new file:   public/assets/ace/mode-perl-6c7a3367d18d6f346d31b39cf62b8fe100313ecdaa60f659417600e3a807658c.js
+#	new file:   public/assets/ace/mode-perl-6c7a3367d18d6f346d31b39cf62b8fe100313ecdaa60f659417600e3a807658c.js.gz
+#	new file:   public/assets/ace/mode-perl6-39c15b7d241dca4966dae367042db5d5acb0b1e2b8bd937566f929d992d96101.js
+#	new file:   public/assets/ace/mode-perl6-39c15b7d241dca4966dae367042db5d5acb0b1e2b8bd937566f929d992d96101.js.gz
+#	new file:   public/assets/ace/mode-pgsql-02e33939d14aba09529db8721fcaab3da5d5fa1f030791bfa7a2c8a1e048cb53.js
+#	new file:   public/assets/ace/mode-pgsql-02e33939d14aba09529db8721fcaab3da5d5fa1f030791bfa7a2c8a1e048cb53.js.gz
+#	new file:   public/assets/ace/mode-php-9bffdb6a95814d76964bb6d1be11963add784ceb940017cb74ec58f05137b02a.js
+#	new file:   public/assets/ace/mode-php-9bffdb6a95814d76964bb6d1be11963add784ceb940017cb74ec58f05137b02a.js.gz
+#	new file:   public/assets/ace/mode-php_laravel_blade-8a30259959c7c54cd67fde07d4ff957ac2b35d2f30cb100f17ac6a5feefc277d.js
+#	new file:   public/assets/ace/mode-php_laravel_blade-8a30259959c7c54cd67fde07d4ff957ac2b35d2f30cb100f17ac6a5feefc277d.js.gz
+#	new file:   public/assets/ace/mode-pig-547362e4940fcdca5c3d5bebd287c11e307d94974eade68df041c18ba258c88b.js
+#	new file:   public/assets/ace/mode-pig-547362e4940fcdca5c3d5bebd287c11e307d94974eade68df041c18ba258c88b.js.gz
+#	new file:   public/assets/ace/mode-plain_text-cad02d49749d364379b58ab4bb7da64371a16534652bace07b0ebd9f3a753b4a.js
+#	new file:   public/assets/ace/mode-plain_text-cad02d49749d364379b58ab4bb7da64371a16534652bace07b0ebd9f3a753b4a.js.gz
+#	new file:   public/assets/ace/mode-powershell-5868174ce400817a1afb7ba49c872d0a64a8bd2e272570f9c324a629943762bb.js
+#	new file:   public/assets/ace/mode-powershell-5868174ce400817a1afb7ba49c872d0a64a8bd2e272570f9c324a629943762bb.js.gz
+#	new file:   public/assets/ace/mode-praat-07169a7fc22a73ae098222c06832b9b15cccee118b22278f58ab658344cfec32.js
+#	new file:   public/assets/ace/mode-praat-07169a7fc22a73ae098222c06832b9b15cccee118b22278f58ab658344cfec32.js.gz
+#	new file:   public/assets/ace/mode-prisma-9cf86bc3787b046fbd0a05ad5682a84ab5402e84ed98fba6abd67caba30e00a7.js
+#	new file:   public/assets/ace/mode-prisma-9cf86bc3787b046fbd0a05ad5682a84ab5402e84ed98fba6abd67caba30e00a7.js.gz
+#	new file:   public/assets/ace/mode-prolog-1fd78c9205dcb8c4b451db3e5706b95044ff0508851bf25ed8bb3dc642bf3eb9.js
+#	new file:   public/assets/ace/mode-prolog-1fd78c9205dcb8c4b451db3e5706b95044ff0508851bf25ed8bb3dc642bf3eb9.js.gz
+#	new file:   public/assets/ace/mode-properties-4f92eaba1cab49db94605daf57141b448ab0052c18ab9251d3954bccedc21a2f.js
+#	new file:   public/assets/ace/mode-properties-4f92eaba1cab49db94605daf57141b448ab0052c18ab9251d3954bccedc21a2f.js.gz
+#	new file:   public/assets/ace/mode-protobuf-84c6cf3b3373f836c880a6954f99b1214cbc15b81924a74cb6cddacaaf589532.js
+#	new file:   public/assets/ace/mode-protobuf-84c6cf3b3373f836c880a6954f99b1214cbc15b81924a74cb6cddacaaf589532.js.gz
+#	new file:   public/assets/ace/mode-puppet-b7ff6fe21c374767b5fe4bd737fbd9a1287463f5d297ad2e02215f59034ded94.js
+#	new file:   public/assets/ace/mode-puppet-b7ff6fe21c374767b5fe4bd737fbd9a1287463f5d297ad2e02215f59034ded94.js.gz
+#	new file:   public/assets/ace/mode-python-7e190d0334b8675a82ca5a3f78cc7ac8cabe8271d8c34df13280c9cfecc12da6.js
+#	new file:   public/assets/ace/mode-python-7e190d0334b8675a82ca5a3f78cc7ac8cabe8271d8c34df13280c9cfecc12da6.js.gz
+#	new file:   public/assets/ace/mode-qml-2eb76cb70e1157ac0c9c94d74bab3b1d2621242c2196847dcda0b2125cf2c9f7.js
+#	new file:   public/assets/ace/mode-qml-2eb76cb70e1157ac0c9c94d74bab3b1d2621242c2196847dcda0b2125cf2c9f7.js.gz
+#	new file:   public/assets/ace/mode-r-df96d95ae71243bedf87107db979b9867e04ddc6477cc6ca4f650dc2780be527.js
+#	new file:   public/assets/ace/mode-r-df96d95ae71243bedf87107db979b9867e04ddc6477cc6ca4f650dc2780be527.js.gz
+#	new file:   public/assets/ace/mode-razor-197ed0ef5472df47584e19a8ccbcc2bb4142d6214dea5bb301f53b5115c14112.js
+#	new file:   public/assets/ace/mode-razor-197ed0ef5472df47584e19a8ccbcc2bb4142d6214dea5bb301f53b5115c14112.js.gz
+#	new file:   public/assets/ace/mode-rdoc-0549029ba4d9a49fb8ae0188f9a0691a36d71a4a59e3e13be380576ef4c18329.js
+#	new file:   public/assets/ace/mode-rdoc-0549029ba4d9a49fb8ae0188f9a0691a36d71a4a59e3e13be380576ef4c18329.js.gz
+#	new file:   public/assets/ace/mode-red-1b20a9855b7e94feb24f6938632413cd14b4bdb7c8bc17c9b0a785ab18a0e898.js
+#	new file:   public/assets/ace/mode-red-1b20a9855b7e94feb24f6938632413cd14b4bdb7c8bc17c9b0a785ab18a0e898.js.gz
+#	new file:   public/assets/ace/mode-redshift-1606e7a22a76faea2ee967df943552cf60c4e5ef8804a322b2b3b1eb4968496d.js
+#	new file:   public/assets/ace/mode-redshift-1606e7a22a76faea2ee967df943552cf60c4e5ef8804a322b2b3b1eb4968496d.js.gz
+#	new file:   public/assets/ace/mode-rhtml-3837a620404b380784d115221e4b0ff1362c4a32a6225c36d753c75f5dd573eb.js
+#	new file:   public/assets/ace/mode-rhtml-3837a620404b380784d115221e4b0ff1362c4a32a6225c36d753c75f5dd573eb.js.gz
+#	new file:   public/assets/ace/mode-rst-70ed535e1cc2d117c7133c1be2588d5ab09ab5e4a5024fde6fbae9aef3363eaa.js
+#	new file:   public/assets/ace/mode-rst-70ed535e1cc2d117c7133c1be2588d5ab09ab5e4a5024fde6fbae9aef3363eaa.js.gz
+#	new file:   public/assets/ace/mode-ruby-87587bf2ab7f8de278d8083855517db44c80718de1695bac08d7e81844ddb074.js
+#	new file:   public/assets/ace/mode-ruby-87587bf2ab7f8de278d8083855517db44c80718de1695bac08d7e81844ddb074.js.gz
+#	new file:   public/assets/ace/mode-rust-0ca715ec65bc647268c0a70d3ae3745763dd69985e663ee7c0cf317140659a6e.js
+#	new file:   public/assets/ace/mode-rust-0ca715ec65bc647268c0a70d3ae3745763dd69985e663ee7c0cf317140659a6e.js.gz
+#	new file:   public/assets/ace/mode-sass-e3376fddbd78d6b26bff52da548d4254de78fd99c03caa1e45664fc95c810bcf.js
+#	new file:   public/assets/ace/mode-sass-e3376fddbd78d6b26bff52da548d4254de78fd99c03caa1e45664fc95c810bcf.js.gz
+#	new file:   public/assets/ace/mode-scad-22d719e053e40a7f03ff255849397658ad06270e17eb0560db22214d943c93b8.js
+#	new file:   public/assets/ace/mode-scad-22d719e053e40a7f03ff255849397658ad06270e17eb0560db22214d943c93b8.js.gz
+#	new file:   public/assets/ace/mode-scala-29f4be644046212692cb48576c035e01acd713382c7e558ec832ef9d1319fbf3.js
+#	new file:   public/assets/ace/mode-scala-29f4be644046212692cb48576c035e01acd713382c7e558ec832ef9d1319fbf3.js.gz
+#	new file:   public/assets/ace/mode-scheme-a5507ea10e47518673a150368e219a7fdaa128b1cb3762baa440745a7f8d42d0.js
+#	new file:   public/assets/ace/mode-scheme-a5507ea10e47518673a150368e219a7fdaa128b1cb3762baa440745a7f8d42d0.js.gz
+#	new file:   public/assets/ace/mode-scss-83d2d15c9181db9263c5321facbfcd38a302e1f243ef668f17d8282ba2b095e6.js
+#	new file:   public/assets/ace/mode-scss-83d2d15c9181db9263c5321facbfcd38a302e1f243ef668f17d8282ba2b095e6.js.gz
+#	new file:   public/assets/ace/mode-sh-a77c3fcd1bdf1b86e00a6f2c67ceb2f6ca46362ad103e99cae16ac9713c8a5ab.js
+#	new file:   public/assets/ace/mode-sh-a77c3fcd1bdf1b86e00a6f2c67ceb2f6ca46362ad103e99cae16ac9713c8a5ab.js.gz
+#	new file:   public/assets/ace/mode-sjs-0d63c0037df7c2a047ffe8ae1f75b6e86a48f423369b73dfdbc27ccb93dc29ee.js
+#	new file:   public/assets/ace/mode-sjs-0d63c0037df7c2a047ffe8ae1f75b6e86a48f423369b73dfdbc27ccb93dc29ee.js.gz
+#	new file:   public/assets/ace/mode-slim-36f2f9fa92fa11c706b51f617a21162dc8332fa7058358b3df7201cd596a2493.js
+#	new file:   public/assets/ace/mode-slim-36f2f9fa92fa11c706b51f617a21162dc8332fa7058358b3df7201cd596a2493.js.gz
+#	new file:   public/assets/ace/mode-smarty-c5f84c6244e2c91dd2d199010d719aa1fa6870e8b92d00f04d7b2c75c350d503.js
+#	new file:   public/assets/ace/mode-smarty-c5f84c6244e2c91dd2d199010d719aa1fa6870e8b92d00f04d7b2c75c350d503.js.gz
+#	new file:   public/assets/ace/mode-snippets-275aa3645904ac2a7128171646601f4137a17554115831a4b7c538651336e50d.js
+#	new file:   public/assets/ace/mode-snippets-275aa3645904ac2a7128171646601f4137a17554115831a4b7c538651336e50d.js.gz
+#	new file:   public/assets/ace/mode-soy_template-847a9163ce12fb4e650649743f100380da8ae145e1b169d419d186179aa1e87d.js
+#	new file:   public/assets/ace/mode-soy_template-847a9163ce12fb4e650649743f100380da8ae145e1b169d419d186179aa1e87d.js.gz
+#	new file:   public/assets/ace/mode-space-7aa44075103c467569d88a8119ed8b97d4e3bcc8a2a3e5f6564717b6139afa5c.js
+#	new file:   public/assets/ace/mode-space-7aa44075103c467569d88a8119ed8b97d4e3bcc8a2a3e5f6564717b6139afa5c.js.gz
+#	new file:   public/assets/ace/mode-sparql-2d89e4c3336af58148686a0cdfbdf46d0855c0a032278c4aaee42623f66a62c2.js
+#	new file:   public/assets/ace/mode-sparql-2d89e4c3336af58148686a0cdfbdf46d0855c0a032278c4aaee42623f66a62c2.js.gz
+#	new file:   public/assets/ace/mode-sql-4bf9bf613eefd4a1c94022fbf48522167dbcaa4142c051e12ca6eacfb25cc263.js
+#	new file:   public/assets/ace/mode-sql-4bf9bf613eefd4a1c94022fbf48522167dbcaa4142c051e12ca6eacfb25cc263.js.gz
+#	new file:   public/assets/ace/mode-sqlserver-d1b98505c77088e27f34cf539245f2cee149739643f905bae17ce03984daa724.js
+#	new file:   public/assets/ace/mode-sqlserver-d1b98505c77088e27f34cf539245f2cee149739643f905bae17ce03984daa724.js.gz
+#	new file:   public/assets/ace/mode-stylus-5dde3da17edb97c5f2da163b92db21c05748eedc7292afdaf3fa9658693c48b6.js
+#	new file:   public/assets/ace/mode-stylus-5dde3da17edb97c5f2da163b92db21c05748eedc7292afdaf3fa9658693c48b6.js.gz
+#	new file:   public/assets/ace/mode-svg-0fc2686dd2d5b77bcfc60db1b826106bc201a218b23888b9fd66f2eb2b3b53e4.js
+#	new file:   public/assets/ace/mode-svg-0fc2686dd2d5b77bcfc60db1b826106bc201a218b23888b9fd66f2eb2b3b53e4.js.gz
+#	new file:   public/assets/ace/mode-swift-f2bee47e06c2e07bdff4bde5aaf55fcb4f4ea0d20cd3c9646f3cff3f3582f89e.js
+#	new file:   public/assets/ace/mode-swift-f2bee47e06c2e07bdff4bde5aaf55fcb4f4ea0d20cd3c9646f3cff3f3582f89e.js.gz
+#	new file:   public/assets/ace/mode-tcl-c5f0add84e32542e7b94b163e74af98172209cc579a0dfeba317cffbc2410bb0.js
+#	new file:   public/assets/ace/mode-tcl-c5f0add84e32542e7b94b163e74af98172209cc579a0dfeba317cffbc2410bb0.js.gz
+#	new file:   public/assets/ace/mode-terraform-a90c5c1beb8d53c8c76416d3cf64678e385f8770da13ab19714395560e71c20c.js
+#	new file:   public/assets/ace/mode-terraform-a90c5c1beb8d53c8c76416d3cf64678e385f8770da13ab19714395560e71c20c.js.gz
+#	new file:   public/assets/ace/mode-tex-0bb76144bd7e8f67221193c36a23f0bd6cb4ff989ab36edd8754df1f366b5cfa.js
+#	new file:   public/assets/ace/mode-tex-0bb76144bd7e8f67221193c36a23f0bd6cb4ff989ab36edd8754df1f366b5cfa.js.gz
+#	new file:   public/assets/ace/mode-text-261f74c12df9e003ac185dce5c0de162f8e2769ad8709ed8a1583736c0f9e092.js
+#	new file:   public/assets/ace/mode-text-261f74c12df9e003ac185dce5c0de162f8e2769ad8709ed8a1583736c0f9e092.js.gz
+#	new file:   public/assets/ace/mode-textile-c26ed6f19749c6e636d3b71ee97da9dcc8a2be96eaaffa09053a47a61b205bf6.js
+#	new file:   public/assets/ace/mode-textile-c26ed6f19749c6e636d3b71ee97da9dcc8a2be96eaaffa09053a47a61b205bf6.js.gz
+#	new file:   public/assets/ace/mode-toml-05823277051083285eca7d0a29d30644b9fd16051cd932c7806f3c7b38ce81c5.js
+#	new file:   public/assets/ace/mode-toml-05823277051083285eca7d0a29d30644b9fd16051cd932c7806f3c7b38ce81c5.js.gz
+#	new file:   public/assets/ace/mode-tsx-a2fdb301d42f3c76970fd2390a94604ea1cd24de94abe290ed977f71468c8aeb.js
+#	new file:   public/assets/ace/mode-tsx-a2fdb301d42f3c76970fd2390a94604ea1cd24de94abe290ed977f71468c8aeb.js.gz
+#	new file:   public/assets/ace/mode-turtle-e336aee82aa0ef71960b51ce381b235e86f2e2c84e8fc0dc673391d2bf524eb2.js
+#	new file:   public/assets/ace/mode-turtle-e336aee82aa0ef71960b51ce381b235e86f2e2c84e8fc0dc673391d2bf524eb2.js.gz
+#	new file:   public/assets/ace/mode-twig-5aa7bf72065f3f9b04591391970b0ca774e57b62b9ca39dd01dc0907b07d52ec.js
+#	new file:   public/assets/ace/mode-twig-5aa7bf72065f3f9b04591391970b0ca774e57b62b9ca39dd01dc0907b07d52ec.js.gz
+#	new file:   public/assets/ace/mode-typescript-5672fc013fdcef2ff63f5fac63f33b82eb6cda6fa46bd83e69244044879936c8.js
+#	new file:   public/assets/ace/mode-typescript-5672fc013fdcef2ff63f5fac63f33b82eb6cda6fa46bd83e69244044879936c8.js.gz
+#	new file:   public/assets/ace/mode-vala-325d7072db647b7820873b6d084f7e7021540df79510c905698c8be969351c8b.js
+#	new file:   public/assets/ace/mode-vala-325d7072db647b7820873b6d084f7e7021540df79510c905698c8be969351c8b.js.gz
+#	new file:   public/assets/ace/mode-vbscript-f5c222102908142c8bb5a2dc51c32360540dfdad2c0815479b0c298ca1d2749b.js
+#	new file:   public/assets/ace/mode-vbscript-f5c222102908142c8bb5a2dc51c32360540dfdad2c0815479b0c298ca1d2749b.js.gz
+#	new file:   public/assets/ace/mode-velocity-99050cdf57bcf9b58e7cd15351224ec6dd81db2906753eb7b63232c05cb1980e.js
+#	new file:   public/assets/ace/mode-velocity-99050cdf57bcf9b58e7cd15351224ec6dd81db2906753eb7b63232c05cb1980e.js.gz
+#	new file:   public/assets/ace/mode-verilog-8392aa991b593ef5761ca4b31c948d1929243736b4a51548980afc9a8313b5b4.js
+#	new file:   public/assets/ace/mode-verilog-8392aa991b593ef5761ca4b31c948d1929243736b4a51548980afc9a8313b5b4.js.gz
+#	new file:   public/assets/ace/mode-vhdl-cd770fc4814c0b1c066b269c9366804187f003590fea88a95406e066a0ede9df.js
+#	new file:   public/assets/ace/mode-vhdl-cd770fc4814c0b1c066b269c9366804187f003590fea88a95406e066a0ede9df.js.gz
+#	new file:   public/assets/ace/mode-visualforce-02c1db574da3b3a6a2e349d94810061d0308f1bc5130decd094e7feb3efd6f09.js
+#	new file:   public/assets/ace/mode-visualforce-02c1db574da3b3a6a2e349d94810061d0308f1bc5130decd094e7feb3efd6f09.js.gz
+#	new file:   public/assets/ace/mode-wollok-e742fad63b787c572d81ce24b87fca160dfa4359600307a38f35aaa1a68903ca.js
+#	new file:   public/assets/ace/mode-wollok-e742fad63b787c572d81ce24b87fca160dfa4359600307a38f35aaa1a68903ca.js.gz
+#	new file:   public/assets/ace/mode-xml-4464814330102d19aff74d9400c7a17708bd47e008c7f4fda3a1f395d860fad0.js
+#	new file:   public/assets/ace/mode-xml-4464814330102d19aff74d9400c7a17708bd47e008c7f4fda3a1f395d860fad0.js.gz
+#	new file:   public/assets/ace/mode-xquery-9d1e057e77aa69b228cd15509cad3350ec49bc9dcec5fdd64d1e9dcf269ba60d.js
+#	new file:   public/assets/ace/mode-xquery-9d1e057e77aa69b228cd15509cad3350ec49bc9dcec5fdd64d1e9dcf269ba60d.js.gz
+#	new file:   public/assets/ace/mode-yaml-1d6ba0bd21ebf18c1f39651da63b3093b6e6efc50a6cf15cb9dca46f3fb84e9d.js
+#	new file:   public/assets/ace/mode-yaml-1d6ba0bd21ebf18c1f39651da63b3093b6e6efc50a6cf15cb9dca46f3fb84e9d.js.gz
+#	new file:   public/assets/ace/mode-zeek-2a04a322b5b69d37dbee729ab189599bce1419e397f22ed361f4909abe70cb87.js
+#	new file:   public/assets/ace/mode-zeek-2a04a322b5b69d37dbee729ab189599bce1419e397f22ed361f4909abe70cb87.js.gz
+#	new file:   public/assets/ace/worker-base-40046652287d50a91d5894a782fbce78ce97ddf57681591c11fe68f763741da6.js
+#	new file:   public/assets/ace/worker-base-40046652287d50a91d5894a782fbce78ce97ddf57681591c11fe68f763741da6.js.gz
+#	new file:   public/assets/ace/worker-coffee-b38111aabe3081ae56cb772bfd16a5f14d0339e8e3d32985d1746cd2ab3d211d.js
+#	new file:   public/assets/ace/worker-coffee-b38111aabe3081ae56cb772bfd16a5f14d0339e8e3d32985d1746cd2ab3d211d.js.gz
+#	new file:   public/assets/ace/worker-css-16dadf636e0f65d5606f892202bcdfb178659ec9e5ea114cd635a3be0967fea0.js
+#	new file:   public/assets/ace/worker-css-16dadf636e0f65d5606f892202bcdfb178659ec9e5ea114cd635a3be0967fea0.js.gz
+#	new file:   public/assets/ace/worker-html-7adf5a59e94b7d68849055e5641a499d9e9608f46c4060b7c4cf2da751ee16f1.js
+#	new file:   public/assets/ace/worker-html-7adf5a59e94b7d68849055e5641a499d9e9608f46c4060b7c4cf2da751ee16f1.js.gz
+#	new file:   public/assets/ace/worker-javascript-61ddc4d0bc030e00cf4e20e1f7e8468ce56ed13aea9364ae6f437603f4dd0f8d.js
+#	new file:   public/assets/ace/worker-javascript-61ddc4d0bc030e00cf4e20e1f7e8468ce56ed13aea9364ae6f437603f4dd0f8d.js.gz
+#	new file:   public/assets/ace/worker-json-64c13eab183c818959eedd39354f4fad356dcc045592dd47b2e909fe335599a0.js
+#	new file:   public/assets/ace/worker-json-64c13eab183c818959eedd39354f4fad356dcc045592dd47b2e909fe335599a0.js.gz
+#	new file:   public/assets/ace/worker-lua-595ebd3297133baf01ae1202e2f3296323f753476e89e932ec30f6f5e1404697.js
+#	new file:   public/assets/ace/worker-lua-595ebd3297133baf01ae1202e2f3296323f753476e89e932ec30f6f5e1404697.js.gz
+#	new file:   public/assets/ace/worker-php-55d0e316abcf742f35511a7cbf14d57dd7ee3aa0eb526d6a93cb0a672c23369b.js
+#	new file:   public/assets/ace/worker-php-55d0e316abcf742f35511a7cbf14d57dd7ee3aa0eb526d6a93cb0a672c23369b.js.gz
+#	new file:   public/assets/ace/worker-xml-772a70fa408636211b467c8f8e1722eb2c9792348abaef6176be85cec87c8e95.js
+#	new file:   public/assets/ace/worker-xml-772a70fa408636211b467c8f8e1722eb2c9792348abaef6176be85cec87c8e95.js.gz
+#	new file:   public/assets/ace/worker-xquery-23143f23d5311f9d8648e07e62feb0e5e3f80f5a870fad258354b9b170383a60.js
+#	new file:   public/assets/ace/worker-xquery-23143f23d5311f9d8648e07e62feb0e5e3f80f5a870fad258354b9b170383a60.js.gz
+#	new file:   public/assets/application-2f3e6172bb443cdcc07a17f5a7cd2142795890d1247c5b85ef7bc9234eeef068.css
+#	new file:   public/assets/application-2f3e6172bb443cdcc07a17f5a7cd2142795890d1247c5b85ef7bc9234eeef068.css.gz
+#	new file:   public/assets/application-856dbba62ceb922a4f74b5f81be1351ac6a9afcc588e25e983465da3e8b8678e.js
+#	new file:   public/assets/application-856dbba62ceb922a4f74b5f81be1351ac6a9afcc588e25e983465da3e8b8678e.js.gz
+#	new file:   public/assets/diagram-0a4fd2761033a6217daa5c89e1d9803985c5e47aabdfed7562cce75f0c30ff2c.css
+#	new file:   public/assets/diagram-0a4fd2761033a6217daa5c89e1d9803985c5e47aabdfed7562cce75f0c30ff2c.css.gz
+#	new file:   public/assets/diagram-caaf8dd42f4d4304508b6ce81654345ce90742a6b2a839de0c5df0ac7691c8ae.js
+#	new file:   public/assets/diagram-caaf8dd42f4d4304508b6ce81654345ce90742a6b2a839de0c5df0ac7691c8ae.js.gz
+#	new file:   public/assets/font-awesome/fa-brands-400-1f56bc1732fed207bf092be076fd531aa7e15e8af32fd4ce2e98ef278d385bac.woff2
+#	new file:   public/assets/font-awesome/fa-brands-400-89694cccd89936fa505b71253427335d580a5989a0e3a614d87a934b58b0e2a8.ttf
+#	new file:   public/assets/font-awesome/fa-brands-400-89694cccd89936fa505b71253427335d580a5989a0e3a614d87a934b58b0e2a8.ttf.gz
+#	new file:   public/assets/font-awesome/fa-regular-400-1cd36d00df15fd48055bbc42daf8a494228887c26255da15c70c7cff5b31e107.woff2
+#	new file:   public/assets/font-awesome/fa-regular-400-f8fbc72fd51ef0b8ecca0cbc0212af363185a3ffdb62b54e6d42b61fadf5eb18.ttf
+#	new file:   public/assets/font-awesome/fa-regular-400-f8fbc72fd51ef0b8ecca0cbc0212af363185a3ffdb62b54e6d42b61fadf5eb18.ttf.gz
+#	new file:   public/assets/font-awesome/fa-solid-900-44ef3d6557f63579b379a863e53cc44a21b5dca68bea163842cf2f88741b53fc.ttf
+#	new file:   public/assets/font-awesome/fa-solid-900-44ef3d6557f63579b379a863e53cc44a21b5dca68bea163842cf2f88741b53fc.ttf.gz
+#	new file:   public/assets/font-awesome/fa-solid-900-64214b0a6635e69b2722c690f29506337eccbc40c088f7f5bc4e42b361d162a8.woff2
+#	new file:   public/assets/glyphicons-halflings-regular-159b5da43cd075c538889e1b84883da31c7f6b2e3608bfc4d424d810a773f034.svg
+#	new file:   public/assets/glyphicons-halflings-regular-159b5da43cd075c538889e1b84883da31c7f6b2e3608bfc4d424d810a773f034.svg.gz
+#	new file:   public/assets/glyphicons-halflings-regular-1bd313f3a6a08b484cb990866f28f706f04f52f983344a8e85e40999bdf35306.eot
+#	new file:   public/assets/glyphicons-halflings-regular-1bd313f3a6a08b484cb990866f28f706f04f52f983344a8e85e40999bdf35306.eot.gz
+#	new file:   public/assets/glyphicons-halflings-regular-64da709cee30cc2d0f694fb5b2558d2e4b99e18be0faa9d8f04d6cd0dfb441c7.woff
+#	new file:   public/assets/glyphicons-halflings-regular-ed7bdce7e3facea874da76aeb4cb0df3814ed76af8e04fca350de1794ac8cfb6.ttf
+#	new file:   public/assets/glyphicons-halflings-regular-ed7bdce7e3facea874da76aeb4cb0df3814ed76af8e04fca350de1794ac8cfb6.ttf.gz
+#	new file:   public/assets/graphing-c1699d042d7cbfac445e2783470d59e3860928f3d57bb5f883ccce53d07af916.js
+#	new file:   public/assets/graphing-c1699d042d7cbfac445e2783470d59e3860928f3d57bb5f883ccce53d07af916.js.gz
+#	new file:   public/assets/jobs-3192aa063373001d3a84a3a2ec13177eacf9503b3e8bb044c6ccad9de04f112a.css
+#	new file:   public/assets/jobs-3192aa063373001d3a84a3a2ec13177eacf9503b3e8bb044c6ccad9de04f112a.css.gz
+#	new file:   public/assets/json-editor/add-925b0763111fd6d9ce38557df9c6166ea78c238326ceeb94ed6470c09da2e6a0.png
+#	new file:   public/assets/json-editor/delete-40725cad1e2a66cf41e25a5ef9426310fe97b89be21052195560f5f4532ec71b.png
+#	new file:   public/assets/manifest-04024382391bb910584145d8113cf35ef376b55d125bb4516cebeb14ce788597.js
+#	new file:   public/assets/manifest-04024382391bb910584145d8113cf35ef376b55d125bb4516cebeb14ce788597.js.gz
+#	new file:   public/assets/map_marker-a89daf745d77fce5ac2de195d7271751a215d977adda5e8a4354e4ff5c873dc8.js
+#	new file:   public/assets/map_marker-a89daf745d77fce5ac2de195d7271751a215d977adda5e8a4354e4ff5c873dc8.js.gz
+#	new file:   public/assets/odin-d68f0f145c60bae03ae06e2792a8e07d2880d31b07d7cb88f19ba157eb1e0db1.jpg
+#	new file:   public/assets/scenarios-5521cd4730133d828fd24d4d99a80b8bb6a1c56a8aeea377d4fdfef2957fe429.css
+#	new file:   public/assets/scenarios-5521cd4730133d828fd24d4d99a80b8bb6a1c56a8aeea377d4fdfef2957fe429.css.gz
+#	new file:   public/assets/spinner-arrows-1105d47fcf31df861f4888daab6dc45fee966769d16bd5f5f359d977126d512c.gif
+#	new file:   public/assets/tables-ac9c8ad2d62fda2d618a31b40abed7d2d26156ed2cd0d6bce2f813164776242b.css
+#	new file:   public/assets/tables-ac9c8ad2d62fda2d618a31b40abed7d2d26156ed2cd0d6bce2f813164776242b.css.gz
+#	new file:   public/assets/tweets-171461b6be9da43517a374080532782326d7af660c75f2c9064c03f3171471d8.js
+#	new file:   public/assets/tweets-171461b6be9da43517a374080532782326d7af660c75f2c9064c03f3171471d8.js.gz
+#	new file:   public/assets/typeahead-5987e2b6ce6ac43f818516832ceb4390e83b5524771eee96926c641ef3edd7f5.css
+#	new file:   public/assets/typeahead-5987e2b6ce6ac43f818516832ceb4390e83b5524771eee96926c641ef3edd7f5.css.gz
+#	modified:   public/favicon.ico
+#	modified:   public/manifest.json
+#	modified:   public/robots.txt
+#	modified:   spec/capybara_helper.rb
+#	modified:   spec/cassettes/Agents_GoogleTranslationAgent/_receive/checks_if_it_can_handle_multiple_events.yml
+#	modified:   spec/concerns/dry_runnable_spec.rb
+#	modified:   spec/concerns/form_configurable_spec.rb
+#	modified:   spec/concerns/inheritance_tracking_spec.rb
+#	modified:   spec/concerns/liquid_interpolatable_spec.rb
+#	modified:   spec/concerns/long_runnable_spec.rb
+#	modified:   spec/concerns/sortable_events_spec.rb
+#	modified:   spec/concerns/twitter_concern_spec.rb
+#	modified:   spec/controllers/admin/users_controller_spec.rb
+#	modified:   spec/controllers/agents/dry_runs_controller_spec.rb
+#	modified:   spec/controllers/agents_controller_spec.rb
+#	modified:   spec/controllers/concerns/sortable_table_spec.rb
+#	modified:   spec/controllers/events_controller_spec.rb
+#	modified:   spec/controllers/jobs_controller_spec.rb
+#	modified:   spec/controllers/logs_controller_spec.rb
+#	modified:   spec/controllers/omniauth_callbacks_controller_spec.rb
+#	modified:   spec/controllers/scenario_imports_controller_spec.rb
+#	modified:   spec/controllers/scenarios_controller_spec.rb
+#	modified:   spec/controllers/services_controller_spec.rb
+#	modified:   spec/controllers/user_credentials_controller_spec.rb
+#	modified:   spec/controllers/users/registrations_controller_spec.rb
+#	modified:   spec/controllers/web_requests_controller_spec.rb
+#	modified:   spec/data_fixtures/adioso_fare.json
+#	modified:   spec/data_fixtures/adioso_parse.json
+#	modified:   spec/data_fixtures/aftership.json
+#	modified:   spec/data_fixtures/cdata_rss.atom
+#	modified:   spec/data_fixtures/github_rss.atom
+#	modified:   spec/data_fixtures/google_calendar_api.json
+#	modified:   spec/data_fixtures/imap1.eml
+#	modified:   spec/data_fixtures/imap2.eml
+#	modified:   spec/data_fixtures/iso-8859-1.rss
+#	modified:   spec/data_fixtures/jira.json
+#	modified:   spec/data_fixtures/one_fav_tweet.json
+#	modified:   spec/data_fixtures/one_tweet.json
+#	modified:   spec/data_fixtures/one_weibo.json
+#	modified:   spec/data_fixtures/onethingwell.rss
+#	modified:   spec/data_fixtures/podcast.rss
+#	modified:   spec/data_fixtures/private.key
+#	modified:   spec/data_fixtures/public_transport_agent.xml
+#	modified:   spec/data_fixtures/qpx.json
+#	modified:   spec/data_fixtures/search_tweets.json
+#	modified:   spec/data_fixtures/services/github.json
+#	modified:   spec/data_fixtures/services/twitter.json
+#	modified:   spec/data_fixtures/slickdeals.atom
+#	modified:   spec/data_fixtures/stubhub_data.json
+#	modified:   spec/data_fixtures/tumblr_likes.json
+#	modified:   spec/data_fixtures/twitter_scenario.json
+#	modified:   spec/data_fixtures/urlTest.html
+#	modified:   spec/data_fixtures/user_fav_tweets.json
+#	modified:   spec/data_fixtures/user_tweets.json
+#	modified:   spec/data_fixtures/weather.json
+#	modified:   spec/data_fixtures/witai.json
+#	modified:   spec/data_fixtures/xkcd.html
+#	modified:   spec/data_fixtures/youtube.xml
+#	modified:   spec/db/seeds/admin_and_default_scenario_spec.rb
+#	modified:   spec/env.test
+#	modified:   spec/features/admin_users_spec.rb
+#	modified:   spec/features/create_an_agent_spec.rb
+#	modified:   spec/features/dry_running_spec.rb
+#	modified:   spec/features/edit_an_agent_spec.rb
+#	modified:   spec/features/form_configurable_feature_spec.rb
+#	modified:   spec/features/scenario_import_spec.rb
+#	modified:   spec/features/toggle_visibility_of_disabled_agents.rb
+#	modified:   spec/features/undefined_agents_spec.rb
+#	modified:   spec/fixtures/agent_logs.yml
+#	modified:   spec/fixtures/agents.yml
+#	modified:   spec/fixtures/events.yml
+#	modified:   spec/fixtures/links.yml
+#	modified:   spec/fixtures/multiple_user_credentials.json
+#	modified:   spec/fixtures/scenario_memberships.yml
+#	modified:   spec/fixtures/scenarios.yml
+#	modified:   spec/fixtures/services.yml
+#	modified:   spec/fixtures/test_default_scenario.json
+#	modified:   spec/fixtures/user_credentials.json
+#	modified:   spec/fixtures/user_credentials.yml
+#	modified:   spec/fixtures/users.yml
+#	modified:   spec/helpers/application_helper_spec.rb
+#	modified:   spec/helpers/dot_helper_spec.rb
+#	modified:   spec/helpers/jobs_helper_spec.rb
+#	modified:   spec/helpers/markdown_helper_spec.rb
+#	modified:   spec/helpers/scenario_helper_spec.rb
+#	modified:   spec/importers/default_scenario_importer_spec.rb
+#	modified:   spec/importers/scenario_import_spec.rb
+#	modified:   spec/jobs/agent_propagate_job_spec.rb
+#	modified:   spec/jobs/agent_reemit_job_spec.rb
+#	modified:   spec/lib/agent_runner_spec.rb
+#	modified:   spec/lib/agents_exporter_spec.rb
+#	modified:   spec/lib/delayed_job_worker_spec.rb
+#	modified:   spec/lib/gemfile_helper_spec.rb
+#	modified:   spec/lib/google_calendar_spec.rb
+#	modified:   spec/lib/huginn_scheduler_spec.rb
+#	modified:   spec/lib/liquid_migrator_spec.rb
+#	modified:   spec/lib/location_spec.rb
+#	modified:   spec/lib/time_tracker_spec.rb
+#	modified:   spec/lib/utils_spec.rb
+#	modified:   spec/migrations/20161124061256_convert_website_agent_template_for_merge_spec.rb
+#	modified:   spec/migrations/20161124065838_add_templates_to_resolve_url_spec.rb
+#	modified:   spec/models/agent_log_spec.rb
+#	modified:   spec/models/agent_spec.rb
+#	modified:   spec/models/agents/adioso_agent_spec.rb
+#	modified:   spec/models/agents/aftership_agent_spec.rb
+#	modified:   spec/models/agents/attribute_difference_agent_spec.rb
+#	modified:   spec/models/agents/change_detector_agent_spec.rb
+#	modified:   spec/models/agents/commander_agent_spec.rb
+#	modified:   spec/models/agents/csv_agent_spec.rb
+#	modified:   spec/models/agents/data_output_agent_spec.rb
+#	modified:   spec/models/agents/de_duplication_agent_spec.rb
+#	modified:   spec/models/agents/delay_agent_spec.rb
+#	modified:   spec/models/agents/digest_agent_spec.rb
+#	modified:   spec/models/agents/dropbox_file_url_agent_spec.rb
+#	modified:   spec/models/agents/dropbox_watch_agent_spec.rb
+#	modified:   spec/models/agents/email_agent_spec.rb
+#	modified:   spec/models/agents/email_digest_agent_spec.rb
+#	modified:   spec/models/agents/event_formatting_agent_spec.rb
+#	modified:   spec/models/agents/evernote_agent_spec.rb
+#	modified:   spec/models/agents/ftpsite_agent_spec.rb
+#	modified:   spec/models/agents/gap_detector_agent_spec.rb
+#	modified:   spec/models/agents/google_calendar_publish_agent_spec.rb
+#	modified:   spec/models/agents/google_translation_agent_spec.rb
+#	modified:   spec/models/agents/hipchat_agent_spec.rb
+#	modified:   spec/models/agents/http_status_agent_spec.rb
+#	modified:   spec/models/agents/human_task_agent_spec.rb
+#	modified:   spec/models/agents/imap_folder_agent_spec.rb
+#	modified:   spec/models/agents/jabber_agent_spec.rb
+#	modified:   spec/models/agents/java_script_agent_spec.rb
+#	modified:   spec/models/agents/jira_agent_spec.rb
+#	modified:   spec/models/agents/jq_agent_spec.rb
+#	modified:   spec/models/agents/json_parse_agent_spec.rb
+#	modified:   spec/models/agents/key_value_store_agent_spec.rb
+#	modified:   spec/models/agents/liquid_output_agent_spec.rb
+#	modified:   spec/models/agents/local_file_agent_spec.rb
+#	modified:   spec/models/agents/manual_event_agent_spec.rb
+#	modified:   spec/models/agents/mqtt_agent_spec.rb
+#	modified:   spec/models/agents/pdf_agent_spec.rb
+#	modified:   spec/models/agents/peak_detector_agent_spec.rb
+#	modified:   spec/models/agents/phantom_js_cloud_agent_spec.rb
+#	modified:   spec/models/agents/post_agent_spec.rb
+#	modified:   spec/models/agents/public_transport_agent_spec.rb
+#	modified:   spec/models/agents/pushbullet_agent_spec.rb
+#	modified:   spec/models/agents/pushover_agent_spec.rb
+#	modified:   spec/models/agents/read_file_agent_spec.rb
+#	modified:   spec/models/agents/rss_agent_spec.rb
+#	modified:   spec/models/agents/s3_agent_spec.rb
+#	modified:   spec/models/agents/scheduler_agent_spec.rb
+#	modified:   spec/models/agents/sentiment_agent_spec.rb
+#	modified:   spec/models/agents/shell_command_agent_spec.rb
+#	modified:   spec/models/agents/slack_agent_spec.rb
+#	modified:   spec/models/agents/stubhub_agent_spec.rb
+#	modified:   spec/models/agents/telegram_agent_spec.rb
+#	modified:   spec/models/agents/trigger_agent_spec.rb
+#	modified:   spec/models/agents/tumblr_likes_agent_spec.rb
+#	modified:   spec/models/agents/tumblr_publish_agent_spec.rb
+#	modified:   spec/models/agents/twilio_agent_spec.rb
+#	modified:   spec/models/agents/twilio_receive_text_agent_spec.rb
+#	modified:   spec/models/agents/twitter_action_agent_spec.rb
+#	modified:   spec/models/agents/twitter_favorites_spec.rb
+#	modified:   spec/models/agents/twitter_publish_agent_spec.rb
+#	modified:   spec/models/agents/twitter_search_agent_spec.rb
+#	modified:   spec/models/agents/twitter_stream_agent_spec.rb
+#	modified:   spec/models/agents/twitter_user_agent_spec.rb
+#	modified:   spec/models/agents/user_location_agent_spec.rb
+#	modified:   spec/models/agents/weather_agent_spec.rb
+#	modified:   spec/models/agents/webhook_agent_spec.rb
+#	modified:   spec/models/agents/website_agent_spec.rb
+#	modified:   spec/models/agents/weibo_publish_agent_spec.rb
+#	modified:   spec/models/agents/weibo_user_agent_spec.rb
+#	modified:   spec/models/agents/witai_agent_spec.rb
+#	modified:   spec/models/concerns/oauthable.rb
+#	modified:   spec/models/event_spec.rb
+#	modified:   spec/models/scenario_spec.rb
+#	modified:   spec/models/service_spec.rb
+#	modified:   spec/models/user_credential_spec.rb
+#	modified:   spec/models/user_spec.rb
+#	modified:   spec/presenters/form_configurable_agent_presenter_spec.rb
+#	modified:   spec/rails_helper.rb
+#	modified:   spec/routing/webhooks_controller_spec.rb
+#	modified:   spec/spec_helper.rb
+#	modified:   spec/support/alert_confirmer.rb
+#	modified:   spec/support/fake_mqtt_server.rb
+#	modified:   spec/support/feature_helpers.rb
+#	modified:   spec/support/matchers.rb
+#	modified:   spec/support/shared_examples/agent_controller_concern.rb
+#	modified:   spec/support/shared_examples/email_concern.rb
+#	modified:   spec/support/shared_examples/file_handling_consumer.rb
+#	modified:   spec/support/shared_examples/has_guid.rb
+#	modified:   spec/support/shared_examples/liquid_interpolatable.rb
+#	modified:   spec/support/shared_examples/web_request_concern.rb
+#	modified:   spec/support/shared_examples/working_helpers.rb
+#	modified:   spec/support/spec_helpers.rb
+#	modified:   spec/support/vcr_support.rb
+#	modified:   tmp/.gitkeep
+#	modified:   vendor/assets/fonts/glyphicons-halflings-regular.eot
+#	modified:   vendor/assets/fonts/glyphicons-halflings-regular.svg
+#	modified:   vendor/assets/fonts/glyphicons-halflings-regular.ttf
+#	modified:   vendor/assets/fonts/glyphicons-halflings-regular.woff
+#	modified:   vendor/assets/images/glyphicons-halflings-white.png
+#	modified:   vendor/assets/images/glyphicons-halflings.png
+#	modified:   vendor/assets/javascripts/bootstrap.js
+#	modified:   vendor/assets/javascripts/bootstrap/affix.js
+#	modified:   vendor/assets/javascripts/bootstrap/alert.js
+#	modified:   vendor/assets/javascripts/bootstrap/button.js
+#	modified:   vendor/assets/javascripts/bootstrap/carousel.js
+#	modified:   vendor/assets/javascripts/bootstrap/collapse.js
+#	modified:   vendor/assets/javascripts/bootstrap/dropdown.js
+#	modified:   vendor/assets/javascripts/bootstrap/modal.js
+#	modified:   vendor/assets/javascripts/bootstrap/popover.js
+#	modified:   vendor/assets/javascripts/bootstrap/scrollspy.js
+#	modified:   vendor/assets/javascripts/bootstrap/tab.js
+#	modified:   vendor/assets/javascripts/bootstrap/tooltip.js
+#	modified:   vendor/assets/javascripts/bootstrap/transition.js
+#	modified:   vendor/assets/javascripts/d3.js
+#	modified:   vendor/assets/javascripts/jquery.json-editor.js
+#	modified:   vendor/assets/javascripts/jquery.serializeObject.js
+#	modified:   vendor/assets/javascripts/json2.js
+#	modified:   vendor/assets/javascripts/latlon_and_geo.js
+#	modified:   vendor/assets/javascripts/rickshaw.js
+#	modified:   vendor/assets/javascripts/typeahead.bundle.js
+#	modified:   vendor/assets/stylesheets/bootstrap.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_alerts.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_badges.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_breadcrumbs.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_button-groups.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_buttons.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_carousel.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_close.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_code.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_component-animations.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_dropdowns.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_forms.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_glyphicons.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_grid.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_input-groups.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_jumbotron.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_labels.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_list-group.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_media.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_mixins.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_modals.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_navbar.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_navs.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_normalize.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_pager.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_pagination.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_panels.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_popovers.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_print.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_progress-bars.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_responsive-utilities.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_scaffolding.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_tables.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_theme.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_thumbnails.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_tooltip.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_type.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_utilities.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_variables.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/_wells.scss
+#	modified:   vendor/assets/stylesheets/bootstrap/bootstrap.scss
+#	modified:   vendor/assets/stylesheets/jquery.json-editor.css
+#	modified:   vendor/assets/stylesheets/rickshaw.css
+#	modified:   vendor/assets/stylesheets/select2-bootstrap.css
+#	modified:   vendor/gems/dotenv-3.1.0/LICENSE
+#	modified:   vendor/gems/dotenv-3.1.0/README.md
+#	modified:   vendor/gems/dotenv-3.1.0/dotenv.gemspec
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/autorestore.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/cli.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/diff.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/environment.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/load.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/log_subscriber.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/missing_keys.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/parser.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/rails-now.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/rails.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/replay_logger.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/substitutions/command.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/substitutions/variable.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/tasks.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/template.rb
+#	modified:   vendor/gems/dotenv-3.1.0/lib/dotenv/version.rb
+#	modified:   vendor/plugins/.gitkeep
+#

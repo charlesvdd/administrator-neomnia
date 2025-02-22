@@ -1,0 +1,6 @@
+2025-02-20 08:56:28.529 [info] [main] Niveau du journal : Info
+2025-02-20 08:56:28.529 [info] [main] Validation du git trouvé dans : «git»
+2025-02-20 08:56:28.529 [info] [main] Utilisation de git "2.45.2" de "git»
+2025-02-20 08:56:28.529 [info] [Model][doInitialScan] Initial repository scan started
+2025-02-20 08:56:28.529 [warning] [Model][traverseWorkspaceFolder] Unable to read workspace folder '/home/ubuntu': Error: EACCES: permission denied, scandir '/home/ubuntu'
+2025-02-20 08:56:28.529 [info] [Model][doInitialScan] Initial repository scan completed - repositories (0), closed repositories (0), parent repositories (0), unsafe repositories (0)

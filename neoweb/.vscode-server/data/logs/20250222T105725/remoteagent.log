@@ -1,0 +1,51 @@
+2025-02-22 10:57:25.287 [info] 
+
+
+
+
+2025-02-22 10:57:25.297 [info] Extension host agent started.
+2025-02-22 10:57:25.800 [info] [<unknown>][8f2e9beb][ExtensionHostConnection] New connection established.
+2025-02-22 10:57:25.801 [info] [<unknown>][dc8320ac][ManagementConnection] New connection established.
+2025-02-22 10:57:26.004 [info] [<unknown>][8f2e9beb][ExtensionHostConnection] <2936> Launched Extension Host Process.
+2025-02-22 10:58:46.372 [info] [<unknown>][dc8320ac][ManagementConnection] The client has disconnected gracefully, so the connection will be disposed.
+2025-02-22 10:58:46.393 [info] [<unknown>][8f2e9beb][ExtensionHostConnection] <2936> Extension Host Process exited with code: 0, signal: null.
+2025-02-22 10:58:46.393 [info] Cancelling previous shutdown timeout
+2025-02-22 10:58:46.393 [info] Last EH closed, waiting before shutting down
+2025-02-22 10:59:00.754 [info] [<unknown>][f8e1d6a6][ExtensionHostConnection] New connection established.
+2025-02-22 10:59:00.754 [info] [<unknown>][dfd4955f][ManagementConnection] New connection established.
+2025-02-22 10:59:00.757 [info] [<unknown>][f8e1d6a6][ExtensionHostConnection] <3085> Launched Extension Host Process.
+2025-02-22 10:59:16.364 [error] [File Watcher] Unexpected error: Permission denied (EUNKNOWN) (path: /)
+2025-02-22 10:59:16.364 [error] [File Watcher (universal)] Permission denied
+2025-02-22 11:00:16.771 [info] Getting Manifest... github.vscode-github-actions
+2025-02-22 11:00:17.454 [info] Installing extension: github.vscode-github-actions {"isMachineScoped":false,"installOnlyNewlyAddedFromExtensionPack":true,"isApplicationScoped":false,"profileLocation":{"$mid":1,"fsPath":"/home/neoweb/.vscode-server/extensions/extensions.json","external":"file:///home/neoweb/.vscode-server/extensions/extensions.json","path":"/home/neoweb/.vscode-server/extensions/extensions.json","scheme":"file"},"productVersion":{"version":"1.97.2","date":"2025-02-12T23:20:35.343Z"}}
+2025-02-22 11:00:19.759 [info] Extension signature verification result for github.vscode-github-actions: Success. Executed: true. Duration: 1859ms.
+2025-02-22 11:00:20.129 [info] Extracted extension to file:///home/neoweb/.vscode-server/extensions/github.vscode-github-actions-0.27.1: github.vscode-github-actions
+2025-02-22 11:00:20.139 [info] Renamed to /home/neoweb/.vscode-server/extensions/github.vscode-github-actions-0.27.1
+2025-02-22 11:00:20.149 [info] Extension installed successfully: github.vscode-github-actions file:///home/neoweb/.vscode-server/extensions/extensions.json
+2025-02-22 11:03:46.395 [info] New EH opened, aborting shutdown
+2025-02-22 11:03:46.396 [error] Error: Unexpected SIGPIPE
+    at process.<anonymous> (file:///home/neoweb/.vscode-server/cli/servers/Stable-e54c774e0add60467559eb0d1e229c6452cf8447/server/out/server-main.js:181:1060)
+    at process.emit (node:events:530:35)
+2025-02-22 11:16:51.414 [info] [<unknown>][f8e1d6a6][ExtensionHostConnection] <3085> Extension Host Process exited with code: null, signal: SIGKILL.
+2025-02-22 11:16:51.417 [info] Last EH closed, waiting before shutting down
+2025-02-22 11:17:16.527 [error] [<unknown>][f8e1d6a6][ExtensionHostConnection] Unknown reconnection token (seen before).
+2025-02-22 11:17:17.878 [info] [<unknown>][fe93cf62][ExtensionHostConnection] New connection established.
+2025-02-22 11:17:17.883 [info] [<unknown>][fe93cf62][ExtensionHostConnection] <3392> Launched Extension Host Process.
+2025-02-22 11:21:51.416 [info] New EH opened, aborting shutdown
+2025-02-22 13:21:32.682 [info] [<unknown>][dfd4955f][ManagementConnection] The client has disconnected, will wait for reconnection 3h before disposing...
+2025-02-22 14:12:27.033 [info] [<unknown>][dfd4955f][ManagementConnection] Another client has connected, will shorten the wait for reconnection 5m before disposing...
+2025-02-22 14:12:27.034 [info] [<unknown>][3930eb76][ManagementConnection] New connection established.
+2025-02-22 14:12:27.034 [info] [<unknown>][076b5df2][ExtensionHostConnection] New connection established.
+2025-02-22 14:12:27.038 [info] [<unknown>][076b5df2][ExtensionHostConnection] <4131> Launched Extension Host Process.
+2025-02-22 14:12:37.174 [error] [File Watcher] Unexpected error: Permission denied (EUNKNOWN) (path: /)
+2025-02-22 14:12:37.174 [error] [File Watcher (universal)] Permission denied
+2025-02-22 14:14:03.347 [warning] No ptyHost heartbeat after 6 seconds
+2025-02-22 14:14:13.715 [error] No ptyHost heartbeat after 12 seconds
+2025-02-22 14:14:30.329 [warning] No ptyHost heartbeat after 6 seconds
+2025-02-22 14:14:38.898 [error] No ptyHost heartbeat after 12 seconds
+2025-02-22 14:14:59.805 [info] [<unknown>][076b5df2][ExtensionHostConnection] <4131> Extension Host Process exited with code: null, signal: SIGKILL.
+2025-02-22 14:15:17.025 [error] [<unknown>][076b5df2][ExtensionHostConnection] Unknown reconnection token (seen before).
+2025-02-22 14:15:18.060 [info] [<unknown>][e4d035d5][ExtensionHostConnection] New connection established.
+2025-02-22 14:15:18.066 [info] [<unknown>][e4d035d5][ExtensionHostConnection] <4304> Launched Extension Host Process.
+2025-02-22 14:18:00.794 [info] [<unknown>][fe93cf62][ExtensionHostConnection] <3392> Extension Host Process exited with code: 0, signal: null.
+2025-02-22 14:18:19.761 [info] [<unknown>][dfd4955f][ManagementConnection] The reconnection short grace time of 5m has expired, so the connection will be disposed.
