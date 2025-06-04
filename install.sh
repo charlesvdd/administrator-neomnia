@@ -1,92 +1,38 @@
 #!/usr/bin/env bash
 
-# install.sh – GitHub validation (username + token) + repository clone
+# Script pour valider les informations GitHub et cloner un dépôt
 
 set -euo pipefail
 
-# Colors (ANSI codes)
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
-CYAN='\033[0;36m'
-RESET='\033[0m'
-
-error() {
-  echo -e "${RED}❌  $*${RESET}"
+# Fonction pour encoder la clé API en base64
+encode_github_key() {
+  echo -n "$1" | base64
 }
 
-warning() {
-  echo -e "${YELLOW}⚠️  $*${RESET}"
+# Fonction pour décoder la clé API depuis base64
+decode_github_key() {
+  echo -n "$1" | base64 --decode
 }
 
-info() {
-  echo -e "${CYAN}ℹ️  $*${RESET}"
-}
-
-success() {
-  echo -e "${GREEN}✔️  $*${RESET}"
-}
-
-stage() {
-  local num="$1"; shift
-  local msg="$*"
-  echo -e "\n${MAGENTA}═════════════════════════════════════════════════${RESET}"
-  echo -e "${MAGENTA}  [STEP $num] – $msg${RESET}"
-  echo -e "${MAGENTA}═════════════════════════════════════════════════${RESET}\n"
-}
-
-echo -e "${MAGENTA}┌─────────────────────────────────────────────────────────┐${RESET}"
-echo -e "${MAGENTA}│ Neomnia Administrator Installer │${RESET}"
-echo -e "${MAGENTA}│ by Charles Van Den Driessche │${RESET}"
-echo -e "${MAGENTA}│ www.neomnia.net │${RESET}"
-echo -e "${MAGENTA}└─────────────────────────────────────────────────────────┘${RESET}"
-echo -e "${GREEN}License: Charles Van Den Driessche – www.neomnia.net${RESET}"
-echo
-
-if [[ "$EUID" -ne 0 ]]; then
-  error "This script must be run as root."
-  info "Please rerun with: sudo $0"
-  exit 1
-fi
-
-# Function to encrypt the GitHub API key
-encrypt_github_key() {
-  local key="$1"
-  local encrypted_key
-  encrypted_key=$(echo "$key" | openssl enc -aes-256-cbc -a -salt -pass pass:somepassword)
-  echo "$encrypted_key" > /path/to/secure/location/github_key.enc
-}
-
-# Function to decrypt the GitHub API key
-decrypt_github_key() {
-  local encrypted_key
-  encrypted_key=$(cat /path/to/secure/location/github_key.enc)
-  local decrypted_key
-  decrypted_key=$(echo "$encrypted_key" | openssl enc -aes-256-cbc -a -d -pass pass:somepassword)
-  echo "$decrypted_key"
-}
-
+# Fonction pour demander et valider les informations GitHub
 prompt_and_validate_github() {
-  local http_code api_login
   while true; do
-    stage 0 "GitHub Information"
-    read -p "$(echo -e ${BLUE}\"GitHub Username\":${RESET}) " GITHUB_USER
-    read -s -p "$(echo -e ${BLUE}\"GitHub API Key (input hidden)\":${RESET}) " GITHUB_API_KEY
+    read -p "GitHub Username: " GITHUB_USER
+    read -s -p "GitHub API Key (input hidden): " GITHUB_API_KEY
     echo
 
-    # Encrypt and store the GitHub API key
-    encrypt_github_key "$GITHUB_API_KEY"
+    # Encoder et stocker la clé GitHub
+    encoded_key=$(encode_github_key "$GITHUB_API_KEY")
+    echo "$encoded_key" > /path/to/secure/location/github_key.enc
 
+    # Vérification de l'authentification
     http_code=$(curl -s -o /dev/null -w "%{http_code}" \
       -H "Authorization: token ${GITHUB_API_KEY}" \
       https://api.github.com/user)
 
     if [[ "$http_code" -ne 200 ]]; then
-      warning "Authentication failed (HTTP ${http_code})."
-      info "Please check your API key and try again."
-      echo
+      echo "Authentication failed (HTTP ${http_code})."
+      echo "Please check your API key and try again."
       continue
     fi
 
@@ -95,35 +41,32 @@ prompt_and_validate_github() {
       https://api.github.com/user | grep -m1 '"login"' | cut -d '"' -f4)
 
     if [[ "$api_login" != "$GITHUB_USER" ]]; then
-      warning "The token provided does not belong to user '${GITHUB_USER}', but to '${api_login}'. Please re-enter your credentials."
-      echo
+      echo "The token provided does not belong to user '${GITHUB_USER}', but to '${api_login}'. Please re-enter your credentials."
       continue
     fi
 
-    success "Authentication successful for user '${GITHUB_USER}'."
+    echo "Authentication successful for user '${GITHUB_USER}'."
     export GITHUB_USER
     break
   done
 }
 
+# Exécuter la fonction pour obtenir et valider les informations GitHub
 prompt_and_validate_github
 
-# Decrypt the GitHub API key when needed
-GITHUB_API_KEY=$(decrypt_github_key)
+# Décoder la clé GitHub API lorsque nécessaire
+GITHUB_API_KEY=$(decode_github_key "$(cat /path/to/secure/location/github_key.enc)")
 
-stage 1 "Cloning/updating the GitHub repository into /opt/administrator-neomnia"
-
+# Cloner ou mettre à jour le dépôt GitHub
 REPO="administrator-neomnia"
 TARGET_DIR="/opt/${REPO}"
 
 if [[ -d "$TARGET_DIR" ]]; then
-  info "The directory ${TARGET_DIR} already exists."
-  info "→ Running git pull to update..."
-  git -C "$TARGET_DIR" pull && success "Repository update completed successfully."
+  echo "The directory ${TARGET_DIR} already exists. Running git pull to update..."
+  git -C "$TARGET_DIR" pull && echo "Repository update completed successfully."
 else
-  info "Cloning repository: ${GITHUB_USER}/${REPO}"
-  git clone "https://${GITHUB_USER}:${GITHUB_API_KEY}@github.com/${GITHUB_USER}/${REPO}.git" "$TARGET_DIR" && success "Clone finished in '${TARGET_DIR}'."
+  echo "Cloning repository: ${GITHUB_USER}/${REPO}"
+  git clone "https://${GITHUB_USER}:${GITHUB_API_KEY}@github.com/${GITHUB_USER}/${REPO}.git" "$TARGET_DIR" && echo "Clone finished in '${TARGET_DIR}'."
 fi
 
-stage 2 "Finished"
-success "Your repository is now cloned into '${TARGET_DIR}'."
+echo "Your repository is now ready in '${TARGET_DIR}'."
