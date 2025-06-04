@@ -1,14 +1,23 @@
 #!/usr/bin/env bash
 #
 # gitexe.sh — déploie le script d'installation complet en local (/tmp/gitinstall) et l'exécute.
-# Il déchiffre d'abord les identifiants GitHub, puis fait un curl sur le dépôt pour récupérer “install.sh”.
+# Il s’auto‐évalue : s’il n’est pas en root, il relance la même URL en sudo.
 #
 
 # -----------------------------------------------
-# 1. Vérifier qu'on est en root (auto-évaluation)
+# 0. Auto-élévation si non-root
 # -----------------------------------------------
 if [ "$EUID" -ne 0 ]; then
-  echo "Erreur : ce script doit être exécuté en root."
+  echo "[*] Relance automatique en root…"
+  exec sudo bash -c 'curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/gitexe.sh | bash'
+fi
+
+# -----------------------------------------------
+# 1. Vérifier qu'on est bien en root (sécurité forme)
+# -----------------------------------------------
+# (Ce test ne devrait jamais sauter car la section précédente relance déjà en root)
+if [ "$EUID" -ne 0 ]; then
+  echo "❌ Erreur critique : impossible d'obtenir les privilèges root."
   exit 1
 fi
 
@@ -23,14 +32,13 @@ ENC_FILE="$CONFIG_DIR/ghcreds.enc"
 # 3. Déchiffrer les identifiants GitHub
 # -----------------------------------------------
 if [ ! -f "$KEY_FILE" ] || [ ! -f "$ENC_FILE" ]; then
-  echo "Erreur : fichiers de chiffrement introuvables."
+  echo "❌ Erreur : fichiers de chiffrement introuvables."
   exit 1
 fi
 
-# On récupère “user:token” en déchiffrant
 CRED_STRING=$(openssl enc -d -aes-256-cbc -pass "file:${KEY_FILE}" -pbkdf2 -in "${ENC_FILE}" 2>/dev/null)
 if [ $? -ne 0 ] || [ -z "$CRED_STRING" ]; then
-  echo "Erreur : échec du déchiffrement des identifiants."
+  echo "❌ Erreur : échec du déchiffrement des identifiants."
   exit 1
 fi
 
@@ -52,8 +60,6 @@ chmod 700 "$TMP_DIR"
 # -----------------------------------------------
 # 5. Télécharger le script d'installation complet
 # -----------------------------------------------
-# On cible la branche “api-key-github” du dépôt “administrator-neomnia”.
-# On récupère directement le raw de install.sh
 REPO_USER="charlesvdd"
 REPO_NAME="administrator-neomnia"
 REPO_BRANCH="api-key-github"
@@ -63,7 +69,7 @@ echo "[*] Téléchargement du script d'installation depuis :"
 echo "    $RAW_URL"
 http_code=$(curl -sSL -u "${GH_USER}:${GH_TOKEN}" -o "${INSTALL_SCRIPT}" -w "%{http_code}" "${RAW_URL}")
 if [ "$http_code" != "200" ]; then
-  echo "Erreur : échec du téléchargement (code HTTP $http_code)."
+  echo "❌ Erreur : échec du téléchargement (code HTTP $http_code)."
   exit 1
 fi
 chmod +x "${INSTALL_SCRIPT}"
@@ -75,7 +81,7 @@ echo "[OK] Script téléchargé dans ${INSTALL_SCRIPT}."
 echo "[*] Exécution de ${INSTALL_SCRIPT} …"
 bash "${INSTALL_SCRIPT}"
 if [ $? -ne 0 ]; then
-  echo "Erreur lors de l'exécution du script d'installation."
+  echo "❌ Erreur lors de l'exécution du script d'installation."
   exit 1
 fi
 echo "[OK] Script d'installation exécuté avec succès."
@@ -84,26 +90,24 @@ echo "[OK] Script d'installation exécuté avec succès."
 # 7. Vérification post-install
 # -----------------------------------------------
 echo "[*] Vérification des actions effectuées :"
-# Par exemple, vérifier que certains fichiers / paquets sont bien présents.
-# (On peut adapter selon le contenu réel d’install.sh.)
 
-# Exemple : vérifier que /usr/local/bin/mon-binaire est présent
+# Exemple de vérification : présence d'un binaire attendu
 if [ -f "/usr/local/bin/mon-binaire-attendu" ]; then
   echo "    ✓ /usr/local/bin/mon-binaire-attendu trouvé."
 else
-  echo "    ⚠️ /usr/local/bin/mon-binaire-attendu manquant !"
+  echo "    ⚠️  /usr/local/bin/mon-binaire-attendu manquant !"
 fi
 
-# Exemple : vérifier un paquet apt ou rpm. À adapter.
+# Exemple de vérification : git installé
 if command -v git &>/dev/null; then
   echo "    ✓ git est installé."
 else
-  echo "    ⚠️ git n'est pas installé."
+  echo "    ⚠️  git n'est pas installé."
 fi
 
 # -----------------------------------------------
 # 8. Fin
 # -----------------------------------------------
 echo
-echo "Installation GitHub complète terminée."
+echo "🎉 Installation GitHub complète terminée."
 exit 0
