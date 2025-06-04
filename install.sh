@@ -1,88 +1,143 @@
 #!/usr/bin/env bash
 #
-# install.sh – Repository clone while storing login+token in /root/.netrc
+# install.sh – GitHub validation (username + token) + repository clone
 #
-# Usage:
+# Usage :
 #   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/install.sh)"
-#
-# This script:
-#   1. Checks if /root/.netrc exists and is functional.
-#   2. If it doesn’t exist, prompts for login+token, creates it, and secures it (chmod 600).
-#   3. Validates the login/token pair by calling the GitHub API.
-#   4. Clones (or updates) the repository into /opt/administrator-neomnia.
 #
 
 set -euo pipefail
 
-# 1. Verify that the script is running as root
-if [[ "$EUID" -ne 0 ]]; then
-  echo "❌ This script must be run as root."
-  echo "   Please run it with: sudo $0"
-  exit 1
-fi
+# ————————————————————————————————————————————————
+#  Define colors and display functions
+# ————————————————————————————————————————————————
+# Colors (ANSI codes)
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+RESET='\033[0m'
 
-NETRC_PATH="/root/.netrc"
-
-# 2. If /root/.netrc doesn’t exist, ask for login+token and write it
-if [[ ! -r "$NETRC_PATH" ]]; then
-  echo "===== [Step 0] — Configuring /root/.netrc ====="
-  read -p "GitHub username: " GITHUB_USER
-  read -s -p "GitHub API key (token): " GITHUB_API_KEY
-  echo -e "\n"
-
-  # Create /root/.netrc
-  cat > "$NETRC_PATH" <<EOF
-machine github.com
-  login $GITHUB_USER
-  password $GITHUB_API_KEY
-EOF
-  chmod 600 "$NETRC_PATH"
-  echo "✔ /root/.netrc has been created and secured (chmod 600)."
-else
-  # If it already exists, read the login to display it
-  GITHUB_USER=$(grep -m1 '^  login ' "$NETRC_PATH" | cut -d ' ' -f3)
-  echo "ℹ️ /root/.netrc found (login: $GITHUB_USER)."
-fi
-
-# 3. Verify that the token stored in /root/.netrc is valid
-echo "===== [Step 1] — Validating the GitHub token ====="
-http_code=$(curl -s -n -o /dev/null -w "%{http_code}" https://api.github.com/user)
-if [[ "$http_code" -ne 200 ]]; then
-  echo "❌ The login or token in /root/.netrc appears invalid (HTTP $http_code)."
-  echo "   Please remove /root/.netrc and rerun the script to re-enter credentials."
-  exit 1
-fi
-
-# Optionally: retrieve the actual login for confirmation
-current_login=$(curl -s -n https://api.github.com/user | grep -m1 '"login"' | cut -d '"' -f4)
-if [[ "$current_login" != "$GITHUB_USER" ]]; then
-  echo "❌ The token belongs to '$current_login', but /root/.netrc indicates login='$GITHUB_USER'."
-  echo "   Please remove /root/.netrc and rerun the script to correct it."
-  exit 1
-fi
-echo "✔ GitHub authentication succeeded for: $current_login"
-
-# 4. Utility function to print step headers
-stage() {
-  local num="$1"; shift
-  local msg="$*"
-  echo -e "\n===== [Step $num] — $msg ====="
+# Display functions
+error() {
+  echo -e "${RED}❌  $*${RESET}"
 }
 
-# 5. Clone or update the repository in /opt/administrator-neomnia
-stage 2 "Cloning/updating the GitHub repository into /opt/administrator-neomnia"
+warning() {
+  echo -e "${YELLOW}⚠️  $*${RESET}"
+}
+
+info() {
+  echo -e "${CYAN}ℹ️  $*${RESET}"
+}
+
+success() {
+  echo -e "${GREEN}✔️  $*${RESET}"
+}
+
+stage() {
+  # Print a well-formatted step header
+  local num="$1"; shift
+  local msg="$*"
+  echo -e "\n${MAGENTA}═════════════════════════════════════════════════${RESET}"
+  echo -e "${MAGENTA}  [STEP $num] – $msg${RESET}"
+  echo -e "${MAGENTA}═════════════════════════════════════════════════${RESET}\n"
+}
+
+# ————————————————————————————————————————————————
+#  Display banner and license
+# ————————————————————————————————————————————————
+echo -e "${MAGENTA}┌─────────────────────────────────────────────────────────┐${RESET}"
+echo -e "${MAGENTA}│                                                         │${RESET}"
+echo -e "${MAGENTA}│    Neomnia Administrator Installer                      │${RESET}"
+echo -e "${MAGENTA}│    by Charles Van Den Driessche                          │${RESET}"
+echo -e "${MAGENTA}│      www.neomnia.net                                     │${RESET}"
+echo -e "${MAGENTA}│                                                         │${RESET}"
+echo -e "${MAGENTA}└─────────────────────────────────────────────────────────┘${RESET}"
+echo -e "${GREEN}License: Charles Van Den Driessche – www.neomnia.net${RESET}"
+echo
+
+# ————————————————————————————————————————————————
+# 1. Check for root privileges
+# ————————————————————————————————————————————————
+if [[ "$EUID" -ne 0 ]]; then
+  error "This script must be run as root."
+  info  "Please rerun with: sudo $0"
+  exit 1
+fi
+
+# ————————————————————————————————————————————————
+# 2. Prompt and validate GitHub username/token
+# ————————————————————————————————————————————————
+prompt_and_validate_github() {
+  local http_code api_login
+  while true; do
+    stage 0 "GitHub Information"
+
+    # Prompt for credentials
+    read -p "$(echo -e ${BLUE}“GitHub Username”:${RESET} ) " GITHUB_USER
+    read -s -p "$(echo -e ${BLUE}“GitHub API Key (input hidden)”:${RESET} ) " GITHUB_API_KEY
+    echo -e "\n"
+
+    # 2.1. Check token validity via /user
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+      -H "Authorization: token ${GITHUB_API_KEY}" \
+      https://api.github.com/user)
+
+    if [[ "$http_code" -ne 200 ]]; then
+      warning "Authentication failed (HTTP ${http_code})."
+      info    "Please check your API key and try again."
+      echo
+      continue
+    fi
+
+    # 2.2. Retrieve actual login from the JSON response
+    api_login=$(curl -s \
+      -H "Authorization: token ${GITHUB_API_KEY}" \
+      https://api.github.com/user \
+      | grep -m1 '"login"' | cut -d '"' -f4)
+
+    if [[ "$api_login" != "$GITHUB_USER" ]]; then
+      warning "The token provided does not belong to user '${GITHUB_USER}',"
+      info    "but to '${api_login}'. Please re-enter your credentials."
+      echo
+      continue
+    fi
+
+    # Credentials are valid and match
+    success "Authentication successful for user '${GITHUB_USER}'."
+    export GITHUB_USER GITHUB_API_KEY
+    break
+  done
+}
+
+prompt_and_validate_github
+
+# ————————————————————————————————————————————————
+# 3. Clone or update the repository
+# ————————————————————————————————————————————————
+stage 1 "Cloning/updating the GitHub repository into /opt/administrator-neomnia"
+
 REPO="administrator-neomnia"
 TARGET_DIR="/opt/${REPO}"
 
 if [[ -d "$TARGET_DIR" ]]; then
-  echo "→ The directory ${TARGET_DIR} already exists. Performing git pull…"
-  git -C "$TARGET_DIR" pull
+  info "The directory ${TARGET_DIR} already exists."
+  info "→ Running git pull to update…"
+  git -C "$TARGET_DIR" pull \
+    && success "Repository update completed successfully."
 else
-  echo "→ Cloning the repo https://github.com/${current_login}/${REPO}.git"
-  git clone "https://github.com/${current_login}/${REPO}.git" "$TARGET_DIR"
+  info "Cloning repository: ${GITHUB_USER}/${REPO}"
+  git clone "https://${GITHUB_USER}:${GITHUB_API_KEY}@github.com/${GITHUB_USER}/${REPO}.git" \
+    "$TARGET_DIR" \
+    && success "Clone finished in '${TARGET_DIR}'."
 fi
 
-# 6. End of script
-stage 3 "Finished"
-echo "✅ Your repository has been cloned/updated into: ${TARGET_DIR}"
-echo "   Next time, /root/.netrc will be read automatically, and you won’t need to re-enter credentials."
+# ————————————————————————————————————————————————
+# 4. End of script
+# ————————————————————————————————————————————————
+stage 2 "Finished"
+success "Your repository is now cloned into '${TARGET_DIR}'."
+echo
