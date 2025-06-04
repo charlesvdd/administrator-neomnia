@@ -7,31 +7,46 @@ echo "       GITKEY-INSTALL (install en local)"
 echo "========================================"
 echo
 
-# --- 1) Demander les identifiants GitHub immédiatement ---
+# ┌───────────────────────────────────────────────────────────────────────────┐
+# │ A) Demander, en interaction réelle, les identifiants GitHub              │
+# └───────────────────────────────────────────────────────────────────────────┘
 read -p "Nom d’utilisateur GitHub : " GITHUB_USER
 read -s -p "Mot de passe ou token GitHub : " GITHUB_TOKEN
 echo
 echo "→ Identifiants saisis (le token reste masqué)."
 echo
 
-# --- 2) Enregistrer ces credentials quelque part ---
-CONFIG_DIR="$HOME/.neomnia"
+# ┌───────────────────────────────────────────────────────────────────────────┐
+# │ B) Enregistrer ces credentials dans /root/.neomnia/credentials.conf       │
+# │    (puisqu’on est en root)                                                 │
+# └───────────────────────────────────────────────────────────────────────────┘
+CONFIG_DIR="/root/.neomnia"
 mkdir -p "$CONFIG_DIR"
 cat > "$CONFIG_DIR/credentials.conf" <<EOF
 GITHUB_USER="$GITHUB_USER"
 GITHUB_TOKEN="$GITHUB_TOKEN"
 EOF
-echo "→ Credentials enregistrés dans $CONFIG_DIR/credentials.conf"
+echo "→ Credentials enregistrés dans $CONFIG_DIR/credentials.conf."
 echo
 
-# --- 3) Poursuivre la suite de l’installation (exemple) ---
-# Ici, vous pouvez ajouter les commandes que vous souhaitez
-# exécuter maintenant que vous avez $GITHUB_USER et $GITHUB_TOKEN.
-# Par exemple :
-#   git clone https://github.com/mon-org/mon-projet.git
-#   cd mon-projet && ./setup-env.sh
+# ┌───────────────────────────────────────────────────────────────────────────┐
+# │ C) (Optionnel) Poursuivre la suite de l’installation en local              │
+# │    – par exemple, cloner un autre dépôt, installer un service, etc.      │
+# └───────────────────────────────────────────────────────────────────────────┘
 #
-# Pour ce modèle, on se contente juste d’un message final :
-
+# Exemples (à adapter selon votre besoin) :
+#
+# 1) Cloner un autre repo privé en utilisant les credentials GitHub :
+#    git clone https://github.com/mon-orga/mon-projet.git /opt/mon-projet
+#
+# 2) Installer un service systemd ou copier des configs 
+#    cp /opt/mon-projet/config.service /etc/systemd/system/mon-service.service
+#    systemctl daemon-reload
+#    systemctl enable mon-service
+#    systemctl start mon-service
+#
+# 3) Toute autre commande bash dont votre “install local” a besoin.
+#
+# Ici, on se contente juste d’un message de succès :
 echo "🎉 Installation locale terminée avec succès."
 exit 0
