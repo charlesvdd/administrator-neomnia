@@ -34,6 +34,4 @@ Instead of cloning this repository to your server first, you can use a single co
 1. SSH into your target machine as root (or a user with sudo privileges).  
 2. Define the following Bash function in your shell session:
    ```bash
-   raw() {
-     curl -sSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/next-project/install.sh | bash -s -- "$@"
-   }
+   curl -sSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/next-project/install.sh | bash my-nextjs-app
