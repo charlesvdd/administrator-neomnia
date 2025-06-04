@@ -2,63 +2,67 @@
 set -euo pipefail
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
-# │ 1) Définir où cloner temporairement le dépôt                            │
+# │ 1) Variables                                                             │
 # └───────────────────────────────────────────────────────────────────────────┘
-TMP_DIR="/var/github-temp"
+# Répertoire temporaire pour cloner le dépôt
+TMP_DIR="/var/github-repo-temp"
+# URL complète vers votre dépôt GitHub (branche “api-key-github” ici)
 REPO_URL="https://github.com/charlesvdd/administrator-neomnia.git"
 BRANCH="api-key-github"
 
-# S’il existe déjà, on supprime pour repartir “propre”
+# Où installer (copier) notre second script localement
+# Ici on choisit /usr/local/bin, mais vous pouvez ajuster
+DEST_DIR="/usr/local/bin"
+LOCAL_SCRIPT_NAME="local-install.sh"
+
+# ┌───────────────────────────────────────────────────────────────────────────┐
+# │ 2) Nettoyage si TMP_DIR existe déjà                                      │
+# └───────────────────────────────────────────────────────────────────────────┘
 if [ -d "$TMP_DIR" ]; then
+  echo "→ Suppression de l’ancien dossier temporaire $TMP_DIR"
   rm -rf "$TMP_DIR"
 fi
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
-# │ 2) Cloner le dépôt dans /var/github-temp                                 │
+# │ 3) Clonage du dépôt Git dans TMP_DIR                                      │
 # └───────────────────────────────────────────────────────────────────────────┘
-echo "→ Clonage du dépôt dans $TMP_DIR…"
+echo "→ Clonage du dépôt Git dans $TMP_DIR (branche '$BRANCH')…"
 git clone --branch "$BRANCH" "$REPO_URL" "$TMP_DIR"
+echo "→ Clone terminé."
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
-# │ 3) Exécuter install.sh en local (stdin connecté au terminal)             │
+# │ 4) Vérifier que le second script existe et le copier en local             │
 # └───────────────────────────────────────────────────────────────────────────┘
-echo "→ Exécution de install.sh…"
-chmod +x "$TMP_DIR/install.sh"
-bash "$TMP_DIR/install.sh"
+# On suppose que dans le dépôt, vous avez un fichier nommé local-install.sh
+if [ ! -f "$TMP_DIR/$LOCAL_SCRIPT_NAME" ]; then
+  echo "‼️  Erreur : $LOCAL_SCRIPT_NAME introuvable dans le dépôt."
+  echo "    Vérifiez que le dépôt contient bien ce fichier à la racine."
+  exit 1
+fi
+
+# Copier le script dans DEST_DIR (création du dossier si nécessaire)
+mkdir -p "$DEST_DIR"
+echo "→ Copie de $LOCAL_SCRIPT_NAME vers $DEST_DIR/$LOCAL_SCRIPT_NAME…" 
+cp "$TMP_DIR/$LOCAL_SCRIPT_NAME" "$DEST_DIR/$LOCAL_SCRIPT_NAME"
+chmod +x "$DEST_DIR/$LOCAL_SCRIPT_NAME"
+echo "→ Copie et chmod +x terminés."
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
-# │ 4) Nettoyage du clone : on supprime le dossier temporaire                │
+# │ 5) Supprimer le dossier temporaire                                        │
 # └───────────────────────────────────────────────────────────────────────────┘
-echo "→ Suppression du dossier temporaire $TMP_DIR…"
+echo "→ Suppression de $TMP_DIR…"
 rm -rf "$TMP_DIR"
+echo "→ Dossier temporaire supprimé."
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
-# │ 5) Demande des identifiants GitHub                                        │
+# │ 6) Lancer immédiatement le second script (qui va demander les credentials)│
 # └───────────────────────────────────────────────────────────────────────────┘
 echo
-echo "------------------------------"
-echo "🛠  Veuillez entrer vos identifiants GitHub"
-echo "------------------------------"
-read -p "Utilisateur GitHub : " GITHUB_USER
-read -s -p "Token ou mot de passe GitHub : " GITHUB_TOKEN
+echo "————————————————————————————"
+echo "→ Lancement de $DEST_DIR/$LOCAL_SCRIPT_NAME…"
+echo "   (vous allez être invité à entrer vos identifiants GitHub)"
+echo "————————————————————————————"
+bash "$DEST_DIR/$LOCAL_SCRIPT_NAME"
 echo
-echo "→ Identifiants saisis (le token reste masqué)."
-
-# ┌───────────────────────────────────────────────────────────────────────────┐
-# │ 6) Stocker ces identifiants dans un fichier de configuration              │
-# └───────────────────────────────────────────────────────────────────────────┘
-CONFIG_DIR="$HOME/.neomnia"
-mkdir -p "$CONFIG_DIR"
-cat > "$CONFIG_DIR/credentials.conf" <<EOF
-GITHUB_USER="$GITHUB_USER"
-GITHUB_TOKEN="$GITHUB_TOKEN"
-EOF
-echo "→ Vos identifiants GitHub ont été enregistrés dans $CONFIG_DIR/credentials.conf"
-
-# ┌───────────────────────────────────────────────────────────────────────────┐
-# │ 7) Suppression du script lui-même                                         │
-# └───────────────────────────────────────────────────────────────────────────┘
-echo "→ Suppression de ce script (self-delete)…"
-rm -- "$0"
-
-# Note : à partir d’ici, tout est terminé. Le seul résidu est ~/.neomnia/credentials.conf
+echo "→ fetch-and-install.sh terminé."
+exit 0
