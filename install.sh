@@ -51,6 +51,23 @@ if [[ "$EUID" -ne 0 ]]; then
   exit 1
 fi
 
+# Function to encrypt the GitHub API key
+encrypt_github_key() {
+  local key="$1"
+  local encrypted_key
+  encrypted_key=$(echo "$key" | openssl enc -aes-256-cbc -a -salt -pass pass:somepassword)
+  echo "$encrypted_key" > /path/to/secure/location/github_key.enc
+}
+
+# Function to decrypt the GitHub API key
+decrypt_github_key() {
+  local encrypted_key
+  encrypted_key=$(cat /path/to/secure/location/github_key.enc)
+  local decrypted_key
+  decrypted_key=$(echo "$encrypted_key" | openssl enc -aes-256-cbc -a -d -pass pass:somepassword)
+  echo "$decrypted_key"
+}
+
 prompt_and_validate_github() {
   local http_code api_login
   while true; do
@@ -58,6 +75,9 @@ prompt_and_validate_github() {
     read -p "$(echo -e ${BLUE}\"GitHub Username\":${RESET}) " GITHUB_USER
     read -s -p "$(echo -e ${BLUE}\"GitHub API Key (input hidden)\":${RESET}) " GITHUB_API_KEY
     echo
+
+    # Encrypt and store the GitHub API key
+    encrypt_github_key "$GITHUB_API_KEY"
 
     http_code=$(curl -s -o /dev/null -w "%{http_code}" \
       -H "Authorization: token ${GITHUB_API_KEY}" \
@@ -81,12 +101,15 @@ prompt_and_validate_github() {
     fi
 
     success "Authentication successful for user '${GITHUB_USER}'."
-    export GITHUB_USER GITHUB_API_KEY
+    export GITHUB_USER
     break
   done
 }
 
 prompt_and_validate_github
+
+# Decrypt the GitHub API key when needed
+GITHUB_API_KEY=$(decrypt_github_key)
 
 stage 1 "Cloning/updating the GitHub repository into /opt/administrator-neomnia"
 
@@ -104,4 +127,3 @@ fi
 
 stage 2 "Finished"
 success "Your repository is now cloned into '${TARGET_DIR}'."
-echo
