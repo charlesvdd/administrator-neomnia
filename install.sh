@@ -11,7 +11,7 @@ encode_github_key() {
 
 # Fonction pour décoder la clé API depuis base64
 decode_github_key() {
-  echo -n "$1" | base64 --decode
+  echo "$1" | base64 --decode
 }
 
 # Fonction pour demander et valider les informations GitHub
@@ -66,7 +66,7 @@ if [[ -d "$TARGET_DIR" ]]; then
   git -C "$TARGET_DIR" pull && echo "Repository update completed successfully."
 else
   echo "Cloning repository: ${GITHUB_USER}/${REPO}"
-  git clone "https://${GITHUB_USER}:${GITHUB_API_KEY}@github.com/${GITHUB_USER}/${REPO}.git" "$TARGET_DIR" && echo "Clone finished in '${TARGET_DIR}'."
+  git clone "https://${GITHUB_API_KEY}@github.com/${GITHUB_USER}/${REPO}.git" "$TARGET_DIR" && echo "Clone finished in '${TARGET_DIR}'."
 fi
 
 echo "Your repository is now ready in '${TARGET_DIR}'."
