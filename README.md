@@ -51,3 +51,8 @@ Additionally, the script includes a built-in function to **execute itself on a r
    git clone git@github.com:charlesvdd/administrator-neomnia.git
    cd administrator-neomnia
    git checkout api-key-github
+
+## installation bash
+   '''bash
+   ssh user@remote.host "bash -s" < <(curl -fsS https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/install.sh)
+
