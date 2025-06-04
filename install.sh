@@ -3,8 +3,8 @@
 # install.sh – Validation GitHub (login + token) + clonage du dépôt
 #                + stockage chiffré du token
 #
-# Usage :
-#   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/install.sh)"
+# Usage recommandé :
+#   curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/install.sh | sudo bash
 #
 
 set -euo pipefail
@@ -17,7 +17,7 @@ TOKEN_FILE="${CREDENTIALS_DIR}/token.enc"
 # 1. Vérifier qu’on est root
 if [[ "$EUID" -ne 0 ]]; then
   echo "❌ Ce script doit être exécuté en root."
-  echo "   Relancez-le avec : sudo $0"
+  echo "   Relancez-le avec : sudo bash $0"
   exit 1
 fi
 
@@ -27,21 +27,23 @@ _validate_token() {
   local token="$2"
   local http_code api_login
 
-  # 2.1. Test de validité du token via /user
-  http_code=$(curl -s -o /dev/null -w "%{http_code}" \
-    -H "Authorization: token ${token}" \
-    https://api.github.com/user)
-
+  # Test de validité du token via /user
+  http_code=$(
+    curl -s -o /dev/null -w "%{http_code}" \
+      -H "Authorization: token ${token}" \
+      https://api.github.com/user
+  )
   if [[ "$http_code" -ne 200 ]]; then
     return 1
   fi
 
-  # 2.2. Extraction du "login" réel depuis le JSON
-  api_login=$(curl -s \
-    -H "Authorization: token ${token}" \
-    https://api.github.com/user \
-    | grep -m1 '"login"' | cut -d '"' -f4)
-
+  # Extraction du "login" réel depuis le JSON
+  api_login=$(
+    curl -s \
+      -H "Authorization: token ${token}" \
+      https://api.github.com/user \
+      | grep -m1 '"login"' | cut -d '"' -f4
+  )
   if [[ "$api_login" != "$user" ]]; then
     return 2
   fi
@@ -55,8 +57,10 @@ _prompt_and_store_github() {
 
   while true; do
     echo "===== [Étape 0] — Informations GitHub ====="
-    read -p "Nom d’utilisateur GitHub : " GITHUB_USER
-    read -s -p "Clé API GitHub (input masqué) : " GITHUB_API_KEY
+
+    # On force la lecture depuis le terminal, via /dev/tty
+    read -p "Nom d’utilisateur GitHub : " GITHUB_USER </dev/tty
+    read -s -p "Clé API GitHub (input masqué) : " GITHUB_API_KEY </dev/tty
     echo -e "\n"
 
     # Validation immédiate du token saisi
@@ -83,8 +87,8 @@ _prompt_and_store_github() {
           chmod 700 "$CREDENTIALS_DIR"
         fi
 
-        # Demander passphrase pour chiffrer le token
-        read -s -p "Entrez une passphrase pour chiffrer le token GitHub : " PASS_PHRASE
+        # Demander passphrase pour chiffrer le token (lire depuis /dev/tty)
+        read -s -p "Entrez une passphrase pour chiffrer le token GitHub : " PASS_PHRASE </dev/tty
         echo
 
         # Chiffrage du token
@@ -107,11 +111,11 @@ _prompt_and_store_github() {
 
 # 4. Si on dispose déjà d’un TOKEN_FILE et USER_FILE, on tente de déchiffrer
 if [[ -f "$TOKEN_FILE" && -f "$USER_FILE" ]]; then
-  # Lecture de l’utilisateur
+  # Lecture de l’utilisateur (en clair)
   GITHUB_USER=$(< "$USER_FILE")
 
   echo "→ Identifiants GitHub trouvés. Déchiffrement du token…"
-  read -s -p "Entrez la passphrase pour déchiffrer le token GitHub : " PASS_PHRASE
+  read -s -p "Entrez la passphrase pour déchiffrer le token GitHub : " PASS_PHRASE </dev/tty
   echo
 
   # Déchiffrement du token dans une variable
@@ -141,7 +145,7 @@ if [[ -f "$TOKEN_FILE" && -f "$USER_FILE" ]]; then
   esac
 
 else
-  # Pas de token stocké, on invite à saisir + valider + chiffrer
+  # Pas de token stocké : on demande login + token + passphrase => stockage chiffré
   _prompt_and_store_github
 fi
 
