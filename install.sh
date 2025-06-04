@@ -1,122 +1,238 @@
 #!/usr/bin/env bash
-# -----------------------------------------------------------------------------
-# install-gh-server.sh
-#
-# Copyright (c) 2025 Charles van den Driessche - Neomnia
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the “Software”), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
-#
-# Script d’installation automatique de GitHub CLI (gh) avec :
-#  • Bannières ASCII pour une « belle graphisème »
-#  • Paramètre de serveur GitHub
-#  • Authentification non-interactive via API key stockée dans GH_PAT
-#
-# Usage :
-#   sudo bash <(curl -fsSL https://raw.githubusercontent.com/charlesvdd/kubesphere-install/main/install-gh-server.sh)
-#
-# Ce script :
-# 1) Affiche une bannière ASCII « iconographique »
-# 2) Demande à l’utilisateur de saisir le nom du serveur GitHub
-# 3) Ajoute la clé GPG officielle de GitHub CLI
-# 4) Ajoute le dépôt apt de GitHub CLI
-# 5) Met à jour le cache apt
-# 6) Installe le paquet gh (GitHub CLI) sans aucune invite
-# 7) Configure automatiquement l’authentification gh en utilisant la clé API (GH_PAT)
-# 8) Vérifie que gh est correctement configuré pour le serveur saisi
-# -----------------------------------------------------------------------------
-set -euo pipefail
 
-# 0) Définition de la clé API (gh PAT) fournie
-GH_PAT="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"
+################################################################################
+#                                                                              #
+#   ██████╗ ███████╗████████╗ ██████╗ ██╗   ██╗███╗   ███╗ █████╗             #
+#   ██╔══██╗██╔════╝╚══██╔══╝██╔═══██╗██║   ██║████╗ ████║██╔══██╗            #
+#   ██████╔╝█████╗     ██║   ██║   ██║██║   ██║██╔████╔██║███████║            #
+#   ██╔══██╗██╔══╝     ██║   ██║   ██║██║   ██║██║╚██╔╝██║██╔══██║            #
+#   ██████╔╝███████╗   ██║   ╚██████╔╝╚██████╔╝██║ ╚═╝ ██║██║  ██║            #
+#   ╚═════╝ ╚══════╝   ╚═╝    ╚═════╝  ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═╝            #
+#                                                                              #
+#   Script : setup-github.sh                                                   #
+#   Auteur : Charles van den Driessche <www.neomnia.net>                       #
+#   Licence: GNU General Public License v3.0                                   #
+#            Voir le fichier LICENSE ou https://www.gnu.org/licenses/gpl-3.0   #
+#   Année  : 2025                                                              #
+#                                                                              #
+################################################################################
 
-# 1) Affichage de la bannière ASCII « iconographique »
-cat << 'EOF'
+# Couleurs pour le texte
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m' # Pas de couleur
 
-   ██████╗ ██╗   ██╗████████╗ ██████╗  ██████╗ 
-  ██╔═══██╗██║   ██║╚══██╔══╝██╔═══██╗██╔═══██╗
-  ██║   ██║██║   ██║   ██║   ██║   ██║██║   ██║
-  ██║   ██║╚██╗ ██╔╝   ██║   ██║   ██║██║   ██║
-  ╚██████╔╝ ╚████╔╝    ██║   ╚██████╔╝╚██████╔╝
-   ╚═════╝   ╚═══╝     ╚═╝    ╚═════╝  ╚═════╝ 
-                                            
-   ██████╗ ██╗     ██╗██████╗ ███████╗██████╗ 
-  ██╔════╝ ██║     ██║██╔══██╗██╔════╝██╔══██╗
-  ██║  ███╗██║     ██║██████╔╝█████╗  ██████╔╝
-  ██║   ██║██║     ██║██╔═══╝ ██╔══╝  ██╔══██╗
-  ╚██████╔╝███████╗██║██║     ███████╗██║  ██║
-   ╚═════╝ ╚══════╝╚═╝╚═╝     ╚══════╝╚═╝  ╚═╝
-                                            
-   Installation GitHub CLI (gh) - Neomnia 2025
+set -e
 
-EOF
+# Affiche une bannière stylisée au lancement
+print_banner() {
+  echo -e "${CYAN}"
+  echo "──────────────────────────────────────────────────────────────────────────────"
+  echo "                           Installation Git & GitHub CLI                       "
+  echo "──────────────────────────────────────────────────────────────────────────────"
+  echo -e "${NC}"
+  echo -e "${YELLOW}Auteur   : Charles van den Driessche${NC}"
+  echo -e "${YELLOW}Site Web : https://www.neomnia.net${NC}"
+  echo -e "${YELLOW}Licence  : GNU GPL v3${NC}"
+  echo
+}
 
-echo ""
-
-# 2) Demander le nom du serveur GitHub
-read -p "Entrez le nom du serveur GitHub (ex. github.com ou votre-instance-enterprise) : " GITHUB_SERVER
-GITHUB_SERVER=${GITHUB_SERVER:-github.com}
-echo ""
-echo "[INFO] Serveur GitHub sélectionné : $GITHUB_SERVER"
-echo ""
-
-# 3) Importation de la clé GPG officielle de GitHub CLI
-echo "[INFO] Importation de la clé GPG de GitHub CLI…"
-curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-  | gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg
-
-# 4) Ajout du dépôt GitHub CLI dans les sources apt
-echo "[INFO] Ajout du dépôt GitHub CLI dans les sources apt…"
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] \
-https://cli.github.com/packages stable main" \
-  | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-
-# 5) Mise à jour du cache apt
-echo "[INFO] Mise à jour du cache apt…"
-apt update -qq
-
-# 6) Installation de gh
-echo "[INFO] Installation de GitHub CLI (gh)…"
-DEBIAN_FRONTEND=noninteractive apt install -y gh
-
-# 7) Authentification non-interactive via la PAT pour le serveur spécifié
-echo "[INFO] Configuration de l’authentification gh pour le serveur $GITHUB_SERVER …"
-echo "$GH_PAT" | gh auth login --hostname "$GITHUB_SERVER" --with-token
-
-# 8) Vérification de l’installation et de l’authentification
-echo "[INFO] Vérification de l’installation de gh…"
-if command -v gh >/dev/null 2>&1; then
-  GH_VERSION=$(gh --version | head -n1)
-  echo "[SUCCESS] GitHub CLI installé : $GH_VERSION"
-else
-  echo "[ERROR] L’installation de GitHub CLI a échoué." >&2
+# Fonction pour afficher un message d'erreur puis quitter
+error() {
+  echo -e "${RED}Erreur : $1${NC}" >&2
   exit 1
-fi
+}
 
-echo "[INFO] Vérification de l’état d’authentification…"
-if gh auth status --hostname "$GITHUB_SERVER" >/dev/null 2>&1; then
-  echo "[SUCCESS] gh est connecté au serveur $GITHUB_SERVER"
-else
-  echo "[ERROR] L’authentification gh a échoué pour le serveur $GITHUB_SERVER" >&2
-  exit 1
-fi
+# 0. Mise à jour du système (packages)
+update_system() {
+  echo -e "${CYAN}➤ Mise à jour du système${NC}"
+  if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    if command -v apt-get &>/dev/null; then
+      echo "  - Mise à jour des listes de paquets (apt-get update)..."
+      sudo apt-get update -qq
+      echo "  - Mise à niveau des paquets installés (apt-get upgrade)..."
+      sudo apt-get upgrade -y -qq
+      echo -e "${GREEN}✔ Système Linux mis à jour.${NC}"
+    else
+      echo -e "${YELLOW}ℹ️  Impossible de détecter apt-get. Vérifiez manuellement la mise à jour.${NC}"
+    fi
+  elif [[ "$OSTYPE" == "darwin"* ]]; then
+    if command -v brew &>/dev/null; then
+      echo "  - Mise à jour de Homebrew..."
+      brew update >/dev/null
+      echo "  - Mise à niveau des formules installées..."
+      brew upgrade >/dev/null
+      echo -e "${GREEN}✔ Système macOS mis à jour via Homebrew.${NC}"
+    else
+      echo -e "${YELLOW}ℹ️  Homebrew non installé. Passez la mise à jour macOS.${NC}"
+    fi
+  else
+    echo -e "${YELLOW}ℹ️  Système non reconnu pour la mise à jour automatique. Passez cette étape.${NC}"
+  fi
+  echo
+}
 
-echo ""
-echo "[INFO] Installation et configuration de GitHub CLI terminées."
-echo "Vous pouvez maintenant utiliser 'gh' pour interagir avec $GITHUB_SERVER."
-echo ""
+# 1. Installer Git et GitHub CLI (gh)
+install_tools() {
+  echo -e "${CYAN}➤ Installation de Git et GitHub CLI${NC}"
+  if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    if command -v apt-get &>/dev/null; then
+      echo "  - Détection Ubuntu/Debian (apt-get)."
+      sudo apt-get install -y git curl wget -qq
+      if ! command -v gh &>/dev/null; then
+        echo "  - Téléchargement et installation de GitHub CLI (gh)..."
+        ARCH=$(uname -m)
+        wget -qO /tmp/gh.deb https://github.com/cli/cli/releases/latest/download/gh_${ARCH}_deb.deb
+        sudo dpkg -i /tmp/gh.deb &>/dev/null || sudo apt-get install -f -y -qq
+        rm -f /tmp/gh.deb
+      else
+        echo "  - GitHub CLI (gh) est déjà installé."
+      fi
+    else
+      error "Distribution Linux non prise en charge automatiquement. Installez manuellement git et gh."
+    fi
+
+  elif [[ "$OSTYPE" == "darwin"* ]]; then
+    echo "  - Détection macOS (Homebrew)."
+    if ! command -v brew &>/dev/null; then
+      echo "    • Homebrew introuvable. Installation de Homebrew..."
+      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    fi
+    echo "  - Installation de git et gh via Homebrew..."
+    brew install git gh >/dev/null
+  else
+    error "OS non pris en charge automatiquement. Installez manuellement git et la CLI GitHub (gh)."
+  fi
+
+  # Vérification
+  if ! command -v git &>/dev/null; then
+    error "L'installation de git a échoué."
+  fi
+  if ! command -v gh &>/dev/null; then
+    error "L'installation de gh (GitHub CLI) a échoué."
+  fi
+
+  echo -e "${GREEN}✔ Git ($(git --version)) et GitHub CLI ($(gh --version | head -n1)) sont prêts.${NC}"
+  echo
+}
+
+# 2. Demander le nom d'utilisateur GitHub
+ask_username() {
+  echo -e "${CYAN}➤ Configuration du nom d'utilisateur GitHub${NC}"
+  read -rp "   Entrez votre nom d'utilisateur GitHub (ex. monLoginGitHub) : " GITHUB_USER
+  if [[ -z "$GITHUB_USER" ]]; then
+    error "Le nom d'utilisateur ne peut pas être vide."
+  fi
+  echo -e "   Nom d'utilisateur GitHub : ${YELLOW}$GITHUB_USER${NC}"
+  echo
+}
+
+# 3. Générer ou importer une clé SSH
+setup_ssh_key() {
+  echo -e "${CYAN}➤ Configuration de la clé SSH${NC}"
+  SSH_DIR="$HOME/.ssh"
+  mkdir -p "$SSH_DIR"
+  chmod 700 "$SSH_DIR"
+
+  DEFAULT_KEY="$SSH_DIR/id_rsa"
+  if [[ -f "$DEFAULT_KEY" ]]; then
+    echo "   • Une clé SSH existe déjà à $DEFAULT_KEY."
+    read -rp "     [r]égénérer une nouvelle clé ou [u]tiliser l'existante ? [r/U] : " choice
+    choice=${choice,,}
+    if [[ "$choice" == "r" ]]; then
+      rm -f "$DEFAULT_KEY" "$DEFAULT_KEY.pub"
+      echo "     Clé précédente supprimée."
+    else
+      echo -e "${GREEN}✔ On garde la clé SSH existante (${DEFAULT_KEY}).${NC}"
+      echo
+      return
+    fi
+  fi
+
+  read -rp "   Entrez votre e-mail GitHub (pour la clé SSH) : " GITHUB_EMAIL
+  if [[ -z "$GITHUB_EMAIL" ]]; then
+    error "L'adresse e-mail ne peut pas être vide."
+  fi
+
+  echo "   Génération d'une nouvelle paire de clés SSH (RSA 4096 bits)..."
+  ssh-keygen -t rsa -b 4096 -C "$GITHUB_EMAIL" -f "$DEFAULT_KEY" -N "" -q
+  echo -e "${GREEN}✔ Clé SSH générée :${NC} ${DEFAULT_KEY} (+ .pub)"
+  echo
+}
+
+# 4. Ajouter la clé SSH sur GitHub via gh
+add_ssh_key_to_github() {
+  echo -e "${CYAN}➤ Ajout de la clé SSH sur GitHub${NC}"
+  PUB_KEY_PATH="$HOME/.ssh/id_rsa.pub"
+  [[ -f "$PUB_KEY_PATH" ]] || error "Clé publique SSH introuvable à $PUB_KEY_PATH."
+
+  echo "   • Affichage de la clé publique :"
+  echo "──────────────────────────────────────────────────────────────────────────────"
+  cat "$PUB_KEY_PATH"
+  echo "──────────────────────────────────────────────────────────────────────────────"
+  echo "   • Cette clé va être ajoutée à votre compte GitHub."
+  echo
+
+  # Authentification via gh si nécessaire
+  if gh auth status &>/dev/null; then
+    echo -e "${GREEN}✔ Vous êtes déjà authentifié avec gh.${NC}"
+  else
+    echo "   Vous n'êtes pas encore authentifié. Lancement de l'authentification via navigateur..."
+    gh auth login --hostname github.com --web
+  fi
+
+  KEY_TITLE="clé-ssh-$(date +'%Y-%m-%d_%H-%M-%S')"
+  echo "   Ajout de la clé SSH à GitHub sous le titre : ${YELLOW}$KEY_TITLE${NC}"
+  gh ssh-key add "$PUB_KEY_PATH" -t "$KEY_TITLE" >/dev/null
+  echo -e "${GREEN}✔ Clé SSH ajoutée avec succès à votre compte GitHub.${NC}"
+  echo
+}
+
+# 5. Configurer Git (user.name et user.email)
+configure_git() {
+  echo -e "${CYAN}➤ Configuration basique de Git${NC}"
+  read -rp "   Entrez votre nom complet (pour git config user.name) : " GIT_FULLNAME
+  read -rp "   Entrez votre e-mail (pour git config user.email) : " GIT_EMAIL
+
+  if [[ -n "$GIT_FULLNAME" ]]; then
+    git config --global user.name "$GIT_FULLNAME"
+    echo -e "   user.name défini à : ${YELLOW}$GIT_FULLNAME${NC}"
+  fi
+  if [[ -n "$GIT_EMAIL" ]]; then
+    git config --global user.email "$GIT_EMAIL"
+    echo -e "   user.email défini à : ${YELLOW}$GIT_EMAIL${NC}"
+  fi
+
+  echo -e "${GREEN}✔ Configuration Git actuelle (global) :${NC}"
+  git config --global --list
+  echo
+}
+
+# 6. Vérification finale (clone/accès SSH)
+final_gh_login() {
+  echo -e "${CYAN}➤ Vérification finale de l'accès GitHub${NC}"
+  echo "   Pour tester l'accès SSH, le script va tenter de lister vos dépôts :"
+  if gh repo list "$GITHUB_USER" &>/dev/null; then
+    echo -e "${GREEN}✔ Connexion réussie ! Voici la liste de vos dépôts :${NC}"
+    gh repo list "$GITHUB_USER"
+  else
+    echo -e "${RED}✖ Impossible d'accéder à vos dépôts via SSH.${NC}"
+    echo "   Vérifiez que la clé SSH a bien été ajoutée sur GitHub ou relancez :"
+    echo -e "     ${YELLOW}gh auth login${NC}"
+  fi
+  echo
+}
+
+# Exécution séquentielle des étapes
+print_banner
+update_system
+install_tools
+ask_username
+setup_ssh_key
+add_ssh_key_to_github
+configure_git
+final_gh_login
+
+echo -e "${GREEN}🌟 Tout est configuré ! Vous pouvez maintenant utiliser git et GitHub depuis la CLI.${NC}"
