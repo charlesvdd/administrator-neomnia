@@ -1,143 +1,109 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-# =============================================================================
-# install_github_cli.sh
 #
-# Ce script installe GitHub CLI sur Linux, de façon « clé en main » :
-#  - Auto-élévation en root si nécessaire (un seul prompt sudo, ou aucun sur Azure)
-#  - Demande interactive du nom d’utilisateur GitHub et du token CLI
-#  - Vérification de la validité du token (HTTP 200)
-#  - Encodage du token en base64 et stockage dans ~/.config/github/credentials
-#  - Installation de GitHub CLI (gh) selon la distribution
-#  - Configuration de gh auth pour l’utilisateur final (pas en root)
-#  - Pas de redemande de mot de passe après l’auto-élévation
+# gitexe.sh — déploie le script d'installation complet en local (/tmp/gitinstall) et l'exécute.
+# Il déchiffre d'abord les identifiants GitHub, puis fait un curl sur le dépôt pour récupérer “install.sh”.
 #
-# Usage (en une seule ligne) :
-#   curl -sSL https://<votre_url>/install_github_cli.sh | bash
-#
-# Ou, si vous préférez récupérer d’abord le fichier :
-#   curl -sSL https://<votre_url>/install_github_cli.sh -o /tmp/install_github_cli.sh
-#   chmod +x /tmp/install_github_cli.sh
-#   /tmp/install_github_cli.sh
-#
-# -----------------------------------------------------------------------------
 
-# 1) AUTO-ÉLÉVATION : si on n’est pas root, on relance tout le script sous sudo
-if [ "$(id -u)" -ne 0 ]; then
-  echo "→ Passage en root (sudo)…"
-  exec sudo bash -s "$@"
-fi
-# À partir d’ici, on est root
-
-# 2) Détermination de l’utilisateur « réel » qui a lancé le script (pour stocker le token)
-REAL_USER="${SUDO_USER:-$(id -un)}"
-USER_HOME="$(eval echo "~$REAL_USER")"
-# Crée éventuellement le répertoire de configuration pour l’utilisateur réel
-CONFIG_DIR="$USER_HOME/.config/github"
-
-# 3) Fonction d’affichage des étapes
-print_step() {
-  local msg="$1"; shift
-  printf "› %s … " "$msg"
-  "$@" >/dev/null 2>&1
-  if [ $? -eq 0 ]; then
-    printf "OK\n"
-  else
-    printf "ÉCHEC\n"
-    exit 1
-  fi
-}
-
-# 4) Demande interactive du nom d’utilisateur GitHub + token CLI
-while true; do
-  read -p "Entrez votre nom d'utilisateur GitHub : " GITHUB_USER
-  read -s -p "Entrez votre token GitHub CLI (token privé) : " GITHUB_TOKEN
-  echo
-
-  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-    -H "Authorization: token ${GITHUB_TOKEN}" \
-    https://api.github.com/user)
-
-  if [ "$HTTP_STATUS" -eq 200 ]; then
-    echo "✔️  Token valide."
-    break
-  else
-    echo "❌  Token invalide (HTTP $HTTP_STATUS). Veuillez réessayer."
-  fi
-done
-
-# 5) Encodage du token en base64
-GITHUB_TOKEN_B64="$(printf "%s" "$GITHUB_TOKEN" | base64 -w 0)"
-
-# 6) Création du répertoire de configuration (~/.config/github) en tant que REAL_USER
-print_step "Création du répertoire $CONFIG_DIR pour $REAL_USER" \
-  bash -c "mkdir -p \"$CONFIG_DIR\" && chown \"$REAL_USER\":\"$REAL_USER\" \"$CONFIG_DIR\""
-
-# 7) Stockage des identifiants dans ~/.config/github/credentials
-CREDENTIALS_FILE="$CONFIG_DIR/credentials"
-print_step "Enregistrement des identifiants dans $CREDENTIALS_FILE" \
-  bash -c "printf 'username=%s\n' \"$GITHUB_USER\" > \"$CREDENTIALS_FILE\" && \
-           printf 'token_base64=%s\n' \"$GITHUB_TOKEN_B64\" >> \"$CREDENTIALS_FILE\" && \
-           chown \"$REAL_USER\":\"$REAL_USER\" \"$CREDENTIALS_FILE\" && chmod 600 \"$CREDENTIALS_FILE\""
-
-# 8) Détection de la distribution pour installer GitHub CLI (gh)
-if [ -r /etc/os-release ]; then
-  . /etc/os-release
-  DISTRO_ID="$ID"
-  DISTRO_FAMILY="$ID_LIKE"
-else
-  DISTRO_ID="unknown"
-  DISTRO_FAMILY="unknown"
-fi
-
-install_gh_debian() {
-  print_step "Mise à jour APT"      apt-get update -y
-  print_step "Installation de gh"   apt-get install -y gh
-}
-
-install_gh_fedora() {
-  print_step "Installation de gh"   dnf install -y gh
-}
-
-install_gh_arch() {
-  print_step "Installation de gh"   pacman -Sy --noconfirm gh
-}
-
-install_gh_generic() {
-  echo "⚠️  Distribution non détectée ou non supportée automatiquement."
-  echo "    Installez manuellement GitHub CLI : https://github.com/cli/cli#installation"
+# -----------------------------------------------
+# 1. Vérifier qu'on est en root (auto-évaluation)
+# -----------------------------------------------
+if [ "$EUID" -ne 0 ]; then
+  echo "Erreur : ce script doit être exécuté en root."
   exit 1
-}
+fi
 
-# 9) Lancement de l’installation de gh selon la distro
-case "$DISTRO_ID" in
-  ubuntu|debian)
-    install_gh_debian
-    ;;
-  fedora)
-    install_gh_fedora
-    ;;
-  arch)
-    install_gh_arch
-    ;;
-  *)
-    if echo "$DISTRO_FAMILY" | grep -q "debian"; then
-      install_gh_debian
-    else
-      install_gh_generic
-    fi
-    ;;
-esac
+# -----------------------------------------------
+# 2. Emplacements des fichiers de chiffrement
+# -----------------------------------------------
+CONFIG_DIR="/root/.config/admin-gh"
+KEY_FILE="$CONFIG_DIR/secret.key"
+ENC_FILE="$CONFIG_DIR/ghcreds.enc"
 
-# 10) Configuration de GitHub CLI pour l’utilisateur réel
-#     On place le token en stdin pour gh auth login --with-token,
-#     en exécutant la commande sous $REAL_USER, afin que la config soit dans leur home.
-print_step "Configuration de gh auth pour l’utilisateur $REAL_USER" \
-  bash -c "printf '%s' \"$GITHUB_TOKEN\" | sudo -u \"$REAL_USER\" gh auth login --with-token"
+# -----------------------------------------------
+# 3. Déchiffrer les identifiants GitHub
+# -----------------------------------------------
+if [ ! -f "$KEY_FILE" ] || [ ! -f "$ENC_FILE" ]; then
+  echo "Erreur : fichiers de chiffrement introuvables."
+  exit 1
+fi
 
-# 11) Message de fin
+# On récupère “user:token” en déchiffrant
+CRED_STRING=$(openssl enc -d -aes-256-cbc -pass "file:${KEY_FILE}" -pbkdf2 -in "${ENC_FILE}" 2>/dev/null)
+if [ $? -ne 0 ] || [ -z "$CRED_STRING" ]; then
+  echo "Erreur : échec du déchiffrement des identifiants."
+  exit 1
+fi
+
+GH_USER=$(echo "$CRED_STRING" | cut -d ':' -f 1)
+GH_TOKEN=$(echo "$CRED_STRING" | cut -d ':' -f 2)
+
+# -----------------------------------------------
+# 4. Préparer le répertoire temporaire
+# -----------------------------------------------
+TMP_DIR="/tmp/gitinstall"
+INSTALL_SCRIPT="$TMP_DIR/install.sh"
+
+if [ -d "$TMP_DIR" ]; then
+  rm -rf "$TMP_DIR"
+fi
+mkdir -p "$TMP_DIR"
+chmod 700 "$TMP_DIR"
+
+# -----------------------------------------------
+# 5. Télécharger le script d'installation complet
+# -----------------------------------------------
+# On cible la branche “api-key-github” du dépôt “administrator-neomnia”.
+# On récupère directement le raw de install.sh
+REPO_USER="charlesvdd"
+REPO_NAME="administrator-neomnia"
+REPO_BRANCH="api-key-github"
+RAW_URL="https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/${REPO_BRANCH}/install.sh"
+
+echo "[*] Téléchargement du script d'installation depuis :"
+echo "    $RAW_URL"
+http_code=$(curl -sSL -u "${GH_USER}:${GH_TOKEN}" -o "${INSTALL_SCRIPT}" -w "%{http_code}" "${RAW_URL}")
+if [ "$http_code" != "200" ]; then
+  echo "Erreur : échec du téléchargement (code HTTP $http_code)."
+  exit 1
+fi
+chmod +x "${INSTALL_SCRIPT}"
+echo "[OK] Script téléchargé dans ${INSTALL_SCRIPT}."
+
+# -----------------------------------------------
+# 6. Exécution du script d'installation
+# -----------------------------------------------
+echo "[*] Exécution de ${INSTALL_SCRIPT} …"
+bash "${INSTALL_SCRIPT}"
+if [ $? -ne 0 ]; then
+  echo "Erreur lors de l'exécution du script d'installation."
+  exit 1
+fi
+echo "[OK] Script d'installation exécuté avec succès."
+
+# -----------------------------------------------
+# 7. Vérification post-install
+# -----------------------------------------------
+echo "[*] Vérification des actions effectuées :"
+# Par exemple, vérifier que certains fichiers / paquets sont bien présents.
+# (On peut adapter selon le contenu réel d’install.sh.)
+
+# Exemple : vérifier que /usr/local/bin/mon-binaire est présent
+if [ -f "/usr/local/bin/mon-binaire-attendu" ]; then
+  echo "    ✓ /usr/local/bin/mon-binaire-attendu trouvé."
+else
+  echo "    ⚠️ /usr/local/bin/mon-binaire-attendu manquant !"
+fi
+
+# Exemple : vérifier un paquet apt ou rpm. À adapter.
+if command -v git &>/dev/null; then
+  echo "    ✓ git est installé."
+else
+  echo "    ⚠️ git n'est pas installé."
+fi
+
+# -----------------------------------------------
+# 8. Fin
+# -----------------------------------------------
 echo
-echo "🎉 GitHub CLI a été installé et configuré pour l’utilisateur $REAL_USER."
-echo "    Les informations sont stockées dans : $CREDENTIALS_FILE"
+echo "Installation GitHub complète terminée."
 exit 0
