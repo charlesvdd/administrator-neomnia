@@ -77,8 +77,8 @@ prompt_and_validate_github() {
     stage 0 "GitHub Information"
 
     # Prompt for credentials
-    read -p "$(echo -e ${BLUE}“GitHub Username”:${RESET} ) " GITHUB_USER
-    read -s -p "$(echo -e ${BLUE}“GitHub API Key (input hidden)”:${RESET} ) " GITHUB_API_KEY
+    read -p "$(echo -e ${BLUE}\"GitHub Username\":${RESET} ) " GITHUB_USER
+    read -s -p "$(echo -e ${BLUE}\"GitHub API Key (input hidden)\":${RESET} ) " GITHUB_API_KEY
     echo -e "\n"
 
     # 2.1. Check token validity via /user
