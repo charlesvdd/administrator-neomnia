@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo
+echo "========================================"
+echo "  SCRIPT D’INSTALLATION EN LOCAL"
+echo "========================================"
+echo
+
+# --- 1) Demander les identifiants de l’utilisateur GitHub ---
+read -p "Nom d’utilisateur GitHub : " GITHUB_USER
+read -s -p "Mot de passe ou token GitHub : " GITHUB_TOKEN
+echo
+echo "→ Identifiants saisis (le token reste masqué)."
+echo
+
+# --- 2) Exemple : configurer la GitHub CLI avec ces identifiants ---
+# (optionnel, selon ce que vous voulez faire ensuite)
+# Si vous utilisez la GH CLI, on peut faire par exemple :
+#   echo "$GITHUB_TOKEN" | gh auth login --with-token
+# Mais ici, on se contente juste de stocker dans un fichier de config local.
+
+CONFIG_DIR="$HOME/.neomnia"
+mkdir -p "$CONFIG_DIR"
+cat > "$CONFIG_DIR/credentials.conf" <<EOF
+GITHUB_USER="$GITHUB_USER"
+GITHUB_TOKEN="$GITHUB_TOKEN"
+EOF
+
+echo "→ Credentials enregistrés dans $CONFIG_DIR/credentials.conf"
+echo
+
+# --- 3) Poursuivre la suite de l’installation en local ---
+# Vous pouvez ajouter ici les commandes que vous souhaitez exécuter
+# désormais que vous connaissez $GITHUB_USER et $GITHUB_TOKEN.
+# Par exemple :
+#   git clone https://github.com/votreorg/votre-projet.git
+#   cd votre-projet && ./setup-environnement.sh
+#
+# Par défaut, on montre simplement un message de réussite :
+
+echo "🎉 Installation locale terminée avec succès."
+exit 0
