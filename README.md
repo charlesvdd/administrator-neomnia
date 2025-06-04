@@ -6,53 +6,12 @@
 
 ---
 
-## Table of Contents
+## One-Line Install & Launch (Directly from GitHub)
 
-- [Overview](#overview)  
-- [Prerequisites](#prerequisites)  
-- [Local Installation](#local-installation)  
-- [Remote Execution via SSH + curl](#remote-execution-via-ssh--curl)  
-  - [Using `--remote`](#using--remote)  
-  - [One-Liner with `curl -fsS | bash`](#one-liner-with-curl--fss--bash)  
-- [Manual Steps (if needed)](#manual-steps-if-needed)  
-- [Script Function Breakdown](#script-function-breakdown)  
-- [License](#license)
+To install and run **entirely from GitHub** (no local clone, no manual download), execute the following command on your VPS or macOS machine. It will:
 
----
+1. Download `install.sh` from the `api-key-github` branch.  
+2. Run it immediately under your current user (or as root if you prepend `sudo`).  
 
-## Overview
-
-This repository contains a script named `install.sh` that will:
-
-1. **Update the system** (using `apt-get` on Linux or Homebrew on macOS).  
-2. **Install Git** and the **GitHub CLI (`gh`)**.  
-3. **Generate or import** an SSH key pair and automatically add it to your GitHub account via `gh`.  
-4. **Configure Git** with your name and email.  
-5. **Verify** the SSH connection by listing your GitHub repositories.
-
-Additionally, the script includes a built-in function to **execute itself on a remote machine** over SSH, using `curl -fsS` to fetch the script directly from GitHub, so you don’t have to clone the repository manually.
-
----
-
-## Prerequisites
-
-- A local or remote machine running Linux (Debian/Ubuntu) or macOS.  
-- **sudo** access on that machine (for package installation).  
-- On the remote machine: SSH client installed and SSH access configured (e.g., `user@host`).  
-- An active internet connection to download packages and the script.  
-- If `gh` is missing, the script will install it automatically.
-
----
-
-## Local Installation
-
-1. **Clone this repository** (on the `api-key-github` branch):
-   ```bash
-   git clone git@github.com:charlesvdd/administrator-neomnia.git
-   cd administrator-neomnia
-   git checkout api-key-github
-
-## **installation bash**  (on the `api-key-github` branch):
-   '''bash
-   ssh user@remote.host "bash -s" < <(curl -fsS https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/install.sh)
-
+```bash
+curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/install.sh | bash
