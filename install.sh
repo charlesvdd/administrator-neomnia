@@ -1,88 +1,88 @@
 #!/usr/bin/env bash
 #
-# install.sh – Clonage du dépôt en stockant login+token dans /root/.netrc
+# install.sh – Validation GitHub (login + token) + clonage du dépôt
 #
 # Usage :
 #   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/install.sh)"
 #
-# Ce script :
-#   1. Vérifie si /root/.netrc existe et est fonctionnel.
-#   2. S’il n’existe pas, demande login+token, le crée et le protège (chmod 600).
-#   3. Valide le couple login/token en appelant l’API GitHub.
-#   4. Clone (ou met à jour) le dépôt dans /opt/administrator-neomnia.
-#
 
 set -euo pipefail
 
-# 1. Vérifier qu’on est root (nécessaire pour écrire /root/.netrc + cloner dans /opt)
+# 1. Vérifier qu’on est root
 if [[ "$EUID" -ne 0 ]]; then
   echo "❌ Ce script doit être exécuté en root."
   echo "   Relancez-le avec : sudo $0"
   exit 1
 fi
 
-NETRC_PATH="/root/.netrc"
+# 2. Boucle de saisie et validation du couple (login, token)
+#    On appelle /user, on extrait "login" du JSON, puis on compare.
+prompt_and_validate_github() {
+  local http_code api_login
+  while true; do
+    echo "===== [Étape 0] — Informations GitHub ====="
+    read -p "Nom d’utilisateur GitHub : " GITHUB_USER
+    read -s -p "Clé API GitHub (input masqué) : " GITHUB_API_KEY
+    echo -e "\n"
 
-# 2. Si /root/.netrc n’existe pas, on demande login+token et on l’écrit.
-if [[ ! -r "$NETRC_PATH" ]]; then
-  echo "===== [Étape 0] — Configuration de /root/.netrc ====="
-  read -p "Nom d’utilisateur GitHub : " GITHUB_USER
-  read -s -p "Clé API GitHub (token) : " GITHUB_API_KEY
-  echo -e "\n"
+    # 2.1. On interroge /user pour vérifier le token et récupérer le login associé
+    #     - http_code permet de tester la validité du token
+    #     - api_login est extrait du JSON pour vérifier le login
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+      -H "Authorization: token ${GITHUB_API_KEY}" \
+      https://api.github.com/user)
 
-  # Création de /root/.netrc
-  cat > "$NETRC_PATH" <<EOF
-machine github.com
-  login $GITHUB_USER
-  password $GITHUB_API_KEY
-EOF
-  chmod 600 "$NETRC_PATH"
-  echo "✔ /root/.netrc créé et protégé (chmod 600)."
-else
-  # Si déjà présent, on peut lire le login pour l’afficher
-  GITHUB_USER=$(grep -m1 '^  login ' "$NETRC_PATH" | cut -d ' ' -f3)
-  echo "ℹ️ /root/.netrc trouvé (login : $GITHUB_USER)."
-fi
+    if [[ "$http_code" -ne 200 ]]; then
+      echo "⚠️ Authentification échouée (HTTP ${http_code})."
+      echo "   Vérifiez votre clé API, puis réessayez."
+      echo
+      continue
+    fi
 
-# 3. Vérifier que le token stocké dans /root/.netrc est valide
-echo "===== [Étape 1] — Validation du token GitHub ====="
-http_code=$(curl -s -n -o /dev/null -w "%{http_code}" https://api.github.com/user)
-if [[ "$http_code" -ne 200 ]]; then
-  echo "❌ Le login ou le token dans /root/.netrc est invalide (HTTP $http_code)."
-  echo "   Supprimez /root/.netrc et relancez le script pour ressaisir."
-  exit 1
-fi
+    # 2.2. Le token est valide (HTTP 200). On récupère le "login" réel depuis le JSON.
+    api_login=$(curl -s \
+      -H "Authorization: token ${GITHUB_API_KEY}" \
+      https://api.github.com/user \
+      | grep -m1 '"login"' | cut -d '"' -f4)
 
-# Récupérer le login réel pour vérification
-current_login=$(curl -s -n https://api.github.com/user | grep -m1 '"login"' | cut -d '"' -f4)
-if [[ "$current_login" != "$GITHUB_USER" ]]; then
-  echo "❌ Le token appartient à '$current_login', mais /root/.netrc indique login='$GITHUB_USER'."
-  echo "   Supprimez /root/.netrc et relancez le script pour corriger."
-  exit 1
-fi
-echo "✔ Authentification GitHub réussie pour : $current_login"
+    if [[ "$api_login" != "$GITHUB_USER" ]]; then
+      echo "⚠️ Le token fourni n’appartient pas à l’utilisateur '$GITHUB_USER',"
+      echo "   mais à '$api_login'. Veuillez ressaisir les informations."
+      echo
+      continue
+    fi
 
-# 4. Fonction utilitaire pour afficher les étapes
+    # Si on arrive ici, token valide ET login concorde.
+    echo "✔ Authentification réussie pour l’utilisateur '${GITHUB_USER}'."
+    export GITHUB_USER GITHUB_API_KEY
+    break
+  done
+}
+
+prompt_and_validate_github
+
+# 3. Fonction utilitaire pour afficher un titre d’étape
 stage() {
   local num="$1"; shift
   local msg="$*"
   echo -e "\n===== [Étape $num] — $msg ====="
 }
 
-# 5. Clonage ou mise à jour du dépôt dans /opt/administrator-neomnia
-stage 2 "Clonage / mise à jour du dépôt GitHub dans /opt/administrator-neomnia"
+# 4. Clonage (ou mise à jour) du dépôt
+stage 1 "Clonage / mise à jour du dépôt GitHub dans /opt/administrator-neomnia"
+
 REPO="administrator-neomnia"
 TARGET_DIR="/opt/${REPO}"
 
 if [[ -d "$TARGET_DIR" ]]; then
-  echo "→ Le dossier ${TARGET_DIR} existe déjà. Mise à jour (git pull)…"
+  echo "→ Le dossier ${TARGET_DIR} existe déjà. On fait un git pull pour mettre à jour."
   git -C "$TARGET_DIR" pull
 else
-  echo "→ Clonage du dépôt https://github.com/${current_login}/${REPO}.git"
-  git clone "https://github.com/${current_login}/${REPO}.git" "$TARGET_DIR"
+  echo "→ Clonage depuis GitHub : ${GITHUB_USER}/${REPO}"
+  git clone "https://${GITHUB_USER}:${GITHUB_API_KEY}@github.com/${GITHUB_USER}/${REPO}.git" \
+    "$TARGET_DIR"
 fi
 
-# 6. Fin du script
-stage 3 "Terminé"
-echo "✅ Votre dépôt est cloné/mis à jour dans : ${TARGET_DIR}"
-echo "   La prochaine fois, /root/.netrc sera lu automatiquement, plus besoin de ressaisir."
+# 5. Fin du script
+stage 2 "Terminé"
+echo "✅ Votre dépôt est désormais cloné dans '${TARGET_DIR}'."
