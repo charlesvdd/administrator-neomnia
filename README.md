@@ -1,44 +1,41 @@
-# administrator-neomnia
+#!/usr/bin/env bash
+#
+# raw-install.sh
+#
+# This script defines a `raw` function that downloads (via curl)
+# any `.sh` file from your repository’s main branch on GitHub and executes it directly.
+#
+# Usage:
+#   1. Save this file as raw-install.sh
+#   2. Make it executable: chmod +x raw-install.sh
+#   3. Run it like this: sudo ./raw-install.sh install.sh
+#
+# Examples:
+#   sudo ./raw-install.sh install.sh
+#   sudo ./raw-install.sh path/to/another-script.sh
+#
 
-A collection of Bash installation scripts to prepare and configure a VPS environment.  
-Each branch contains one or more executable `.sh` scripts meant to be run directly with Bash.
+set -euo pipefail
 
----
+# Base URL for raw file content on the GitHub repository
+BASE_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/main"
 
-## Table of Contents
+# Function raw: fetches a .sh script via curl and runs it in-memory with Bash
+raw() {
+    local remote_path="$1"
+    if [[ -z "$remote_path" ]]; then
+        echo "Usage: raw <path/to/script.sh>"
+        return 1
+    fi
+    echo "→ Downloading and running '$remote_path' from GitHub…"
+    bash <(curl -fsSL "${BASE_URL}/${remote_path}")
+}
 
-1. [Project Overview](#project-overview)
-2. [Repository Structure](#repository-structure)
-3. [Getting Started](#getting-started)
-4. [Usage](#usage)
-5. [Contributing](#contributing)
-6. [License](#license)
-
----
-
-## Project Overview
-
-This repository — **administrator-neomnia** — provides a set of Bash scripts designed to automate the installation and setup of various components on a fresh VPS. Each branch typically holds a specific purpose or stack (e.g., LAMP setup, Docker, monitoring tools), and each `.sh` file is written so that it can be executed directly with Bash.
-
-Rather than manually copy-pasting commands, you can simply run the relevant script(s) to provision your server.
-
----
-
-## Repository Structure
-
-- **Branches**  
-  Each branch represents a different set of installation scripts or configuration tasks. For example:
-  - `master` or `main`: Core utilities and common prerequisites.
-  - Other branches: Specific stacks (e.g., `lamp-setup`, `docker-install`, `nginx-php`).
-
-- **Scripts**  
-  In each branch, you will find one or more `.sh` files, each annotated with comments explaining its purpose and usage. They may be named things like `install.sh`, `setup-docker.sh`, `nginx-php.sh`, etc.
-
----
-
-## Getting Started
-
-1. **Clone the repository**  
-   ```bash
-   git clone https://github.com/charlesvdd/administrator-neomnia.git
-   cd administrator-neomnia
+# If this file is invoked directly with arguments, pass them to raw()
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    if [[ $# -lt 1 ]]; then
+        echo "Error: Please specify the path to the script to run (e.g., install.sh)."
+        exit 1
+    fi
+    raw "$1"
+fi
