@@ -11,7 +11,7 @@
 #                                                                              #
 #   Script : install.sh                                                        #
 #   Auteur : Charles van den Driessche                                          #
-#   Licence: GNU General Public License v3.0                                    #
+#   Licence: GNU General Public License v3.0                                   #
 #   Année  : 2025                                                              #
 #                                                                              #
 ################################################################################
@@ -55,7 +55,7 @@ update_system() {
       sudo apt-get upgrade -y -qq
       echo -e "${GREEN}✔ Système Linux mis à jour.${NC}"
     else
-      echo -e "${YELLOW}ℹ️  Impossible de détecter apt-get. Vérifiez manuellement la mise à jour.${NC}"
+      echo -e "${YELLOW}ℹ️  Impossible de détecter apt-get. Passez manuellement cette étape.${NC}"
     fi
   elif [[ "$OSTYPE" == "darwin"* ]]; then
     if command -v brew &>/dev/null; then
@@ -65,10 +65,10 @@ update_system() {
       brew upgrade >/dev/null
       echo -e "${GREEN}✔ Système macOS mis à jour via Homebrew.${NC}"
     else
-      echo -e "${YELLOW}ℹ️  Homebrew non installé. Passez la mise à jour macOS.${NC}"
+      echo -e "${YELLOW}ℹ️  Homebrew non installé. Passez manuellement cette étape.${NC}"
     fi
   else
-    echo -e "${YELLOW}ℹ️  OS non reconnu pour la mise à jour automatique. Passez cette étape.${NC}"
+    echo -e "${YELLOW}ℹ️  OS non reconnu pour mise à jour automatique. Passez manuellement.${NC}"
   fi
   echo
 }
@@ -134,7 +134,6 @@ ask_token() {
 # 3. Authentifier GH CLI avec le token
 authenticate_gh() {
   echo -e "${CYAN}➤ Authentification GitHub CLI${NC}"
-  # rediriger le token vers gh auth login
   echo "$GITHUB_TOKEN" | gh auth login --with-token
   echo -e "${GREEN}✔ GH CLI authentifié avec le token fourni.${NC}"
   echo
@@ -180,8 +179,7 @@ final_gh_login() {
     gh repo list "$GH_USER"
   else
     echo -e "${RED}✖ Impossible d'accéder à vos dépôts via le token.${NC}"
-    echo "   Vérifiez que le token a le scope 'repo' et réessayez :"
-    echo -e "     ${YELLOW}gh auth login${NC}"
+    echo "   Vérifiez que le token a le scope 'repo' et réessayez."
   fi
   echo
 }
