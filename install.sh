@@ -29,7 +29,7 @@ set -euo pipefail
 print_banner() {
   echo -e "${CYAN}"
   echo "──────────────────────────────────────────────────────────────────────────────"
-  echo "                           Installation Git & GitHub CLI                       "
+  echo "                           Installation Git & GitHub CLI                      "
   echo "──────────────────────────────────────────────────────────────────────────────"
   echo -e "${NC}"
   echo -e "${YELLOW}Auteur   : Charles van den Driessche${NC}"
@@ -175,6 +175,7 @@ add_ssh_key_to_github() {
   echo
 
   # Authentification via gh si nécessaire
+  echo "   Vérification de l’authentification GH..."
   if gh auth status &>/dev/null; then
     echo -e "${GREEN}✔ Vous êtes déjà authentifié avec gh.${NC}"
   else
@@ -184,7 +185,7 @@ add_ssh_key_to_github() {
 
   KEY_TITLE="clé-ssh-$(date +'%Y-%m-%d_%H-%M-%S')"
   echo "   Ajout de la clé SSH à GitHub sous le titre : ${YELLOW}$KEY_TITLE${NC}"
-  gh ssh-key add "$PUB_KEY_PATH" -t "$KEY_TITLE" >/dev/null
+  gh ssh-key add "$PUB_KEY_PATH" -t "$KEY_TITLE"
   echo -e "${GREEN}✔ Clé SSH ajoutée avec succès à votre compte GitHub.${NC}"
   echo
 }
