@@ -1,34 +1,43 @@
 #!/bin/bash
+set -euo pipefail
 
-# Vérifier si l'utilisateur a les droits sudo
-if ! sudo -v; then
-  echo "Erreur : Ce script nécessite des privilèges sudo."
-  exit 1
+# ------------------------------------------------------------
+# 1) Auto-élévation : si pas root, relancer tout le script en sudo
+# ------------------------------------------------------------
+if [ "$(id -u)" -ne 0 ]; then
+  echo "→ Passage en root (sudo)…"
+  exec sudo bash "$0" "$@"
 fi
+# À partir d'ici, on est root (plus besoin de sudo)
 
-# Créer un répertoire temporaire
+# ------------------------------------------------------------
+# 2) Création du répertoire temporaire
+# ------------------------------------------------------------
 TMP_DIR=$(mktemp -d)
 
-# Télécharger le script dans le répertoire temporaire
+# ------------------------------------------------------------
+# 3) Téléchargement du script tiers depuis GitHub
+# ------------------------------------------------------------
 SCRIPT_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/install.sh"
 SCRIPT_PATH="$TMP_DIR/install.sh"
 
 curl -sSL "$SCRIPT_URL" -o "$SCRIPT_PATH"
 
-# Vérifier si le téléchargement a réussi
 if [ ! -f "$SCRIPT_PATH" ]; then
-    echo "Erreur : Impossible de télécharger le script."
-    sudo rm -rf "$TMP_DIR"
-    exit 1
+  echo "Erreur : Impossible de télécharger le script."
+  rm -rf "$TMP_DIR"
+  exit 1
 fi
 
-# Donner les permissions d'exécution
+# ------------------------------------------------------------
+# 4) Donner la permission d'exécution et lancer le script tiers
+# ------------------------------------------------------------
 chmod +x "$SCRIPT_PATH"
+"$SCRIPT_PATH"
 
-# Exécuter le script avec sudo si nécessaire
-sudo "$SCRIPT_PATH"
-
-# Supprimer le répertoire temporaire et son contenu
-sudo rm -rf "$TMP_DIR"
+# ------------------------------------------------------------
+# 5) Nettoyage du répertoire temporaire (toujours en root)
+# ------------------------------------------------------------
+rm -rf "$TMP_DIR"
 
 echo "Script exécuté et nettoyé."
