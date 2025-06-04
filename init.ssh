@@ -1,0 +1,111 @@
+#!/bin/bash
+
+#############################################
+#   _            _        _                 #
+#  | |          | |      | |                #
+#  | |__     ___| |_ __ _| |__   ___  _ __  #
+#  | '_ \   / _ \ __/ _` | '_ \ / _ \| '_ \ #
+#  | |_) | |  __/ || (_| | |_) | (_) | | | |#
+#  |_.__/   \___|\__\__,_|_.__/ \___/|_| |_|#
+#                                           #
+#   Basic Ubuntu Setup & Admins Permissions #
+#############################################
+
+# -------------------------------------------
+#  Color definitions for nicer output
+# -------------------------------------------
+RED="\033[31m"
+GREEN="\033[32m"
+YELLOW="\033[33m"
+BLUE="\033[34m"
+MAGENTA="\033[35m"
+CYAN="\033[36m"
+BOLD="\033[1m"
+RESET="\033[0m"
+
+echo -e "${CYAN}${BOLD}############################################################${RESET}"
+echo -e "${CYAN}${BOLD}#   Starting Basic Ubuntu Setup & Admins Permissions     #${RESET}"
+echo -e "${CYAN}${BOLD}############################################################${RESET}"
+echo
+
+# -------------------------------------------
+#  1. Update the system
+# -------------------------------------------
+echo -e "${BLUE}${BOLD}Step 1/5:${RESET} ${YELLOW}Updating the system...${RESET}"
+sudo apt update && sudo apt upgrade -y
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✔ System update completed successfully.${RESET}"
+else
+  echo -e "${RED}✖ Failed to update the system. Please check your network or sources.list.${RESET}"
+  exit 1
+fi
+echo
+
+# -------------------------------------------
+#  2. Install essential packages
+# -------------------------------------------
+echo -e "${BLUE}${BOLD}Step 2/5:${RESET} ${YELLOW}Installing essential packages (tree, ufw, git, curl, wget)...${RESET}"
+sudo apt install -y tree ufw git curl wget
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✔ Essential packages installed.${RESET}"
+else
+  echo -e "${RED}✖ Package installation failed. Check if you have the correct package names and network.${RESET}"
+  exit 1
+fi
+echo
+
+# -------------------------------------------
+#  3. Basic security config with UFW
+# -------------------------------------------
+echo -e "${BLUE}${BOLD}Step 3/5:${RESET} ${YELLOW}Configuring firewall (ufw)…${RESET}"
+sudo ufw enable
+sudo ufw allow OpenSSH
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✔ UFW enabled and SSH rule added.${RESET}"
+else
+  echo -e "${RED}✖ UFW configuration failed. Make sure UFW is installed.${RESET}"
+  exit 1
+fi
+echo
+
+# -------------------------------------------
+#  4. Create 'admins' group + Permissions
+# -------------------------------------------
+echo -e "${BLUE}${BOLD}Step 4/5:${RESET} ${YELLOW}Creating 'admins' group and setting permissions...${RESET}"
+# Create group (ignore error if it already exists)
+sudo groupadd admins 2>/dev/null || echo -e "${YELLOW}⚠ 'admins' group already exists.${RESET}"
+
+echo -e "${YELLOW}→ Changing ownership for /etc and /opt to root:admins…${RESET}"
+sudo chown -R root:admins /etc
+sudo chown -R root:admins /opt
+
+echo -e "${YELLOW}→ Granting group read/write on /etc and /opt…${RESET}"
+sudo chmod -R g+rw /etc
+sudo chmod -R g+rw /opt
+
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✔ Permissions successfully updated for /etc and /opt.${RESET}"
+else
+  echo -e "${RED}✖ Failed to change permissions. Ensure you have sudo rights.${RESET}"
+  exit 1
+fi
+echo
+
+# -------------------------------------------
+#  5. Add current user to 'admins' group
+# -------------------------------------------
+CURRENT_USER=$(whoami)
+echo -e "${BLUE}${BOLD}Step 5/5:${RESET} ${YELLOW}Adding user '${CURRENT_USER}' to 'admins' group…${RESET}"
+sudo usermod -aG admins "${CURRENT_USER}"
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✔ User '${CURRENT_USER}' added to 'admins' group.${RESET}"
+else
+  echo -e "${RED}✖ Could not add user to 'admins' group. Verify the username and try again.${RESET}"
+  exit 1
+fi
+echo
+
+echo -e "${MAGENTA}${BOLD}############################################################${RESET}"
+echo -e "${MAGENTA}${BOLD}#   Setup Complete! ${RESET}Members of 'admins' group now have rights on /etc and /opt  ${MAGENTA}${BOLD}#${RESET}"
+echo -e "${MAGENTA}${BOLD}############################################################${RESET}"
+echo
