@@ -14,4 +14,4 @@ To install and run **entirely from GitHub** (no local clone, no manual download)
 2. Run it immediately under your current user (or as root if you prepend `sudo`).  
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/gitexe.sh | bash
