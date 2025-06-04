@@ -13,7 +13,6 @@ MAGENTA='\033[0;35m'
 CYAN='\033[0;36m'
 RESET='\033[0m'
 
-# Display functions
 error() {
   echo -e "${RED}❌  $*${RESET}"
 }
@@ -31,7 +30,6 @@ success() {
 }
 
 stage() {
-  # Print a well-formatted step header
   local num="$1"; shift
   local msg="$*"
   echo -e "\n${MAGENTA}═════════════════════════════════════════════════${RESET}"
@@ -39,18 +37,14 @@ stage() {
   echo -e "${MAGENTA}═════════════════════════════════════════════════${RESET}\n"
 }
 
-# Display banner and license
 echo -e "${MAGENTA}┌─────────────────────────────────────────────────────────┐${RESET}"
-echo -e "${MAGENTA}│                                                         │${RESET}"
-echo -e "${MAGENTA}│    Neomnia Administrator Installer                      │${RESET}"
-echo -e "${MAGENTA}│    by Charles Van Den Driessche                         │${RESET}"
-echo -e "${MAGENTA}│      www.neomnia.net                                    │${RESET}"
-echo -e "${MAGENTA}│                                                         │${RESET}"
+echo -e "${MAGENTA}│ Neomnia Administrator Installer │${RESET}"
+echo -e "${MAGENTA}│ by Charles Van Den Driessche │${RESET}"
+echo -e "${MAGENTA}│ www.neomnia.net │${RESET}"
 echo -e "${MAGENTA}└─────────────────────────────────────────────────────────┘${RESET}"
 echo -e "${GREEN}License: Charles Van Den Driessche – www.neomnia.net${RESET}"
 echo
 
-# Check for root privileges
 if [[ "$EUID" -ne 0 ]]; then
   error "This script must be run as root."
   info "Please rerun with: sudo $0"
@@ -61,13 +55,10 @@ prompt_and_validate_github() {
   local http_code api_login
   while true; do
     stage 0 "GitHub Information"
-
-    # Prompt for credentials
     read -p "$(echo -e ${BLUE}\"GitHub Username\":${RESET}) " GITHUB_USER
     read -s -p "$(echo -e ${BLUE}\"GitHub API Key (input hidden)\":${RESET}) " GITHUB_API_KEY
     echo
 
-    # Check token validity via /user
     http_code=$(curl -s -o /dev/null -w "%{http_code}" \
       -H "Authorization: token ${GITHUB_API_KEY}" \
       https://api.github.com/user)
@@ -79,19 +70,16 @@ prompt_and_validate_github() {
       continue
     fi
 
-    # Retrieve actual login from the JSON response
     api_login=$(curl -s \
       -H "Authorization: token ${GITHUB_API_KEY}" \
       https://api.github.com/user | grep -m1 '"login"' | cut -d '"' -f4)
 
     if [[ "$api_login" != "$GITHUB_USER" ]]; then
-      warning "The token provided does not belong to user '${GITHUB_USER}',"
-      info "but to '${api_login}'. Please re-enter your credentials."
+      warning "The token provided does not belong to user '${GITHUB_USER}', but to '${api_login}'. Please re-enter your credentials."
       echo
       continue
     fi
 
-    # Credentials are valid and match
     success "Authentication successful for user '${GITHUB_USER}'."
     export GITHUB_USER GITHUB_API_KEY
     break
@@ -100,7 +88,6 @@ prompt_and_validate_github() {
 
 prompt_and_validate_github
 
-# Clone or update the repository
 stage 1 "Cloning/updating the GitHub repository into /opt/administrator-neomnia"
 
 REPO="administrator-neomnia"
@@ -109,16 +96,12 @@ TARGET_DIR="/opt/${REPO}"
 if [[ -d "$TARGET_DIR" ]]; then
   info "The directory ${TARGET_DIR} already exists."
   info "→ Running git pull to update..."
-  git -C "$TARGET_DIR" pull \
-    && success "Repository update completed successfully."
+  git -C "$TARGET_DIR" pull && success "Repository update completed successfully."
 else
   info "Cloning repository: ${GITHUB_USER}/${REPO}"
-  git clone "https://${GITHUB_USER}:${GITHUB_API_KEY}@github.com/${GITHUB_USER}/${REPO}.git" \
-    "$TARGET_DIR" \
-    && success "Clone finished in '${TARGET_DIR}'."
+  git clone "https://${GITHUB_USER}:${GITHUB_API_KEY}@github.com/${GITHUB_USER}/${REPO}.git" "$TARGET_DIR" && success "Clone finished in '${TARGET_DIR}'."
 fi
 
-# End of script
 stage 2 "Finished"
 success "Your repository is now cloned into '${TARGET_DIR}'."
 echo
