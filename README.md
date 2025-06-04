@@ -15,4 +15,4 @@ This README explains how to fetch and execute the `init.ssh` script in one comma
 Open a terminal on your machine (or your VPS) and paste the following command to run the script from the `init` branch:
 
 ```bash
-sudo curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/init/init.ssh | sudo bash
+sudo curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/init/init.ssh
