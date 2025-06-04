@@ -9,9 +9,9 @@
 #   ██████╔╝███████╗   ██║   ╚██████╔╝╚██████╔╝██║ ╚═╝ ██║██║  ██║            #
 #   ╚═════╝ ╚══════╝   ╚═╝    ╚═════╝  ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═╝            #
 #                                                                              #
-#   Script : setup-github.sh                                                   #
+#   Script : install.sh                                                        #
 #   Auteur : Charles van den Driessche                                          #
-#   Licence: GNU General Public License v3.0                                   #
+#   Licence: GNU General Public License v3.0                                    #
 #   Année  : 2025                                                              #
 #                                                                              #
 ################################################################################
@@ -117,92 +117,52 @@ install_tools() {
   echo
 }
 
-# 2. Demander le nom d'utilisateur GitHub
-ask_username() {
-  echo -e "${CYAN}➤ Configuration du nom d'utilisateur GitHub${NC}"
-  read -rp "   Entrez votre nom d'utilisateur GitHub (ex. monLoginGitHub) : " GITHUB_USER
-  if [[ -z "$GITHUB_USER" ]]; then
-    error "Le nom d'utilisateur ne peut pas être vide."
+# 2. Récupérer le GitHub API token depuis variable ou prompt
+ask_token() {
+  echo -e "${CYAN}➤ Configuration du GitHub API token${NC}"
+  if [[ -n "${GITHUB_TOKEN-}" ]]; then
+    echo "   Token GitHub pris depuis la variable d’environnement."
+  else
+    read -rp "   Entrez votre GitHub API token (PAT, scope repo) : " GITHUB_TOKEN
+    if [[ -z "$GITHUB_TOKEN" ]]; then
+      error "Le token ne peut pas être vide."
+    fi
   fi
-  echo -e "   Nom d'utilisateur GitHub : ${YELLOW}$GITHUB_USER${NC}"
   echo
 }
 
-# 3. Générer ou importer une clé SSH
-setup_ssh_key() {
-  echo -e "${CYAN}➤ Configuration de la clé SSH${NC}"
-  SSH_DIR="$HOME/.ssh"
-  mkdir -p "$SSH_DIR"
-  chmod 700 "$SSH_DIR"
+# 3. Authentifier GH CLI avec le token
+authenticate_gh() {
+  echo -e "${CYAN}➤ Authentification GitHub CLI${NC}"
+  # rediriger le token vers gh auth login
+  echo "$GITHUB_TOKEN" | gh auth login --with-token
+  echo -e "${GREEN}✔ GH CLI authentifié avec le token fourni.${NC}"
+  echo
+}
 
-  DEFAULT_KEY="$SSH_DIR/id_rsa"
-  if [[ -f "$DEFAULT_KEY" ]]; then
-    echo "   • Une clé SSH existe déjà à $DEFAULT_KEY."
-    read -rp "     [r]égénérer une nouvelle clé ou [u]tiliser l'existante ? [r/U] : " choice
-    choice=${choice,,}
-    if [[ "$choice" == "r" ]]; then
-      rm -f "$DEFAULT_KEY" "$DEFAULT_KEY.pub"
-      echo "     Clé précédente supprimée."
-    else
-      echo -e "${GREEN}✔ On garde la clé SSH existante (${DEFAULT_KEY}).${NC}"
-      echo
-      return
+# 4. Configurer Git (user.name et user.email depuis variables ou prompt)
+configure_git() {
+  echo -e "${CYAN}➤ Configuration basique de Git${NC}"
+  if [[ -n "${GIT_FULLNAME-}" ]]; then
+    git config --global user.name "$GIT_FULLNAME"
+    echo -e "   user.name défini depuis la variable : ${YELLOW}$GIT_FULLNAME${NC}"
+  else
+    read -rp "   Entrez votre nom complet (pour git config user.name) : " GIT_FULLNAME
+    if [[ -n "$GIT_FULLNAME" ]]; then
+      git config --global user.name "$GIT_FULLNAME"
+      echo -e "   user.name défini à : ${YELLOW}$GIT_FULLNAME${NC}"
     fi
   fi
 
-  read -rp "   Entrez votre e-mail GitHub (pour la clé SSH) : " GITHUB_EMAIL
-  if [[ -z "$GITHUB_EMAIL" ]]; then
-    error "L'adresse e-mail ne peut pas être vide."
-  fi
-
-  echo "   Génération d'une nouvelle paire de clés SSH (RSA 4096 bits)..."
-  ssh-keygen -t rsa -b 4096 -C "$GITHUB_EMAIL" -f "$DEFAULT_KEY" -N "" -q
-  echo -e "${GREEN}✔ Clé SSH générée :${NC} ${DEFAULT_KEY} (+ .pub)"
-  echo
-}
-
-# 4. Ajouter la clé SSH sur GitHub via gh
-add_ssh_key_to_github() {
-  echo -e "${CYAN}➤ Ajout de la clé SSH sur GitHub${NC}"
-  PUB_KEY_PATH="$HOME/.ssh/id_rsa.pub"
-  [[ -f "$PUB_KEY_PATH" ]] || error "Clé publique SSH introuvable à $PUB_KEY_PATH."
-
-  echo "   • Affichage de la clé publique :"
-  echo "──────────────────────────────────────────────────────────────────────────────"
-  cat "$PUB_KEY_PATH"
-  echo "──────────────────────────────────────────────────────────────────────────────"
-  echo "   • Cette clé va être ajoutée à votre compte GitHub."
-  echo
-
-  # Authentification via gh si nécessaire
-  echo "   Vérification de l’authentification GH..."
-  if gh auth status &>/dev/null; then
-    echo -e "${GREEN}✔ Vous êtes déjà authentifié avec gh.${NC}"
-  else
-    echo "   Vous n'êtes pas encore authentifié. Lancement de l'authentification via navigateur..."
-    gh auth login --hostname github.com --web
-  fi
-
-  KEY_TITLE="clé-ssh-$(date +'%Y-%m-%d_%H-%M-%S')"
-  echo "   Ajout de la clé SSH à GitHub sous le titre : ${YELLOW}$KEY_TITLE${NC}"
-  gh ssh-key add "$PUB_KEY_PATH" -t "$KEY_TITLE"
-  echo -e "${GREEN}✔ Clé SSH ajoutée avec succès à votre compte GitHub.${NC}"
-  echo
-}
-
-# 5. Configurer Git (user.name et user.email)
-configure_git() {
-  echo -e "${CYAN}➤ Configuration basique de Git${NC}"
-  read -rp "   Entrez votre nom complet (pour git config user.name) : " GIT_FULLNAME
-  read -rp "   Entrez votre e-mail (pour git config user.email) : " GIT_EMAIL
-
-  if [[ -n "$GIT_FULLNAME" ]]; then
-    git config --global user.name "$GIT_FULLNAME"
-    echo -e "   user.name défini à : ${YELLOW}$GIT_FULLNAME${NC}"
-  fi
-  if [[ -n "$GIT_EMAIL" ]]; then
+  if [[ -n "${GIT_EMAIL-}" ]]; then
     git config --global user.email "$GIT_EMAIL"
-    echo -e "   user.email défini à : ${YELLOW}$GIT_EMAIL${NC}"
+    echo -e "   user.email défini depuis la variable : ${YELLOW}$GIT_EMAIL${NC}"
+  else
+    read -rp "   Entrez votre e-mail (pour git config user.email) : " GIT_EMAIL
+    if [[ -n "$GIT_EMAIL" ]]; then
+      git config --global user.email "$GIT_EMAIL"
+      echo -e "   user.email défini à : ${YELLOW}$GIT_EMAIL${NC}"
+    fi
   fi
 
   echo -e "${GREEN}✔ Configuration Git actuelle (global) :${NC}"
@@ -210,16 +170,17 @@ configure_git() {
   echo
 }
 
-# 6. Vérification finale (clone/accès SSH)
+# 5. Vérification finale (liste des repos via GH)
 final_gh_login() {
   echo -e "${CYAN}➤ Vérification finale de l'accès GitHub${NC}"
-  echo "   Pour tester l'accès SSH, le script va tenter de lister vos dépôts :"
-  if gh repo list "$GITHUB_USER" &>/dev/null; then
+  echo "   Pour tester l'accès, le script va tenter de lister vos dépôts :"
+  GH_USER="$(gh api /user --jq .login)"
+  if gh repo list "$GH_USER" &>/dev/null; then
     echo -e "${GREEN}✔ Connexion réussie ! Voici la liste de vos dépôts :${NC}"
-    gh repo list "$GITHUB_USER"
+    gh repo list "$GH_USER"
   else
-    echo -e "${RED}✖ Impossible d'accéder à vos dépôts via SSH.${NC}"
-    echo "   Vérifiez que la clé SSH a bien été ajoutée sur GitHub ou relancez :"
+    echo -e "${RED}✖ Impossible d'accéder à vos dépôts via le token.${NC}"
+    echo "   Vérifiez que le token a le scope 'repo' et réessayez :"
     echo -e "     ${YELLOW}gh auth login${NC}"
   fi
   echo
@@ -229,10 +190,9 @@ final_gh_login() {
 print_banner
 update_system
 install_tools
-ask_username
-setup_ssh_key
-add_ssh_key_to_github
+ask_token
+authenticate_gh
 configure_git
 final_gh_login
 
-echo -e "${GREEN}🌟 Tout est configuré ! Vous pouvez maintenant utiliser git et GitHub depuis la CLI.${NC}"
+echo -e "${GREEN}🌟 Tout est configuré ! Vous pouvez maintenant utiliser Git et GitHub CLI via le token.${NC}"
