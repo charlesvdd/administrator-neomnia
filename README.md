@@ -1,41 +1,39 @@
-#!/usr/bin/env bash
-#
-# raw-install.sh
-#
-# This script defines a `raw` function that downloads (via curl)
-# any `.sh` file from your repository’s main branch on GitHub and executes it directly.
-#
-# Usage:
-#   1. Save this file as raw-install.sh
-#   2. Make it executable: chmod +x raw-install.sh
-#   3. Run it like this: sudo ./raw-install.sh install.sh
-#
-# Examples:
-#   sudo ./raw-install.sh install.sh
-#   sudo ./raw-install.sh path/to/another-script.sh
-#
+# Administrator Neomnia – Automatic Remote Setup
 
-set -euo pipefail
+This repository provides a Bash script (`install.sh`) to prepare a Next.js/React project environment on a fresh Debian/Ubuntu machine. All steps are designed to be executed remotely—there is no need to clone the repository locally beforehand.
 
-# Base URL for raw file content on the GitHub repository
-BASE_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/main"
+---
 
-# Function raw: fetches a .sh script via curl and runs it in-memory with Bash
-raw() {
-    local remote_path="$1"
-    if [[ -z "$remote_path" ]]; then
-        echo "Usage: raw <path/to/script.sh>"
-        return 1
-    fi
-    echo "→ Downloading and running '$remote_path' from GitHub…"
-    bash <(curl -fsSL "${BASE_URL}/${remote_path}")
-}
+## Table of Contents
 
-# If this file is invoked directly with arguments, pass them to raw()
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    if [[ $# -lt 1 ]]; then
-        echo "Error: Please specify the path to the script to run (e.g., install.sh)."
-        exit 1
-    fi
-    raw "$1"
-fi
+1. [Overview](#overview)  
+2. [Prerequisites](#prerequisites)  
+3. [Remote Installation via `raw`](#remote-installation-via-raw)  
+4. [What the Script Does](#what-the-script-does)  
+5. [Usage After Installation](#usage-after-installation)  
+6. [Contributing](#contributing)  
+7. [License](#license)  
+
+---
+
+## Overview
+
+Instead of cloning this repository to your server first, you can use a single command to fetch and run the installer script directly from GitHub. This “remote execution only” approach ensures you never need to maintain a local copy.
+
+---
+
+## Prerequisites
+
+- A fresh Debian/Ubuntu machine (root or sudo access is required).  
+- Internet connection on the target machine.  
+
+---
+
+## Remote Installation via `raw`
+
+1. SSH into your target machine as root (or a user with sudo privileges).  
+2. Define the following Bash function in your shell session:
+   ```bash
+   raw() {
+     curl -sSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/next-project/install.sh | bash -s -- "$@"
+   }
