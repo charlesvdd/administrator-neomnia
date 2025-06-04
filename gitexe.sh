@@ -1,23 +1,22 @@
 #!/usr/bin/env bash
 #
-# gitexe.sh — déploie le script d'installation complet en local (/tmp/gitinstall) et l'exécute.
-# Il s’auto‐évalue : s’il n’est pas en root, il relance la même URL en sudo.
+# gitexe.sh — déploie le script d’installation complet (/tmp/gitinstall) et l’exécute.
+# S’il n’est pas lancé en root, il relance automatiquement la même URL en sudo avec « bash - ».
 #
 
 # -----------------------------------------------
-# 0. Auto-élévation si non-root
+# 0. Auto-élévation si non-root (pipé sans sudo)
 # -----------------------------------------------
-if [ "$EUID" -ne 0 ]; then
+if [ "$(id -u)" -ne 0 ]; then
   echo "[*] Relance automatique en root…"
-  exec sudo bash -c 'curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/gitexe.sh | bash'
+  exec sudo bash -c "curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/gitexe.sh | bash -"
 fi
 
 # -----------------------------------------------
-# 1. Vérifier qu'on est bien en root (sécurité forme)
+# 1. Sécurité : double-vérification root
 # -----------------------------------------------
-# (Ce test ne devrait jamais sauter car la section précédente relance déjà en root)
-if [ "$EUID" -ne 0 ]; then
-  echo "❌ Erreur critique : impossible d'obtenir les privilèges root."
+if [ "$(id -u)" -ne 0 ]; then
+  echo "❌ Erreur critique : impossible d’obtenir les privilèges root."
   exit 1
 fi
 
@@ -29,7 +28,7 @@ KEY_FILE="$CONFIG_DIR/secret.key"
 ENC_FILE="$CONFIG_DIR/ghcreds.enc"
 
 # -----------------------------------------------
-# 3. Déchiffrer les identifiants GitHub
+# 3. Déchiffrement des identifiants GitHub
 # -----------------------------------------------
 if [ ! -f "$KEY_FILE" ] || [ ! -f "$ENC_FILE" ]; then
   echo "❌ Erreur : fichiers de chiffrement introuvables."
@@ -46,7 +45,7 @@ GH_USER=$(echo "$CRED_STRING" | cut -d ':' -f 1)
 GH_TOKEN=$(echo "$CRED_STRING" | cut -d ':' -f 2)
 
 # -----------------------------------------------
-# 4. Préparer le répertoire temporaire
+# 4. Préparation du répertoire temporaire
 # -----------------------------------------------
 TMP_DIR="/tmp/gitinstall"
 INSTALL_SCRIPT="$TMP_DIR/install.sh"
@@ -58,14 +57,14 @@ mkdir -p "$TMP_DIR"
 chmod 700 "$TMP_DIR"
 
 # -----------------------------------------------
-# 5. Télécharger le script d'installation complet
+# 5. Télécharger le script d’installation complet
 # -----------------------------------------------
 REPO_USER="charlesvdd"
 REPO_NAME="administrator-neomnia"
 REPO_BRANCH="api-key-github"
 RAW_URL="https://raw.githubusercontent.com/${REPO_USER}/${REPO_NAME}/${REPO_BRANCH}/install.sh"
 
-echo "[*] Téléchargement du script d'installation depuis :"
+echo "[*] Téléchargement du script d’installation depuis :"
 echo "    $RAW_URL"
 http_code=$(curl -sSL -u "${GH_USER}:${GH_TOKEN}" -o "${INSTALL_SCRIPT}" -w "%{http_code}" "${RAW_URL}")
 if [ "$http_code" != "200" ]; then
@@ -76,9 +75,9 @@ chmod +x "${INSTALL_SCRIPT}"
 echo "[OK] Script téléchargé dans ${INSTALL_SCRIPT}."
 
 # -----------------------------------------------
-# 6. Exécution du script d'installation
+# 6. Exécution du script d’installation
 # -----------------------------------------------
-echo "[*] Exécution de ${INSTALL_SCRIPT} …"
+echo "[*] Exécution de ${INSTALL_SCRIPT}…"
 bash "${INSTALL_SCRIPT}"
 if [ $? -ne 0 ]; then
   echo "❌ Erreur lors de l'exécution du script d'installation."
@@ -91,14 +90,14 @@ echo "[OK] Script d'installation exécuté avec succès."
 # -----------------------------------------------
 echo "[*] Vérification des actions effectuées :"
 
-# Exemple de vérification : présence d'un binaire attendu
+# Exemple : présence d’un binaire attendu
 if [ -f "/usr/local/bin/mon-binaire-attendu" ]; then
   echo "    ✓ /usr/local/bin/mon-binaire-attendu trouvé."
 else
   echo "    ⚠️  /usr/local/bin/mon-binaire-attendu manquant !"
 fi
 
-# Exemple de vérification : git installé
+# Exemple : git installé
 if command -v git &>/dev/null; then
   echo "    ✓ git est installé."
 else
