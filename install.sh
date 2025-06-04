@@ -1,20 +1,13 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 # ----------------------------------------------------
-#  Script : install.sh
-#  Objectif : Préparer (ou mettre à jour) un environnement
-#             React + Next.js dans /opt/<nom_du_projet>,
-#             sur Debian/Ubuntu, en auto-élévation root
+#  install-user.sh
+#  Objectif : Installer Next.js + TypeScript + ESLint
+#             en mode utilisateur (sans sudo), dans ~/opt/<nom_du_projet>
 # ----------------------------------------------------
 
-### 1. Auto-élévation en root si nécessaire ###
-if [ "$EUID" -ne 0 ]; then
-  echo "⚠️  Vous n’êtes pas root. Relance automatique avec sudo..."
-  exec sudo bash "$0" "$@"
-fi
-
-### 2. Définitions des couleurs ANSI ###
+### 1. Définitions des couleurs (facultatif pour l’affichage) ###
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -24,7 +17,7 @@ MAGENTA='\033[0;35m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
-### 3. Affichage d’une bannière ASCII ###
+### 2. Affichage d’une bannière ###
 echo -e "${CYAN}${BOLD}"
 cat << "EOF"
  _   _            _   _      _       _        
@@ -34,172 +27,170 @@ cat << "EOF"
 |_| \_|\___|\__, |_| \_|\___|\__\___|_| |_|___/
              |___/                             
 
-   🚀   Configuration Next.js sous /opt   🚀
+   🚀  INSTALLATION NEXT.JS (EN MODE UTILISATEUR) 🚀
 EOF
 echo -e "${RESET}"
-sleep 1  # Pause pour laisser le temps de lire la bannière
+sleep 1
 
-### 4. Variables globales ###
-NODE_MIN_VERSION="18.0.0"
-INSTALL_ESLINT_PRETTIER=true
-
-### 5. Fonction pour comparer deux versions (via dpkg) ###
-version_ge() {
-  # Renvoie vrai si $1 >= $2
-  dpkg --compare-versions "$1" ge "$2"
-}
-
-### 6. Mise à jour des paquets système ###
-echo -e "${BLUE}➜ Mise à jour des paquets système...${RESET}"
-apt-get update -y > /dev/null
-apt-get upgrade -y > /dev/null
-echo -e "${GREEN}✔️  Système à jour.${RESET}"
-
-### 7. Installer Git, curl et build-essential si manquant ###
-for pkg in git curl build-essential; do
-  if ! dpkg -s "$pkg" &>/dev/null; then
-    echo -e "${YELLOW}➜ Installation de ${pkg}...${RESET}"
-    apt-get install -y "$pkg" > /dev/null
-    echo -e "${GREEN}   • ${pkg} installé.${RESET}"
-  else
-    echo -e "${GREEN}→ ${pkg} déjà présent.${RESET}"
-  fi
-done
-
-### 8. Installation / mise à jour de Node.js ≥ 18.x ###
-if command -v node &>/dev/null; then
-  CURRENT_NODE_VERSION="$(node -v | sed 's/^v//')"
-  if version_ge "$CURRENT_NODE_VERSION" "$NODE_MIN_VERSION"; then
-    echo -e "${GREEN}→ Node.js v${CURRENT_NODE_VERSION} (≥ ${NODE_MIN_VERSION}) déjà installé.${RESET}"
-  else
-    echo -e "${YELLOW}⚠️ Node.js v${CURRENT_NODE_VERSION} < ${NODE_MIN_VERSION} : mise à niveau...${RESET}"
-    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - > /dev/null 2>&1
-    apt-get install -y nodejs > /dev/null
-    echo -e "${GREEN}   • Node.js mis à jour vers v$(node -v | sed 's/^v//').${RESET}"
-  fi
+### 3. Détecter / installer NVM (Node Version Manager) ###
+if [ -d "$HOME/.nvm" ] && [ -s "$HOME/.nvm/nvm.sh" ]; then
+  echo -e "${GREEN}→ NVM déjà installé.${RESET}"
 else
-  echo -e "${BLUE}➜ Installation de Node.js ${NODE_MIN_VERSION}...${RESET}"
-  curl -fsSL https://deb.nodesource.com/setup_18.x | bash - > /dev/null 2>&1
-  apt-get install -y nodejs > /dev/null
-  echo -e "${GREEN}   • Node.js v$(node -v | sed 's/^v//') installé.${RESET}"
+  echo -e "${BLUE}➜ Installation de NVM (Node Version Manager)...${RESET}"
+  # On récupère le script officiel d’installation de nvm
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
+  # Chargement immédiat de nvm dans le shell courant
+  export NVM_DIR="$HOME/.nvm"
+  # shellcheck source=/dev/null
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  echo -e "${GREEN}   • NVM installé avec succès.${RESET}"
 fi
 
-echo -e "${CYAN}→ Node.js version : $(node -v)${RESET}"
-echo -e "${CYAN}→ npm version    : $(npm -v)${RESET}"
+# S’assurer que nvm est disponible dans ce shell
+export NVM_DIR="$HOME/.nvm"
+# shellcheck source=/dev/null
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-### 9. Demander le nom du projet ###
+### 4. Installer / mettre à jour Node.js >= 18 via NVM ###
+NODE_MIN_VERSION="18.0.0"
+# Si node existe déjà via nvm, on récupère sa version
+if command -v node &>/dev/null; then
+  CURRENT_NODE_VERSION="$(node -v | sed 's/^v//')"
+  # Fonction basique pour comparer versions (string compare simple)
+  version_ge() {
+    # renvoie vrai si $1 >= $2 (major.minor.patch comparés lexicographiquement)
+    printf '%s\n%s' "$1" "$2" | sort -V | head -n1 | grep -qx "$2"
+  }
+  if version_ge "$CURRENT_NODE_VERSION" "$NODE_MIN_VERSION"; then
+    echo -e "${GREEN}→ Node.js v${CURRENT_NODE_VERSION} (≥ ${NODE_MIN_VERSION}) déjà présent via NVM.${RESET}"
+  else
+    echo -e "${YELLOW}⚠️ Node.js v${CURRENT_NODE_VERSION} < ${NODE_MIN_VERSION} : réinstallation via NVM...${RESET}"
+    nvm install 18 --no-progress
+    nvm alias default 18
+    echo -e "${GREEN}   • Node.js v$(node -v) installé.${RESET}"
+  fi
+else
+  echo -e "${BLUE}➜ Installation de Node.js ${NODE_MIN_VERSION} via NVM...${RESET}"
+  nvm install 18 --no-progress
+  nvm alias default 18
+  echo -e "${GREEN}   • Node.js v$(node -v) installé.${RESET}"
+fi
+echo -e "${CYAN}→ node: $(node -v)${RESET}    ${CYAN}npm: $(npm -v)${RESET}"
+
+### 5. Demander le nom du projet (interactif) ###
 echo -ne "${MAGENTA}➜ Entrez le nom de votre projet (sans espaces, ex : mon-projet) : ${RESET}"
 read -r PROJECT_NAME
 
 if [ -z "$PROJECT_NAME" ]; then
-  echo -e "${RED}❗ Erreur : nom de projet non valide.${RESET}" >&2
+  echo -e "${RED}❗ Erreur : vous devez fournir un nom de projet valide.${RESET}"
   exit 1
 fi
 
-### 10. Définir le chemin final dans /opt ###
-PROJECT_DIR="/opt/${PROJECT_NAME}"
+### 6. Préparer le dossier ~/opt/<nom_du_projet> ###
+BASE_DIR="$HOME/opt"
+PROJECT_DIR="$BASE_DIR/$PROJECT_NAME"
 
-### 11. Si /opt n’existe pas, le créer ###
-if [ ! -d "/opt" ]; then
-  echo -e "${BLUE}➜ Création du dossier /opt...${RESET}"
-  mkdir -p /opt
-  echo -e "${GREEN}   • /opt créé.${RESET}"
+# Créer ~/opt si nécessaire
+if [ ! -d "$BASE_DIR" ]; then
+  echo -e "${BLUE}➜ Création du dossier ${BASE_DIR}...${RESET}"
+  mkdir -p "$BASE_DIR"
+  echo -e "${GREEN}   • $BASE_DIR créé.${RESET}"
 fi
 
-### 12. Si le dossier du projet existe déjà ###
-if [ -d "${PROJECT_DIR}" ]; then
-  echo -e "${YELLOW}⚠️ Le répertoire '${PROJECT_DIR}' existe déjà.${RESET}"
-  cd "${PROJECT_DIR}"
+# Si le projet existe déjà :
+if [ -d "$PROJECT_DIR" ]; then
+  echo -e "${YELLOW}⚠️ Le dossier '$PROJECT_DIR' existe déjà.${RESET}"
+  cd "$PROJECT_DIR"
 
-  # Si package.json existe, on considère que c’est un projet Node existant
+  # Si package.json existe, on met à jour l’existant
   if [ -f "package.json" ]; then
-    echo -e "${GREEN}→ Projet existant détecté (package.json trouvé).${RESET}"
+    echo -e "${GREEN}→ Projet Next.js existant détecté (package.json trouvé).${RESET}"
     echo -e "${BLUE}   - Mise à jour des dépendances npm...${RESET}"
-    npm install > /dev/null
+    npm install --silent
     echo -e "${GREEN}   • Dépendances mises à jour.${RESET}"
 
-    echo -e "${BLUE}   - Vérification/installation de ESLint + Prettier...${RESET}"
     if [ "$INSTALL_ESLINT_PRETTIER" = true ]; then
       if ! grep -q '"prettier"' package.json; then
-        echo -e "${YELLOW}     • Installation de Prettier + plugins ESLint...${RESET}"
-        npm install --save-dev prettier eslint-config-prettier eslint-plugin-react eslint-plugin-react-hooks > /dev/null
-        echo -e "${GREEN}       ✓ Prettier & ESLint installés.${RESET}"
+        echo -e "${BLUE}   - Installation de Prettier + plugins ESLint...${RESET}"
+        npm install --save-dev prettier eslint-config-prettier eslint-plugin-react eslint-plugin-react-hooks --silent
+        echo -e "${GREEN}   • Prettier & ESLint installés.${RESET}"
       else
-        echo -e "${GREEN}     • Prettier/ESLint déjà présents.${RESET}"
+        echo -e "${GREEN}   • Prettier/ESLint déjà présents.${RESET}"
       fi
     fi
 
-    # Vérifier ou initialiser Git
     if [ -d ".git" ]; then
-      echo -e "${GREEN}   • Un dépôt Git est déjà initialisé ici. Vous pouvez 'git pull' si besoin.${RESET}"
+      echo -e "${GREEN}   • Dépôt Git existant détecté. Vous pouvez faire 'git pull'.${RESET}"
     else
       echo -e "${BLUE}   - Initialisation d’un dépôt Git local...${RESET}"
-      git init > /dev/null
+      git init
       git add .
       git commit -m "Initial commit : projet existant mis à jour" > /dev/null
-      echo -e "${GREEN}     ✓ Git initialisé & commit créé.${RESET}"
+      echo -e "${GREEN}   • Git initialisé et premier commit créé.${RESET}"
     fi
 
     echo
-    echo -e "${GREEN}${BOLD}✅ Projet '${PROJECT_NAME}' mis à jour avec succès.${RESET}"
-    echo -e "${CYAN}   Pour lancer le serveur de développement :${RESET}"
-    echo -e "       ${BOLD}npm run dev${RESET}"
+    echo -e "${GREEN}${BOLD}✅ Mise à jour du projet '$PROJECT_NAME' réussie.${RESET}"
+    echo -e "${CYAN}   Pour lancer le serveur de dev : cd ~/opt/$PROJECT_NAME && npm run dev${RESET}"
     exit 0
+  fi
 
+  # Si pas de package.json, on propose de réinitialiser
+  echo -e "${RED}❗ Le dossier existe mais ne contient pas de package.json (pas un projet valide).${RESET}"
+  echo -ne "${YELLOW}❓ Voulez-vous supprimer et recréer ce dossier ? (o/N) : ${RESET}"
+  read -r RESP
+  if [[ "$RESP" =~ ^[oO]$ ]]; then
+    echo -e "${BLUE}➜ Suppression de '$PROJECT_DIR'...${RESET}"
+    rm -rf "$PROJECT_DIR"
+    echo -e "${GREEN}   • Dossier supprimé.${RESET}"
   else
-    echo -e "${RED}❗ Le dossier existe mais aucun package.json (pas un projet Node valide).${RESET}"
-    echo -ne "${YELLOW}❓ Voulez-vous supprimer/réinitialiser ce dossier ? (o/N) : ${RESET}"
-    read -r RESP
-    if [[ "$RESP" =~ ^[oO]$ ]]; then
-      echo -e "${BLUE}→ Suppression de '${PROJECT_DIR}'...${RESET}"
-      cd /opt
-      rm -rf "${PROJECT_NAME}"
-      echo -e "${GREEN}   • Dossier supprimé. Création d’un nouveau projet...${RESET}"
-    else
-      echo -e "${RED}❌ Abandon : dossier non réinitialisé.${RESET}"
-      exit 1
-    fi
+    echo -e "${RED}❌ Abandon. Le dossier n’a pas été modifié.${RESET}"
+    exit 1
   fi
 fi
 
-### 13. Création d’un nouveau projet Next.js dans /opt/<nom_du_projet> ###
-echo -e "${BLUE}➜ Création du projet Next.js dans '${PROJECT_DIR}'...${RESET}"
-cd /opt
-npx create-next-app@latest "${PROJECT_NAME}" --typescript --eslint > /dev/null
-echo -e "${GREEN}   • Projet généré par create-next-app.${RESET}"
+### 7. Création du projet Next.js en TypeScript + ESLint ###
+echo -e "${BLUE}➜ Création du projet Next.js dans '$PROJECT_DIR'...${RESET}"
+cd "$BASE_DIR"
+npx create-next-app@latest "$PROJECT_NAME" --typescript --eslint --no-install > /dev/null
+echo -e "${GREEN}   • Squelette Next.js généré.${RESET}"
 
-cd "${PROJECT_DIR}"
+cd "$PROJECT_DIR"
 
-### 14. Installation de ESLint + Prettier si manquant ###
+# Installer toutes les dépendances générées
+echo -e "${BLUE}➜ Installation des dépendances npm...${RESET}"
+npm install --silent
+echo -e "${GREEN}   • Dépendances npm installées.${RESET}"
+
+### 8. Installer Prettier + plugins ESLint si absent ###
 if [ "$INSTALL_ESLINT_PRETTIER" = true ]; then
   if ! grep -q '"prettier"' package.json; then
     echo -e "${BLUE}➜ Installation de Prettier + plugins ESLint...${RESET}"
-    npm install --save-dev prettier eslint-config-prettier eslint-plugin-react eslint-plugin-react-hooks > /dev/null
+    npm install --save-dev prettier eslint-config-prettier eslint-plugin-react eslint-plugin-react-hooks --silent
     echo -e "${GREEN}   • Prettier & ESLint installés.${RESET}"
   else
-    echo -e "${GREEN}→ Prettier/ESLint déjà présents dans les dépendances.${RESET}"
+    echo -e "${GREEN}→ Prettier/ESLint déjà présents dans package.json.${RESET}"
   fi
 fi
 
-### 15. Initialisation d’un dépôt Git local ###
+### 9. Initialisation du dépôt Git local ###
 if [ -d ".git" ]; then
   echo -e "${GREEN}→ Git déjà initialisé par create-next-app.${RESET}"
 else
   echo -e "${BLUE}➜ Initialisation d’un dépôt Git local...${RESET}"
-  git init > /dev/null
+  git init
   echo -e "${GREEN}   • Git initialisé.${RESET}"
 fi
 
 git add .
-git commit -m "Initial commit : setup Next.js under /opt/${PROJECT_NAME}" > /dev/null
-echo -e "${GREEN}   • Premier commit effectué.${RESET}"
+git commit -m "Initial commit : setup Next.js (TypeScript + ESLint)" > /dev/null
+echo -e "${GREEN}   • Premier commit créé.${RESET}"
 
-### 16. Instructions finales ###
+### 10. Instructions finales ###
 echo
-echo -e "${GREEN}${BOLD}✅ Projet Next.js '${PROJECT_NAME}' configuré avec succès sous /opt !${RESET}"
+echo -e "${GREEN}${BOLD}✅ Projet Next.js '$PROJECT_NAME' configuré avec succès dans ~/opt !${RESET}"
 echo -e "${CYAN}   Pour lancer le serveur de développement :${RESET}"
-echo -e "       ${BOLD}cd /opt/${PROJECT_NAME}${RESET}"
-echo -e "       ${BOLD}npm run dev${RESET}"
+echo -e "       ${BOLD}cd ~/opt/$PROJECT_NAME && npm run dev${RESET}"
 echo
 echo -e "${MAGENTA}   Vous pouvez maintenant :${RESET}"
 echo -e "   - Ajouter un remote : ${BOLD}git remote add origin <votre-repo-URL>${RESET}"
