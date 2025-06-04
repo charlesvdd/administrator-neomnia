@@ -52,7 +52,7 @@ Additionally, the script includes a built-in function to **execute itself on a r
    cd administrator-neomnia
    git checkout api-key-github
 
-## installation bash
+## **installation bash**  (on the `api-key-github` branch):
    '''bash
    ssh user@remote.host "bash -s" < <(curl -fsS https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/install.sh)
 
