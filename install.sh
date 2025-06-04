@@ -2,12 +2,12 @@
 set -euo pipefail
 
 # ----------------------------------------------------
-#  install-user.sh
+#  install.sh (branche next-project)
 #  Objectif : Installer Next.js + TypeScript + ESLint
 #             en mode utilisateur (sans sudo), dans ~/opt/<nom_du_projet>
 # ----------------------------------------------------
 
-### 1. Définitions des couleurs (facultatif pour l’affichage) ###
+### 1. Définitions des couleurs (pour l’affichage) ###
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -27,40 +27,35 @@ cat << "EOF"
 |_| \_|\___|\__, |_| \_|\___|\__\___|_| |_|___/
              |___/                             
 
-   🚀  INSTALLATION NEXT.JS (EN MODE UTILISATEUR) 🚀
+   🚀  INSTALLATION NEXT.JS (MODE UTILISATEUR) 🚀
 EOF
 echo -e "${RESET}"
 sleep 1
 
-### 3. Détecter / installer NVM (Node Version Manager) ###
+### 3. Vérifier/installer NVM (Node Version Manager) ###
 if [ -d "$HOME/.nvm" ] && [ -s "$HOME/.nvm/nvm.sh" ]; then
   echo -e "${GREEN}→ NVM déjà installé.${RESET}"
 else
   echo -e "${BLUE}➜ Installation de NVM (Node Version Manager)...${RESET}"
-  # On récupère le script officiel d’installation de nvm
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
-  # Chargement immédiat de nvm dans le shell courant
   export NVM_DIR="$HOME/.nvm"
-  # shellcheck source=/dev/null
   [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
   echo -e "${GREEN}   • NVM installé avec succès.${RESET}"
 fi
 
-# S’assurer que nvm est disponible dans ce shell
+# Charger NVM pour ce shell
 export NVM_DIR="$HOME/.nvm"
-# shellcheck source=/dev/null
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-### 4. Installer / mettre à jour Node.js >= 18 via NVM ###
+### 4. Installer / mettre à jour Node.js ≥ 18 via NVM ###
 NODE_MIN_VERSION="18.0.0"
-# Si node existe déjà via nvm, on récupère sa version
+version_ge() {
+  # renvoie vrai si $1 >= $2 lexicographiquement (sort -V)
+  printf '%s\n%s' "$1" "$2" | sort -V | head -n1 | grep -qx "$2"
+}
+
 if command -v node &>/dev/null; then
   CURRENT_NODE_VERSION="$(node -v | sed 's/^v//')"
-  # Fonction basique pour comparer versions (string compare simple)
-  version_ge() {
-    # renvoie vrai si $1 >= $2 (major.minor.patch comparés lexicographiquement)
-    printf '%s\n%s' "$1" "$2" | sort -V | head -n1 | grep -qx "$2"
-  }
   if version_ge "$CURRENT_NODE_VERSION" "$NODE_MIN_VERSION"; then
     echo -e "${GREEN}→ Node.js v${CURRENT_NODE_VERSION} (≥ ${NODE_MIN_VERSION}) déjà présent via NVM.${RESET}"
   else
@@ -97,7 +92,7 @@ if [ ! -d "$BASE_DIR" ]; then
   echo -e "${GREEN}   • $BASE_DIR créé.${RESET}"
 fi
 
-# Si le projet existe déjà :
+# Si le projet existe déjà
 if [ -d "$PROJECT_DIR" ]; then
   echo -e "${YELLOW}⚠️ Le dossier '$PROJECT_DIR' existe déjà.${RESET}"
   cd "$PROJECT_DIR"
