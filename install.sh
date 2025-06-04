@@ -10,9 +10,8 @@
 #   ╚═════╝ ╚══════╝   ╚═╝    ╚═════╝  ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═╝            #
 #                                                                              #
 #   Script : setup-github.sh                                                   #
-#   Auteur : Charles van den Driessche <www.neomnia.net>                       #
+#   Auteur : Charles van den Driessche                                          #
 #   Licence: GNU General Public License v3.0                                   #
-#            Voir le fichier LICENSE ou https://www.gnu.org/licenses/gpl-3.0   #
 #   Année  : 2025                                                              #
 #                                                                              #
 ################################################################################
@@ -24,7 +23,7 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m' # Pas de couleur
 
-set -e
+set -euo pipefail
 
 # Affiche une bannière stylisée au lancement
 print_banner() {
@@ -69,7 +68,7 @@ update_system() {
       echo -e "${YELLOW}ℹ️  Homebrew non installé. Passez la mise à jour macOS.${NC}"
     fi
   else
-    echo -e "${YELLOW}ℹ️  Système non reconnu pour la mise à jour automatique. Passez cette étape.${NC}"
+    echo -e "${YELLOW}ℹ️  OS non reconnu pour la mise à jour automatique. Passez cette étape.${NC}"
   fi
   echo
 }
@@ -84,7 +83,7 @@ install_tools() {
       if ! command -v gh &>/dev/null; then
         echo "  - Téléchargement et installation de GitHub CLI (gh)..."
         ARCH=$(uname -m)
-        wget -qO /tmp/gh.deb https://github.com/cli/cli/releases/latest/download/gh_${ARCH}_deb.deb
+        wget -qO /tmp/gh.deb "https://github.com/cli/cli/releases/latest/download/gh_${ARCH}_deb.deb"
         sudo dpkg -i /tmp/gh.deb &>/dev/null || sudo apt-get install -f -y -qq
         rm -f /tmp/gh.deb
       else
