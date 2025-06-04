@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# install.sh – Validation GitHub + clonage du dépôt
+# install.sh – Validation GitHub (login + token) + clonage du dépôt
 #
 # Usage :
 #   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/install.sh)"
@@ -15,37 +15,54 @@ if [[ "$EUID" -ne 0 ]]; then
   exit 1
 fi
 
-# 2. Boucle de saisie et validation des identifiants GitHub
-#    On teste en appelant l’API /user. Si HTTP=200, on sort de la boucle.
-function prompt_and_validate_github() {
-  local http_code
+# 2. Boucle de saisie et validation du couple (login, token)
+#    On appelle /user, on extrait "login" du JSON, puis on compare.
+prompt_and_validate_github() {
+  local http_code api_login
   while true; do
     echo "===== [Étape 0] — Informations GitHub ====="
     read -p "Nom d’utilisateur GitHub : " GITHUB_USER
     read -s -p "Clé API GitHub (input masqué) : " GITHUB_API_KEY
     echo -e "\n"
 
-    # Test simple : GET /user
+    # 2.1. On interroge /user pour vérifier le token et récupérer le login associé
+    #     - http_code permet de tester la validité du token
+    #     - api_login est extrait du JSON pour vérifier le login
     http_code=$(curl -s -o /dev/null -w "%{http_code}" \
       -H "Authorization: token ${GITHUB_API_KEY}" \
       https://api.github.com/user)
 
-    if [[ "$http_code" -eq 200 ]]; then
-      echo "✔ Authentification GitHub réussie pour '${GITHUB_USER}'."
-      export GITHUB_USER GITHUB_API_KEY
-      break
-    else
+    if [[ "$http_code" -ne 200 ]]; then
       echo "⚠️ Authentification échouée (HTTP ${http_code})."
-      echo "   Vérifiez votre login et votre clé API, puis réessayez."
+      echo "   Vérifiez votre clé API, puis réessayez."
       echo
+      continue
     fi
+
+    # 2.2. Le token est valide (HTTP 200). On récupère le "login" réel depuis le JSON.
+    api_login=$(curl -s \
+      -H "Authorization: token ${GITHUB_API_KEY}" \
+      https://api.github.com/user \
+      | grep -m1 '"login"' | cut -d '"' -f4)
+
+    if [[ "$api_login" != "$GITHUB_USER" ]]; then
+      echo "⚠️ Le token fourni n’appartient pas à l’utilisateur '$GITHUB_USER',"
+      echo "   mais à '$api_login'. Veuillez ressaisir les informations."
+      echo
+      continue
+    fi
+
+    # Si on arrive ici, token valide ET login concorde.
+    echo "✔ Authentification réussie pour l’utilisateur '${GITHUB_USER}'."
+    export GITHUB_USER GITHUB_API_KEY
+    break
   done
 }
 
 prompt_and_validate_github
 
-# 3. Affichage d’un titre d’étape
-function stage() {
+# 3. Fonction utilitaire pour afficher un titre d’étape
+stage() {
   local num="$1"; shift
   local msg="$*"
   echo -e "\n===== [Étape $num] — $msg ====="
@@ -68,8 +85,4 @@ fi
 
 # 5. Fin du script
 stage 2 "Terminé"
-echo "Votre dépôt est désormais cloné dans '${TARGET_DIR}'."
-echo "Si vous souhaitez ajouter d’autres étapes (copie de fichiers, lancement de setup.sh, etc.),"
-echo "éditez ce fichier ou ajoutez un script 'setup.sh' à la racine de ${TARGET_DIR}."
-
-echo -e "\n✅ Installation du dépôt GitHub terminée."
+echo "✅ Votre dépôt est désormais cloné dans '${TARGET_DIR}'."
