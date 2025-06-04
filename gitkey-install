@@ -8,7 +8,7 @@ echo "========================================"
 echo
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
-# │ A) Demander, en interaction réelle, les identifiants GitHub              │
+# │ (A) Demander immédiatement vos identifiants GitHub                      │
 # └───────────────────────────────────────────────────────────────────────────┘
 read -p "Nom d’utilisateur GitHub : " GITHUB_USER
 read -s -p "Mot de passe ou token GitHub : " GITHUB_TOKEN
@@ -17,8 +17,8 @@ echo "→ Identifiants saisis (le token reste masqué)."
 echo
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
-# │ B) Enregistrer ces credentials dans /root/.neomnia/credentials.conf       │
-# │    (puisqu’on est en root)                                                 │
+# │ (B) Enregistrer ces credentials dans /root/.neomnia/credentials.conf     │
+# │     (car on tourne en root)                                              │
 # └───────────────────────────────────────────────────────────────────────────┘
 CONFIG_DIR="/root/.neomnia"
 mkdir -p "$CONFIG_DIR"
@@ -30,23 +30,17 @@ echo "→ Credentials enregistrés dans $CONFIG_DIR/credentials.conf."
 echo
 
 # ┌───────────────────────────────────────────────────────────────────────────┐
-# │ C) (Optionnel) Poursuivre la suite de l’installation en local              │
-# │    – par exemple, cloner un autre dépôt, installer un service, etc.      │
+# │ (C) Poursuivre la suite de l’installation en local                        │
+# │     (Exemple: cloner un autre repo, copier des fichiers systemd, etc.)   │
 # └───────────────────────────────────────────────────────────────────────────┘
+# Ici, vous pouvez ajouter toutes les commandes complémentaires dont vous avez besoin.
+# Par exemple :
+#   git clone https://github.com/mon-orga/mon-projet.git /opt/mon-projet
+#   cp /opt/mon-projet/service.conf /etc/systemd/system/mon-service.service
+#   systemctl daemon-reload
+#   systemctl enable mon-service
+#   systemctl start mon-service
 #
-# Exemples (à adapter selon votre besoin) :
-#
-# 1) Cloner un autre repo privé en utilisant les credentials GitHub :
-#    git clone https://github.com/mon-orga/mon-projet.git /opt/mon-projet
-#
-# 2) Installer un service systemd ou copier des configs 
-#    cp /opt/mon-projet/config.service /etc/systemd/system/mon-service.service
-#    systemctl daemon-reload
-#    systemctl enable mon-service
-#    systemctl start mon-service
-#
-# 3) Toute autre commande bash dont votre “install local” a besoin.
-#
-# Ici, on se contente juste d’un message de succès :
+# Pour l’instant, on se contente d’un message de succès :
 echo "🎉 Installation locale terminée avec succès."
 exit 0
