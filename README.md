@@ -1,18 +1,18 @@
-# 🖥️ Installation du Script “init.ssh” via RAW GitHub
+# 🖥️ Install “init.ssh” Script via RAW GitHub
 
-Ce README présente de manière claire et visuelle comment récupérer et exécuter, en une seule commande, le script `init.ssh` disponible sur GitHub. Le but est de préparer rapidement un serveur Ubuntu (VPS) en automatisant les tâches suivantes :
+This README explains how to fetch and execute the `init.ssh` script in one command directly from GitHub. The goal is to quickly prepare an Ubuntu server (VPS) by automating the following tasks:
 
-- Mise à jour du système
-- Installation des paquets essentiels
-- Configuration basique du pare-feu (UFW)
-- Création d’un groupe “admins” et attribution des droits sur `/etc` et `/opt`
-- Ajout de l’utilisateur courant au groupe “admins”
+- System update
+- Installation of essential packages
+- Basic firewall (UFW) configuration
+- Creation of an “admins” group and granting permissions on `/etc` and `/opt`
+- Adding the current user to the “admins” group
 
 ---
 
-## 🚀 Commande d’exécution
+## 🚀 Execution Command
 
-Pour lancer le script directement depuis la branche `init` de votre dépôt GitHub, ouvrez un terminal sur votre machine (ou votre VPS) et copiez‐collez :
+Open a terminal on your machine (or your VPS) and paste the following command to run the script from the `init` branch:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/init/init.ssh | sudo bash
