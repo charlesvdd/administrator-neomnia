@@ -1,102 +1,133 @@
 #!/usr/bin/env bash
 #
-# install.sh – Téléchargement et installation depuis un RAW GitHub
+# install.sh – Script d’installation complet (tout-en-un)
 #
-# Usage (en une seule ligne) :
+# Usage (en une seule ligne depuis n’importe où) :
 #   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/install.sh)"
 #
 
 set -euo pipefail
 
-# 1. Vérifier qu'on est root
+# 1. Vérifier qu’on est exécuté en tant que root
 if [[ "$EUID" -ne 0 ]]; then
-  echo "❌ Ce script doit être exécuté en tant que root."
-  echo "   Relancez-le avec : sudo $0"
+  echo "❌ Ce script doit être exécuté en root."
+  echo "   Relancez avec : sudo $0"
   exit 1
 fi
 
-# 2. Demander les informations GitHub
-echo "===== Informations GitHub ====="
+# 2. Demander les identifiants GitHub
+echo "===== [Étape 0] — Informations GitHub ====="
 read -p "Nom d’utilisateur GitHub : " GITHUB_USER
 read -s -p "Clé API GitHub (input masqué) : " GITHUB_API_KEY
-echo -e "\n"   # passage à la ligne après saisie masquée
+echo -e "\n"   # saut de ligne après saisie masquée
 
-# Exporter pour que les fonctions ultérieures puissent les utiliser
-export GITHUB_USER GITHUB_API_KEY
+# Exporter pour que les commandes suivantes (git, curl…) puissent l’utiliser
+export GITHUB_USER
+export GITHUB_API_KEY
 
-# 3. Définir une fonction d’affichage de titre pour chaque étape
-function stage_title() {
-  local num="$1"
-  local msg="$2"
-  echo -e "\n===== Étape $num: $msg ====="
+# 3. Fonction utilitaire pour afficher un titre d’étape
+function stage() {
+  local num="$1"; shift
+  local msg="$*"
+  echo -e "\n===== [Étape $num] — $msg ====="
 }
 
-# 4. Fonction de téléchargement depuis RAW GitHub
-# Arguments :
-#   $1 = dépôt (ex. "administrator-neomnia")
-#   $2 = branche (ex. "api-key-github")
-#   $3 = chemin/vers/fichier.dans.repo (ex. "scripts/mon-script.sh")
-#   $4 = destination locale (ex. "/usr/local/bin/mon-script.sh")
-function download_from_raw() {
-  local repo="$1"
-  local branch="$2"
-  local filepath="$3"
-  local dest="$4"
-  local raw_url="https://raw.githubusercontent.com/${GITHUB_USER}/${repo}/${branch}/${filepath}"
+# -------------------------------
+# 4. Exemple de tâches d’installation
+# -------------------------------
 
-  echo "→ Téléchargement : ${raw_url}"
-  curl -fSL -H "Authorization: token ${GITHUB_API_KEY}" \
-       "${raw_url}" -o "${dest}"
-  chmod +x "${dest}"
-  echo "✔ Téléchargé et rendu exécutable : ${dest}"
-}
-
-# 5. Étapes d’installation en plusieurs « stages »
-
-# Étape 1 : Mise à jour du système et prérequis
-stage_title 1 "Mise à jour système et dépendances"
+stage 1 "Mise à jour du système et installation des dépendances de base"
 apt-get update -y
 apt-get upgrade -y
-# Installez ici ce qui est nécessaire, par exemple curl, git, etc.
-apt-get install -y curl git
+apt-get install -y curl git ca-certificates
 
-# Étape 2 : Téléchargement du(s) script(s) principal(aux)
-stage_title 2 "Téléchargement du(s) script(s) depuis GitHub"
-# Exemple : récupérer un script nommé ‘install-myapp.sh’ dans « scripts/ »
-# du dépôt ‘administrator-neomnia’ sur la branche ‘api-key-github’, et le placer en /usr/local/bin
-download_from_raw "administrator-neomnia" "api-key-github" "scripts/install-myapp.sh" "/usr/local/bin/install-myapp.sh"
+# (Vous pouvez y ajouter d’autres paquets nécessaires, par ex. build-essential, unzip, etc.)
 
-# Si vous aviez plusieurs fichiers à récupérer, répétez download_from_raw pour chacun :
-# download_from_raw "administrator-neomnia" "api-key-github" "scripts/configure.sh" "/usr/local/bin/configure.sh"
-# download_from_raw "autre-depot"      "main"             "deploy.sh"          "/usr/local/bin/deploy.sh"
-
-# Étape 3 : Exécution du/des script(s) téléchargé(s)
-stage_title 3 "Exécution des scripts téléchargés"
-if [[ -x "/usr/local/bin/install-myapp.sh" ]]; then
-  echo "→ Lancement : /usr/local/bin/install-myapp.sh"
-  # Ici, on transmet éventuellement la clé API et l’utilisateur GitHub si le script en a besoin
-  GITHUB_USER="${GITHUB_USER}" GITHUB_API_KEY="${GITHUB_API_KEY}" \
-    /usr/local/bin/install-myapp.sh
+# -------------------------------
+# 5. Exemple : clonage du dépôt ⇒ si vous voulez récupérer du contenu supplémentaire
+# -------------------------------
+# Ici on clone votre dépôt (privé ou public) en utilisant le couple USER:API_KEY.
+# Remplacez “administrator-neomnia” par le nom exact du dépôt si besoin.
+#
+# On clone dans /opt/administrator-neomnia, mais vous pouvez changer le chemin.
+stage 2 "Clonage du dépôt GitHub dans /opt/administrator-neomnia"
+REPO="administrator-neomnia"
+TARGET_DIR="/opt/${REPO}"
+if [[ -d "$TARGET_DIR" ]]; then
+  echo "→ Le dossier ${TARGET_DIR} existe déjà, on le met à jour (git pull)…"
+  git -C "$TARGET_DIR" pull
 else
-  echo "⚠️ Le script /usr/local/bin/install-myapp.sh n'existe pas ou n'est pas exécutable."
+  echo "→ Clonage depuis GitHub : ${GITHUB_USER}/${REPO}"
+  git clone "https://${GITHUB_USER}:${GITHUB_API_KEY}@github.com/${GITHUB_USER}/${REPO}.git" "$TARGET_DIR"
 fi
 
-# Ajouter d'autres lancements si vous avez plusieurs scripts
-# if [[ -x "/usr/local/bin/configure.sh" ]]; then
-#   GITHUB_USER="${GITHUB_USER}" GITHUB_API_KEY="${GITHUB_API_KEY}" \
-#     /usr/local/bin/configure.sh
-# fi
-
-# Étape 4 : Nettoyage ou configuration finale
-stage_title 4 "Nettoyage / Configurations finales"
-# Par exemple :
-# - supprimer des fichiers temporaires
-# - créer un utilisateur de service
-# - copier des fichiers de config vers /etc/…
-# - redémarrer un service systemd
+# -------------------------------
+# 6. Exemple : exécution d’un script interne s’il existe
+# -------------------------------
+# Supposons que, dans votre repo, vous ayez un fichier appelé setup.sh à la racine
+# (ou un autre nom). Si c’est le cas, vous pouvez l’appeler ensuite.
 #
-# Exemple basique : on crée un dossier /opt/monapp et on copie un binaire
-# mkdir -p /opt/monapp
-# cp /usr/local/bin/monapp /opt/monapp/
+# Vérifiez que le script existe et est exécutable, sinon ajustez le chemin ou nom.
+stage 3 "Exécution du script interne (s’il est présent)"
+INTERNAL_SCRIPT="${TARGET_DIR}/setup.sh"
+if [[ -f "$INTERNAL_SCRIPT" ]]; then
+  chmod +x "$INTERNAL_SCRIPT"
+  echo "→ Lancement de ${INTERNAL_SCRIPT}"
+  # Transmettre éventuellement les variables d’env. GitHub au script interne
+  GITHUB_USER="${GITHUB_USER}" GITHUB_API_KEY="${GITHUB_API_KEY}" \
+    bash "$INTERNAL_SCRIPT"
+else
+  echo "ℹ️ Aucun script setup.sh trouvé dans ${TARGET_DIR}. Vous pouvez ignorer cette étape."
+fi
 
-echo -e "\n✅ Installation terminée !"
+# -------------------------------
+# 7. Exemple : installation de services / configurations personnalisées
+# -------------------------------
+# Ici, ajoutez tout ce qui vous sert pour préparer votre environnement VPS.
+# Par exemple :
+#
+#   - Installer Docker :
+#       stage X "Installation de Docker"
+#       apt-get install -y docker.io
+#       systemctl enable docker
+#       systemctl start docker
+#
+#   - Installer et configurer nginx :
+#       stage Y "Installation de nginx"
+#       apt-get install -y nginx
+#       systemctl enable nginx
+#       systemctl restart nginx
+#
+#   - Ajouter un utilisateur de service, copier des fichiers de config, etc.
+#
+# Exemple générique :
+stage 4 "Installation d’exemples de services (nginx + docker)"
+# Docker
+if ! command -v docker &>/dev/null; then
+  apt-get install -y docker.io
+  systemctl enable docker
+  systemctl start docker
+  echo "✔ Docker installé et démarré."
+else
+  echo "ℹ️ Docker est déjà installé."
+fi
+
+# nginx
+if ! command -v nginx &>/dev/null; then
+  apt-get install -y nginx
+  systemctl enable nginx
+  systemctl start nginx
+  echo "✔ nginx installé et démarré."
+else
+  echo "ℹ️ nginx est déjà installé."
+fi
+
+# -------------------------------
+# 8. Nettoyage ou configuration finale
+# -------------------------------
+stage 5 "Nettoyage / tâches finales"
+# Exemple : suppression des paquets qui ne servent plus
+apt-get autoremove -y
+apt-get clean
+
+echo -e "\n✅ L’installation est terminée."
