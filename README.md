@@ -1,51 +1,36 @@
-# 🛠️ Basic Ubuntu Setup Script
+#!/bin/bash
 
-<div align="center">
-  <img src="https://img.shields.io/badge/Linux-Ubuntu-orange" alt="Ubuntu Badge">
-  <img src="https://img.shields.io/badge/Security-Firewall-blue" alt="UFW Badge">
-  <img src="https://img.shields.io/badge/Shell-Bash-informational" alt="Bash Badge">
-</div>
+##
+## Fonction RAW pour afficher le README.md depuis GitHub
+##
+## Usage :
+##   raw_readme <utilisateur> <répo> [<branche>]
+##
+## Exemples :
+##   raw_readme charlesvdd administrator-neomnia            # branche par défaut : main
+##   raw_readme charlesvdd administrator-neomnia init       # récupère la branche init
+##
 
----
+function raw_readme() {
+  local user="$1"
+  local repo="$2"
+  local branch="${3:-main}"   # si pas de 3ᵉ argument, on prend « main »
+  local raw_url="https://raw.githubusercontent.com/${user}/${repo}/${branch}/README.md"
 
-## 🎯 Purpose
+  if [[ -z "$user" || -z "$repo" ]]; then
+    echo "Usage : raw_readme <utilisateur> <répo> [<branche>]"
+    return 1
+  fi
 
-This script helps you **quickly prepare a fresh Ubuntu VPS** by:
-- Updating system packages.
-- Installing essential utilities (`tree`, `ufw`, `git`, `curl`, `wget`).
-- Enabling and configuring a basic firewall with UFW.
-- Creating an `admins` group and granting it read/write access to `/etc` and `/opt`.
-- Adding the current user to the `admins` group.
+  echo -e "\n📥 Fetching RAW README from:"
+  echo "         $raw_url"
+  echo
 
----
+  # On utilise curl pour récupérer le contenu brut
+  curl -fsSL "$raw_url" || {
+    echo -e "\n⚠️ Cannot fetch README.md (Vérifiez le nom d’utilisateur, le répo ou la branche)."
+    return 2
+  }
 
-## 📋 Features
-
-1. **System Update & Upgrade**  
-   - Ensures the OS is up to date with the latest security patches.
-
-2. **Essential Packages Installation**  
-   - Installs commonly used tools:  
-     - `tree` (directory listing in tree format)  
-     - `ufw` (Uncomplicated Firewall)  
-     - `git`, `curl`, `wget` (version control and download tools)
-
-3. **Basic Firewall Configuration**  
-   - Enables UFW and allows SSH traffic only (port 22).
-
-4. **‘admins’ Group & Permissions**  
-   - Creates an `admins` group (if not already present).  
-   - Changes ownership of `/etc` and `/opt` to `root:admins`.  
-   - Grants read/write permissions to the group.  
-   - Adds your user account to the `admins` group.
-
----
-
-## 🚀 Usage
-
-1. **Clone the repository and switch to the `init` branch**:
-
-   ```bash
-   git clone https://github.com/charlesvdd/administrator-neomnia.git
-   cd administrator-neomnia
-   git checkout init
+  echo
+}
