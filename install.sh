@@ -34,12 +34,12 @@ ERROR() {
 STEP "Démarrage du script d'installation"
 echo -e "${CYAN}${BOLD}"
 cat << "EOF"
- _   _            _   _      _       _        
-| \ | | ___  __ _| \ | | ___| |_ ___| |__ ___ 
-|  \| |/ _ \/ _` |  \| |/ _ \ __/ __| '_ \ __|
-| |\  |  __/ (_| | |\  |  __/ || (__| | | \__ \
-|_| \_|\___|\__, |_| \_|\___|\__\___|_| |_|___/
-             |___/                             
+  _   _            _   _      _       _
+ | \ | | ___  __ _| \ | | ___| |_ ___| |__ ___
+ |  \| |/ _ \/ _` |  \| |/ _ \ __/ __| '_ \ __|
+ | |\  |  __/ (_| | |\  |  __/ || (__| | | \__ \
+ |_| \_|\___|\__, |_| \_|\___|\__\___|_| |_|___/
+              |___/
 
    🚀  INSTALLATION NEXT.JS (MODE UTILISATEUR) 🚀
 EOF
@@ -87,11 +87,18 @@ else
 fi
 LOG "Versions actuelles : node $(node -v), npm $(npm -v)"
 
-### 5. Définir le nom du projet automatiquement si non fourni ###
-# Si l’utilisateur a exporté PROJECT_NAME, l’utiliser, sinon créer un nom par défaut
-DEFAULT_NAME="next-app-$(date +%Y%m%d%H%M%S)"
-PROJECT_NAME="${PROJECT_NAME:-$DEFAULT_NAME}"
-LOG "Nom de projet défini : ${PROJECT_NAME}"
+### 5. Définir le nom du projet ###
+echo "Veuillez entrer le nom du projet :"
+read -r PROJECT_NAME
+
+# Vérifier si le nom du projet est vide et utiliser un nom par défaut si nécessaire
+if [ -z "$PROJECT_NAME" ]; then
+  DEFAULT_NAME="next-app-$(date +%Y%m%d%H%M%S)"
+  PROJECT_NAME="$DEFAULT_NAME"
+  LOG "Aucun nom de projet fourni. Utilisation du nom par défaut : ${PROJECT_NAME}"
+else
+  LOG "Nom de projet défini : ${PROJECT_NAME}"
+fi
 
 ### 6. Préparer le dossier ~/opt/<nom_du_projet> ###
 STEP "Préparation du dossier de projet"
