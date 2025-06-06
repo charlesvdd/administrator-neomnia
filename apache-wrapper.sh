@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------------------------
-# apache-wrapper.sh — Kickstarter Apache + SQL (SQL embarqué, utilisation du nom VPS)
+# apache-wrapper.sh — Kickstarter Apache + SQL (racine web dans /opt/www)
 # ------------------------------------------------------------------------------
 
-set -e                                      # Arrêt à la première erreur
+set -e
 trap 'echo "[Erreur] Ligne $LINENO échouée. Arrêt du script."; exit 1' ERR
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
-NC='\033[0m'                                # Pas de couleur
+NC='\033[0m'
 
 echo -e "${GREEN}=== Démarrage du kickstarter Apache + SQL ===${NC}"
 
@@ -19,7 +19,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 echo -e "${GREEN}→ Exécuté en root : OK${NC}"
 
-# 2. Détecter l’utilisateur VPS (celui qui lance sudo)
+# 2. Détecter l’utilisateur VPS
 if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
   VPS_USER="$SUDO_USER"
 else
@@ -27,10 +27,9 @@ else
 fi
 echo -e "${GREEN}→ Utilisateur VPS détecté : ${VPS_USER}${NC}"
 
-# 3. Demander le mot de passe pour l’utilisateur SQL (masqué)
+# 3. Saisir le mot de passe SQL
 echo -e "${GREEN}→ Saisissez le mot de passe pour l’utilisateur SQL \"${VPS_USER}\" :${NC}"
-read -s SQL_PASS
-echo
+read -s SQL_PASS; echo
 if [ -z "$SQL_PASS" ]; then
   echo -e "${RED}[ERREUR] Le mot de passe SQL ne peut pas être vide.${NC}"
   exit 1
@@ -53,7 +52,7 @@ else
   exit 1
 fi
 
-# 6. Installation de MariaDB (ou MySQL)
+# 6. Installation de MariaDB
 echo -e "${GREEN}→ Installation de MariaDB...${NC}"
 apt install mariadb-server -y
 if systemctl status mariadb >/dev/null 2>&1; then
@@ -65,7 +64,7 @@ else
   exit 1
 fi
 
-# 7. Sécuriser MariaDB avec mysql_secure_installation
+# 7. Sécuriser MariaDB
 echo -e "${GREEN}→ Sécurisation de MariaDB (mysql_secure_installation)...${NC}"
 mysql_secure_installation <<EOF
 
@@ -79,7 +78,7 @@ Y
 EOF
 echo -e "${GREEN}→ MariaDB sécurisé.${NC}"
 
-# 8. Création de la base et de l’utilisateur SQL (SQL embarqué)
+# 8. Création de la base et de l’utilisateur SQL
 DB_NAME="${VPS_USER}"
 SQL_USER="${VPS_USER}"
 echo -e "${GREEN}→ Création de la base '${DB_NAME}' et de l’utilisateur SQL '${SQL_USER}'...${NC}"
@@ -91,23 +90,21 @@ FLUSH PRIVILEGES;
 EOF
 echo -e "${GREEN}→ Base '${DB_NAME}' et utilisateur '${SQL_USER}' créés.${NC}"
 
-# 9. Déploiement de la config Apache
-echo -e "${GREEN}→ Déploiement de la configuration Apache…${NC}"
+# --- 9. Déploiement de la config Apache vers /opt/www ---
 
-# Si vous avez un dossier apache-config/000-default.conf dans votre dépôt,
-# le script recopie ce fichier. Sinon, un VirtualHost minimal est généré.
-if [ -f "./apache-config/000-default.conf" ]; then
-  cp ./apache-config/000-default.conf /etc/apache2/sites-available/000-default.conf
-else
-  mkdir -p /home/"${VPS_USER}"/www
-  chown -R "${VPS_USER}":"${VPS_USER}" /home/"${VPS_USER}"/www
+echo -e "${GREEN}→ Déploiement de la configuration Apache (racine web /opt/www)...${NC}"
 
-  cat <<EOF >/etc/apache2/sites-available/000-default.conf
+WEB_ROOT="/opt/www/${VPS_USER}"
+mkdir -p "${WEB_ROOT}"
+chown -R "${VPS_USER}":"${VPS_USER}" "${WEB_ROOT}"
+chmod -R 755 /opt/www
+
+cat <<EOF >/etc/apache2/sites-available/000-default.conf
 <VirtualHost *:80>
     ServerAdmin webmaster@localhost
-    DocumentRoot /home/${VPS_USER}/www
+    DocumentRoot ${WEB_ROOT}
 
-    <Directory /home/${VPS_USER}/www>
+    <Directory ${WEB_ROOT}>
         Options Indexes FollowSymLinks
         AllowOverride All
         Require all granted
@@ -117,9 +114,8 @@ else
     CustomLog \${APACHE_LOG_DIR}/${VPS_USER}_access.log combined
 </VirtualHost>
 EOF
-fi
 
-# Vérifier la syntaxe Apache
+# Vérification de la syntaxe Apache
 if apache2ctl configtest >/dev/null 2>&1; then
   echo -e "${GREEN}→ Configuration Apache valide.${NC}"
   systemctl reload apache2
