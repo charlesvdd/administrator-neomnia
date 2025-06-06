@@ -1,77 +1,91 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------------------------
-# nginx-wrapper.sh — Kickstarter for Nginx + MariaDB/MySQL
-# Author: Charles VDD
-# Description:
-#   - Updates/upgrades the system on Debian/Ubuntu.
-#   - Installs and enables Nginx instead of Apache.
-#   - Installs, secures MariaDB/MySQL, then creates a database + user named after the VPS user.
-#   - Configures Nginx to serve from /opt/www/<username>.
-#   - Applies recursive ownership and permissions under /opt/www.
+# nginx-wrapper.sh — Kickstarter pour Nginx + MariaDB/MySQL
+# Auteur : Charles VDD
+# Description :
+#   - Met à jour le système Debian/Ubuntu.
+#   - Installe et démarre Nginx (en gérant le cas “qemu” sans planter).
+#   - Installe, sécurise MariaDB/MySQL, puis crée une base + un utilisateur portant le nom de l’utilisateur VPS.
+#   - Configure Nginx pour servir depuis /opt/www/<votre_login>.
+#   - Applique récursivement les droits sous /opt/www.
+#   - Lance ensuite le navigateur par défaut vers l’URL racine du site.
 # ------------------------------------------------------------------------------
 
-set -e  # Exit immediately if any command fails
-trap 'echo "[Error] Line $LINENO failed. Aborting."; exit 1' ERR
+set -e  # Arrêt immédiat si une commande renvoie un code ≠ 0
+trap 'echo "[Erreur] Ligne $LINENO échouée. Arrêt du script."; exit 1' ERR
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
-NC='\033[0m'  # No color
+NC='\033[0m'  # Pas de couleur
 
-echo -e "${GREEN}=== Starting Nginx + MariaDB/MySQL Kickstarter ===${NC}"
+echo -e "${GREEN}=== Démarrage du kickstarter Nginx + MariaDB/MySQL ===${NC}"
 
-# 1. Verify root privileges
+# 1. Vérifier qu’on est root
 if [ "$(id -u)" -ne 0 ]; then
-  echo -e "${RED}[ERROR] This script must be run as root (use sudo).${NC}"
+  echo -e "${RED}[ERREUR] Ce script doit être exécuté en root (sudo).${NC}"
   exit 1
 fi
-echo -e "${GREEN}→ Running as root: OK${NC}"
+echo -e "${GREEN}→ Exécution en root : OK${NC}"
 
-# 2. Detect VPS user (the one who invoked sudo)
+# 2. Détecter l’utilisateur VPS (celui qui a lancé sudo)
 if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
   VPS_USER="$SUDO_USER"
 else
   VPS_USER="$(whoami)"
 fi
-echo -e "${GREEN}→ VPS user detected: ${VPS_USER}${NC}"
+echo -e "${GREEN}→ Utilisateur VPS détecté : ${VPS_USER}${NC}"
 
-# 3. Prompt for the SQL user’s password (hidden entry)
-echo -e "${GREEN}→ Enter the password for the MariaDB/MySQL user '${VPS_USER}':${NC}"
+# 3. Demander le mot de passe pour l’utilisateur SQL (saisi masqué)
+echo -e "${GREEN}→ Saisissez le mot de passe pour l’utilisateur MariaDB/MySQL '${VPS_USER}' :${NC}"
 read -s SQL_PASS
 echo
 if [ -z "$SQL_PASS" ]; then
-  echo -e "${RED}[ERROR] Password cannot be empty.${NC}"
+  echo -e "${RED}[ERREUR] Le mot de passe ne peut pas être vide.${NC}"
   exit 1
 fi
 
-# 4. System update
-echo -e "${GREEN}→ Updating package lists and upgrading existing packages...${NC}"
+# 4. Mise à jour du système
+echo -e "${GREEN}→ Mise à jour des paquets et upgrade...${NC}"
 apt update && apt upgrade -y
-echo -e "${GREEN}→ System update completed.${NC}"
+echo -e "${GREEN}→ Mise à jour terminée.${NC}"
 
-# 5. Install Nginx
-echo -e "${GREEN}→ Installing Nginx...${NC}"
-apt install nginx -y
-if systemctl is-active --quiet nginx; then
-  echo -e "${GREEN}→ Nginx installed and running.${NC}"
+# 5. Installation de Nginx
+echo -e "${GREEN}→ Installation de Nginx...${NC}"
+if apt install nginx -y; then
+  echo -e "${GREEN}→ Nginx installé avec succès.${NC}"
   systemctl enable nginx
+  systemctl start nginx
+  # On vérifie que le service tourne bien
+  if systemctl is-active --quiet nginx; then
+    echo -e "${GREEN}→ Nginx est en cours d’exécution.${NC}"
+  else
+    echo -e "${RED}[ERREUR] Nginx installé mais le service ne tourne pas.${NC}"
+    exit 1
+  fi
 else
-  echo -e "${RED}[ERROR] Nginx installation failed.${NC}"
+  echo -e "${RED}[ERREUR] L’installation de Nginx a échoué.${NC}"
   exit 1
 fi
 
-# 6. Install MariaDB (or MySQL)
-echo -e "${GREEN}→ Installing MariaDB server...${NC}"
-apt install mariadb-server -y
-if systemctl is-active --quiet mariadb; then
-  echo -e "${GREEN}→ MariaDB installed and running.${NC}"
+# 6. Installation de MariaDB (ou MySQL)
+echo -e "${GREEN}→ Installation de MariaDB...${NC}"
+if apt install mariadb-server -y; then
+  echo -e "${GREEN}→ MariaDB installé avec succès.${NC}"
   systemctl enable mariadb
+  systemctl start mariadb
+  if systemctl is-active --quiet mariadb; then
+    echo -e "${GREEN}→ MariaDB est en cours d’exécution.${NC}"
+  else
+    echo -e "${RED}[ERREUR] MariaDB installé mais le service ne tourne pas.${NC}"
+    exit 1
+  fi
 else
-  echo -e "${RED}[ERROR] MariaDB installation failed.${NC}"
+  echo -e "${RED}[ERREUR] L’installation de MariaDB a échoué.${NC}"
   exit 1
 fi
 
-# 7. Secure MariaDB installation
-echo -e "${GREEN}→ Securing MariaDB (mysql_secure_installation)...${NC}"
+# 7. Sécurisation de MariaDB
+echo -e "${GREEN}→ Sécurisation de MariaDB (mysql_secure_installation)...${NC}"
 mysql_secure_installation <<EOF
 
 Y
@@ -82,43 +96,41 @@ Y
 Y
 Y
 EOF
-echo -e "${GREEN}→ MariaDB secured.${NC}"
+echo -e "${GREEN}→ MariaDB sécurisé.${NC}"
 
-# 8. Create database and user matching VPS_USER
+# 8. Création de la base et de l’utilisateur SQL
 DB_NAME="${VPS_USER}"
 SQL_USER="${VPS_USER}"
-echo -e "${GREEN}→ Creating database '${DB_NAME}' and user '${SQL_USER}'...${NC}"
+echo -e "${GREEN}→ Création de la base '${DB_NAME}' et de l’utilisateur SQL '${SQL_USER}'...${NC}"
 mysql <<EOF
 CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '${SQL_USER}'@'localhost' IDENTIFIED BY '${SQL_PASS}';
 GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${SQL_USER}'@'localhost';
 FLUSH PRIVILEGES;
 EOF
-echo -e "${GREEN}→ Database '${DB_NAME}' and user '${SQL_USER}' created.${NC}"
+echo -e "${GREEN}→ Base '${DB_NAME}' et utilisateur '${SQL_USER}' créés.${NC}"
 
-# 9. Deploy Nginx server block to serve from /opt/www/${VPS_USER}
-echo -e "${GREEN}→ Deploying Nginx server block (root: /opt/www/${VPS_USER})...${NC}"
+# 9. Déploiement de la configuration Nginx (racine : /opt/www/${VPS_USER})
+echo -e "${GREEN}→ Déploiement du server block Nginx (root : /opt/www/${VPS_USER})...${NC}"
 
 WEB_ROOT="/opt/www/${VPS_USER}"
 mkdir -p "${WEB_ROOT}"
 
-# 10. Apply recursive ownership and permissions under /opt/www
-#     - Ownership: ${VPS_USER}:${VPS_USER}
-#     - Permissions: 755 (rwx for owner, rx for group/others)
-echo -e "${GREEN}→ Applying ownership and permissions under /opt/www...${NC}"
+# 10. Appliquer les droits récursifs sous /opt/www
+echo -e "${GREEN}→ Application des droits sous /opt/www...${NC}"
 chown -R "${VPS_USER}:${VPS_USER}" "/opt/www"
 chmod -R 755 "/opt/www"
-echo -e "${GREEN}→ Ownership and permissions set.${NC}"
+echo -e "${GREEN}→ Droits appliqués sous /opt/www.${NC}"
 
-# 11. Create or overwrite the default Nginx site configuration
+# 11. Création du fichier de configuration Nginx pour ce site
 NGINX_CONF="/etc/nginx/sites-available/${VPS_USER}.conf"
-echo -e "${GREEN}→ Creating Nginx configuration at ${NGINX_CONF}...${NC}"
+echo -e "${GREEN}→ Création de ${NGINX_CONF}...${NC}"
 cat <<EOF > "${NGINX_CONF}"
 server {
     listen 80;
     listen [::]:80;
 
-    server_name _;  # Replace with your domain if you have one
+    server_name _;  # Remplacez par votre nom de domaine si besoin
 
     root ${WEB_ROOT};
     index index.html index.htm index.php;
@@ -127,25 +139,7 @@ server {
         try_files \$uri \$uri/ =404;
     }
 
-    # PHP processing (uncomment if you want PHP support)
+    # Si vous souhaitez activer PHP, décommentez le bloc suivant et 
+    # installez php-fpm (ex. php7.4-fpm)
     #location ~ \.php\$ {
-    #    include snippets/fastcgi-php.conf;
-    #    fastcgi_pass unix:/run/php/php7.4-fpm.sock;
-    #}
-
-    error_log /var/log/nginx/${VPS_USER}_error.log;
-    access_log /var/log/nginx/${VPS_USER}_access.log;
-}
-
-EOF
-
-# 12. Enable this site, disable default, and reload Nginx
-echo -e "${GREEN}→ Enabling site '${VPS_USER}' and reloading Nginx...${NC}"
-ln -sf "${NGINX_CONF}" /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default
-nginx -t >/dev/null
-systemctl reload nginx
-echo -e "${GREEN}→ Nginx server block is active.${NC}"
-
-echo -e "${GREEN}=== Installation Complete! Your site is now live at /opt/www/${VPS_USER} ===${NC}"
-exit 0
+    #    include snippets/fastcg
