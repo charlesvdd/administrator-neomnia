@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------------------------
-# apache-wrapper.sh — Kickstarter Apache + SQL (SQL embarqué, sans fichier externe)
+# apache-wrapper.sh — Kickstarter Apache + SQL (SQL dynamique selon l’utilisateur VPS)
 # ------------------------------------------------------------------------------
 
 set -e   # Arrêt à la première erreur
@@ -14,20 +14,37 @@ echo -e "${GREEN}=== Démarrage du kickstarter Apache + SQL ===${NC}"
 
 # 1. Vérifier les droits root
 if [ "$(id -u)" -ne 0 ]; then
-  echo -e "${RED}[ERREUR] Ce script doit être exécuté en root.${NC}"
+  echo -e "${RED}[ERREUR] Ce script doit être exécuté en root (via sudo).${NC}"
   exit 1
 fi
 echo -e "${GREEN}→ Exécuté en root : OK${NC}"
 
-# 2. Mise à jour du système
+# 2. Détecter l’utilisateur VPS (créateur du script)
+# SUDO_USER est défini si on passe par sudo ; sinon, on reste sur whoami (root)
+if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+  VPS_USER="$SUDO_USER"
+else
+  VPS_USER="$(whoami)"
+fi
+echo -e "${GREEN}→ Nom de l’utilisateur VPS détecté : ${VPS_USER}${NC}"
+
+# 3. Demander le mot de passe pour l’utilisateur SQL (masqué)
+echo -e "${GREEN}→ Veuillez saisir le mot de passe pour l’utilisateur SQL \"${VPS_USER}\" :${NC}"
+read -s SQL_PASS
+echo
+if [ -z "$SQL_PASS" ]; then
+  echo -e "${RED}[ERREUR] Le mot de passe SQL ne peut pas être vide.${NC}"
+  exit 1
+fi
+
+# 4. Mise à jour du système
 echo -e "${GREEN}→ Mise à jour des paquets...${NC}"
 apt update && apt upgrade -y
 echo -e "${GREEN}→ Mise à jour terminée.${NC}"
 
-# 3. Installation d'Apache
+# 5. Installation d'Apache
 echo -e "${GREEN}→ Installation d'Apache...${NC}"
 apt install apache2 -y
-
 if systemctl status apache2 >/dev/null 2>&1; then
   echo -e "${GREEN}→ Apache installé avec succès.${NC}"
   systemctl enable apache2
@@ -37,10 +54,9 @@ else
   exit 1
 fi
 
-# 4. Installation de MariaDB (ou MySQL)
+# 6. Installation de MariaDB (ou MySQL)
 echo -e "${GREEN}→ Installation de MariaDB...${NC}"
 apt install mariadb-server -y
-
 if systemctl status mariadb >/dev/null 2>&1; then
   echo -e "${GREEN}→ MariaDB installé avec succès.${NC}"
   systemctl enable mariadb
@@ -50,7 +66,7 @@ else
   exit 1
 fi
 
-# 5. Sécuriser MariaDB
+# 7. Sécuriser MariaDB
 echo -e "${GREEN}→ Sécurisation de MariaDB (mysql_secure_installation)...${NC}"
 mysql_secure_installation <<EOF
 
@@ -64,46 +80,45 @@ Y
 EOF
 echo -e "${GREEN}→ MariaDB sécurisé.${NC}"
 
-# 6. Création de la base et de l’utilisateur SQL (SQL embarqué)
-echo -e "${GREEN}→ Création de la base et de l’utilisateur SQL...${NC}"
+# 8. Création de la base et de l’utilisateur SQL (SQL dynamique)
+DB_NAME="${VPS_USER}"
+SQL_USER="${VPS_USER}"
+echo -e "${GREEN}→ Création de la base '${DB_NAME}' et de l’utilisateur SQL '${SQL_USER}'...${NC}"
 mysql <<EOF
-CREATE DATABASE IF NOT EXISTS siteweb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'webuser'@'localhost' IDENTIFIED BY 'ChangezMoi123';
-GRANT ALL PRIVILEGES ON siteweb.* TO 'webuser'@'localhost';
+CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS '${SQL_USER}'@'localhost' IDENTIFIED BY '${SQL_PASS}';
+GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${SQL_USER}'@'localhost';
 FLUSH PRIVILEGES;
 EOF
-echo -e "${GREEN}→ Base de données 'siteweb' et utilisateur 'webuser' créés.${NC}"
+echo -e "${GREEN}→ Base de données '${DB_NAME}' et utilisateur '${SQL_USER}' créés.${NC}"
 
-# 7. Déploiement de la config Apache
-echo -e "${GREEN}→ Déploiement de la configuration Apache...${NC}"
+# 9. Déploiement de la config Apache
+echo -e "${GREEN}→ Déploiement de la configuration Apache…${NC}"
 
-# Si vous avez conservé un dossier apache-config/000-default.conf dans le dépôt,
-# vous pouvez copier ce fichier. Sinon, vous pouvez aussi embarquer une config minimale
-# en here-doc, par exemple (décommentez la section ci-dessous et adaptez) :
-#
-# cat <<EOF >/etc/apache2/sites-available/000-default.conf
-# <VirtualHost *:80>
-#     ServerAdmin webmaster@localhost
-#     DocumentRoot /var/www/html/siteweb
-#
-#     <Directory /var/www/html/siteweb>
-#         Options Indexes FollowSymLinks
-#         AllowOverride All
-#         Require all granted
-#     </Directory>
-#
-#     ErrorLog ${APACHE_LOG_DIR}/siteweb_error.log
-#     CustomLog ${APACHE_LOG_DIR}/siteweb_access.log combined
-# </VirtualHost>
-# EOF
+# Si vous avez un fichier 000-default.conf dans apache-config/, copiez-le :
+if [ -f "./apache-config/000-default.conf" ]; then
+  cp ./apache-config/000-default.conf /etc/apache2/sites-available/000-default.conf
+else
+  # Sinon, on crée un vhost basique pointant vers /home/VPS_USER/www/
+  mkdir -p /home/"${VPS_USER}"/www
+  chown -R "${VPS_USER}":"${VPS_USER}" /home/"${VPS_USER}"/www
 
-# Si vous préférez garder le fichier dans le dépôt, assurez-vous d'abord que, en cas de clone local,
-# le chemin relatif est correct. Par exemple :
-# cp ./apache-config/000-default.conf /etc/apache2/sites-available/000-default.conf
+  cat <<EOF >/etc/apache2/sites-available/000-default.conf
+<VirtualHost *:80>
+    ServerAdmin webmaster@localhost
+    DocumentRoot /home/${VPS_USER}/www
 
-# Ici, on part du principe que vous avez copié/collé la config en clair dans la branche apache-wrapper.
-# Sinon, adaptez la ligne ci-dessous pour qu’elle récupère le bon fichier.
-cp ./apache-config/000-default.conf /etc/apache2/sites-available/000-default.conf
+    <Directory /home/${VPS_USER}/www>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog \${APACHE_LOG_DIR}/${VPS_USER}_error.log
+    CustomLog \${APACHE_LOG_DIR}/${VPS_USER}_access.log combined
+</VirtualHost>
+EOF
+fi
 
 # Vérifier la syntaxe Apache
 if apache2ctl configtest >/dev/null 2>&1; then
