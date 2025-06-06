@@ -1,114 +1,117 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------------------------
-# apache-wrapper.sh — Kickstarter Apache + SQL (racine web dans /opt/www, droits sur /opt)
+# apache-wrapper.sh — Kickstarter for Apache + MariaDB/MySQL
+# Author: Charles VDD
+# Description: 
+#   - Installs Apache2 and MariaDB/MySQL on a Debian/Ubuntu VPS.
+#   - Secures the database, creates a database + user named after the VPS user.
+#   - Sets up a VirtualHost pointing to /opt/www/<username>.
+#   - Applies correct ownership and permissions recursively under /opt/www.
 # ------------------------------------------------------------------------------
 
-set -e                                      # Arrêt à la première erreur
-trap 'echo "[Erreur] Ligne $LINENO échouée. Arrêt du script."; exit 1' ERR
+set -e  # Exit immediately if any command fails
+trap 'echo "[Error] Line $LINENO failed. Aborting."; exit 1' ERR
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
-NC='\033[0m'                                # Pas de couleur
+NC='\033[0m'  # No color
 
-echo -e "${GREEN}=== Démarrage du kickstarter Apache + SQL ===${NC}"
+echo -e "${GREEN}=== Starting Apache + MariaDB/MySQL Kickstarter ===${NC}"
 
-# 1. Vérifier les droits root
+# 1. Verify root privileges
 if [ "$(id -u)" -ne 0 ]; then
-  echo -e "${RED}[ERREUR] Ce script doit être exécuté en root (via sudo).${NC}"
+  echo -e "${RED}[ERROR] This script must be run as root (use sudo).${NC}"
   exit 1
 fi
-echo -e "${GREEN}→ Exécuté en root : OK${NC}"
+echo -e "${GREEN}→ Running as root: OK${NC}"
 
-# 2. Détecter l’utilisateur VPS (celui qui a lancé sudo)
+# 2. Detect VPS user (the one who invoked sudo)
 if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
   VPS_USER="$SUDO_USER"
 else
   VPS_USER="$(whoami)"
 fi
-echo -e "${GREEN}→ Utilisateur VPS détecté : ${VPS_USER}${NC}"
+echo -e "${GREEN}→ VPS user detected: ${VPS_USER}${NC}"
 
-# 3. Demander le mot de passe pour l’utilisateur SQL (masqué)
-echo -e "${GREEN}→ Saisissez le mot de passe pour l’utilisateur SQL \"${VPS_USER}\" :${NC}"
+# 3. Prompt for the SQL user’s password (hidden entry)
+echo -e "${GREEN}→ Enter the password for the MariaDB/MySQL user '${VPS_USER}':${NC}"
 read -s SQL_PASS
 echo
 if [ -z "$SQL_PASS" ]; then
-  echo -e "${RED}[ERREUR] Le mot de passe SQL ne peut pas être vide.${NC}"
+  echo -e "${RED}[ERROR] Password cannot be empty.${NC}"
   exit 1
 fi
 
-# 4. Mise à jour du système
-echo -e "${GREEN}→ Mise à jour des paquets...${NC}"
+# 4. System update
+echo -e "${GREEN}→ Updating package lists and upgrading existing packages...${NC}"
 apt update && apt upgrade -y
-echo -e "${GREEN}→ Mise à jour terminée.${NC}"
+echo -e "${GREEN}→ System update completed.${NC}"
 
-# 5. Installation d'Apache
-echo -e "${GREEN}→ Installation d'Apache...${NC}"
+# 5. Install Apache2
+echo -e "${GREEN}→ Installing Apache2...${NC}"
 apt install apache2 -y
-if systemctl status apache2 >/dev/null 2>&1; then
-  echo -e "${GREEN}→ Apache installé avec succès.${NC}"
+if systemctl is-active --quiet apache2; then
+  echo -e "${GREEN}→ Apache2 installed and running.${NC}"
   systemctl enable apache2
-  systemctl start apache2
 else
-  echo -e "${RED}[ERREUR] L'installation d'Apache a échoué.${NC}"
+  echo -e "${RED}[ERROR] Apache2 installation failed.${NC}"
   exit 1
 fi
 
-# 6. Installation de MariaDB (ou MySQL)
-echo -e "${GREEN}→ Installation de MariaDB...${NC}"
+# 6. Install MariaDB (or MySQL)
+echo -e "${GREEN}→ Installing MariaDB server...${NC}"
 apt install mariadb-server -y
-if systemctl status mariadb >/dev/null 2>&1; then
-  echo -e "${GREEN}→ MariaDB installé avec succès.${NC}"
+if systemctl is-active --quiet mariadb; then
+  echo -e "${GREEN}→ MariaDB installed and running.${NC}"
   systemctl enable mariadb
-  systemctl start mariadb
 else
-  echo -e "${RED}[ERREUR] L'installation de MariaDB a échoué.${NC}"
+  echo -e "${RED}[ERROR] MariaDB installation failed.${NC}"
   exit 1
 fi
 
-# 7. Sécuriser MariaDB avec mysql_secure_installation
-echo -e "${GREEN}→ Sécurisation de MariaDB (mysql_secure_installation)...${NC}"
+# 7. Secure MariaDB installation
+echo -e "${GREEN}→ Securing MariaDB installation (mysql_secure_installation)...${NC}"
 mysql_secure_installation <<EOF
 
 Y
-votre_mot_de_passe_root_SQL
-votre_mot_de_passe_root_SQL
+root_password_placeholder
+root_password_placeholder
 Y
 Y
 Y
 Y
 EOF
-echo -e "${GREEN}→ MariaDB sécurisé.${NC}"
+echo -e "${GREEN}→ MariaDB secured.${NC}"
 
-# 8. Création de la base et de l’utilisateur SQL
+# 8. Create database and user matching VPS_USER
 DB_NAME="${VPS_USER}"
 SQL_USER="${VPS_USER}"
-echo -e "${GREEN}→ Création de la base '${DB_NAME}' et de l’utilisateur SQL '${SQL_USER}'...${NC}"
+echo -e "${GREEN}→ Creating database '${DB_NAME}' and user '${SQL_USER}'...${NC}"
 mysql <<EOF
 CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '${SQL_USER}'@'localhost' IDENTIFIED BY '${SQL_PASS}';
 GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${SQL_USER}'@'localhost';
 FLUSH PRIVILEGES;
 EOF
-echo -e "${GREEN}→ Base '${DB_NAME}' et utilisateur '${SQL_USER}' créés.${NC}"
+echo -e "${GREEN}→ Database '${DB_NAME}' and user '${SQL_USER}' created.${NC}"
 
-# --- 9. Déploiement de la configuration Apache vers /opt/www ---
-
-echo -e "${GREEN}→ Déploiement de la configuration Apache (racine web : /opt/www/${VPS_USER})...${NC}"
+# 9. Deploy Apache VirtualHost to serve from /opt/www/${VPS_USER}
+echo -e "${GREEN}→ Deploying Apache VirtualHost (root: /opt/www/${VPS_USER})...${NC}"
 
 WEB_ROOT="/opt/www/${VPS_USER}"
+
+# Create the target directory
 mkdir -p "${WEB_ROOT}"
 
-# 10. Appliquer les droits récursifs sur /opt (ou juste sur /opt/www)
-# Choix A : droits sur tout /opt
-chown -R "${VPS_USER}:${VPS_USER}" /opt
-chmod -R 755 /opt
+# 10. Apply recursive ownership and permissions under /opt/www
+#    - Ownership: ${VPS_USER}:${VPS_USER}
+#    - Permissions: 755 (rwx for owner, rx for group/others)
+echo -e "${GREEN}→ Applying ownership and permissions under /opt/www...${NC}"
+chown -R "${VPS_USER}:${VPS_USER}" "/opt/www"
+chmod -R 755 "/opt/www"
+echo -e "${GREEN}→ Ownership and permissions set.${NC}"
 
-# Si vous préférez ne toucher qu’à /opt/www, commentez les deux lignes ci-dessus
-# et décommentez ces deux lignes :
-# chown -R "${VPS_USER}:${VPS_USER}" /opt/www
-# chmod -R 755 /opt/www
-
-# 11. Générer le VirtualHost Apache
+# 11. Create or overwrite the default site configuration
 cat <<EOF >/etc/apache2/sites-available/000-default.conf
 <VirtualHost *:80>
     ServerAdmin webmaster@localhost
@@ -125,14 +128,13 @@ cat <<EOF >/etc/apache2/sites-available/000-default.conf
 </VirtualHost>
 EOF
 
-# 12. Vérification de la syntaxe Apache
-if apache2ctl configtest >/dev/null 2>&1; then
-  echo -e "${GREEN}→ Configuration Apache valide.${NC}"
-  systemctl reload apache2
-else
-  echo -e "${RED}[ERREUR] Vérification de la config Apache échouée.${NC}"
-  exit 1
-fi
+# 12. Enable site, disable default if necessary, and reload Apache
+echo -e "${GREEN}→ Enabling site and reloading Apache...${NC}"
+a2dissite 000-default.conf >/dev/null 2>&1 || true
+a2ensite 000-default.conf >/dev/null
+apache2ctl configtest >/dev/null 2>&1
+systemctl reload apache2
+echo -e "${GREEN}→ Apache VirtualHost is active.${NC}"
 
-echo -e "${GREEN}=== Installation terminée avec succès ! ===${NC}"
+echo -e "${GREEN}=== Installation Complete! Your site is now live at /opt/www/${VPS_USER} ===${NC}"
 exit 0
