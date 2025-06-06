@@ -25,28 +25,32 @@
 #        curl -sL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh | bash
 #
 # Remarques :
-#   • Le script se relance automatiquement en tant que root si vous ne l’êtes pas déjà.
-#   • Si vous l’exécutez en pipe (curl … | bash), il le détecte et relance la même commande sous sudo.
-#   • Le token est stocké dans /home/UTILISATEUR/.github_token (ou /root/.github_token si l’utilisateur initial est root).
-#   • L’authentification gh (gh auth login) s’exécute sous l’utilisateur initial pour que la config soit créée
-#     dans ~/.config/gh du bon utilisateur.
+#   • Si le script est déjà téléchargé (./git-wrapper.sh), on relance directement le fichier.
+#   • Si on est dans un pipe (`curl … | bash`), on relance via l’URL brute.
+#   • Le token est stocké dans /home/UTILISATEUR/.github_token (ou /root/.github_token si
+#     l’utilisateur initial était root).
 # -----------------------------------------------------------------------------
 
 set -euo pipefail
 
-# --- 0. Re-exécuter le script en root si on n’est pas déjà root ---
+# URL brute vers ce script (pour relancer en mode pipe)
+SCRIPT_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh"
+
+# --- 0. Si je ne suis pas root, relancer avec sudo ---
 if [ "$EUID" -ne 0 ]; then
   echo "🔄 Relance du script en root..."
-  # Si $0 existe comme fichier, on relance ce fichier
-  if [ -f "$0" ]; then
+  # On regarde le nom de $0 pour savoir si c'est "bash" (pipe) ou un vrai fichier.
+  base0=$(basename "$0")
+  if [ -f "$0" ] && [ "$base0" != "bash" ] && [ "$base0" != "sh" ]; then
+    # Exemple : "./git-wrapper.sh" ou "/chemin/vers/git-wrapper.sh"
     exec sudo bash "$0" "$@"
   else
-    # On est probablement dans un pipe, on ré-exécute la même commande curl | bash sous sudo
-    exec sudo bash -c "curl -sL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh | bash"
+    # On est dans un pipe (ou $0 n'est pas un fichier script). On relance depuis l'URL brute.
+    exec sudo bash -c "curl -sL $SCRIPT_URL | bash"
   fi
 fi
 
-# --- Déterminer l’utilisateur qui a lancé le script initialement ---
+# --- Déterminer l’utilisateur initial (avant sudo) ---
 ORIGINAL_USER="${SUDO_USER:-$(id -un)}"
 USER_HOME=$(eval echo "~$ORIGINAL_USER")
 
@@ -76,9 +80,8 @@ fi
 # --- 2. Installer la CLI GitHub (gh) si absente ---
 if ! command -v gh &> /dev/null; then
   echo "🔄 GitHub CLI (gh) non trouvé. Tentative d’installation de gh..."
-
   if command -v apt-get &> /dev/null; then
-    # Pour Debian/Ubuntu, ajouter le repo officiel de GitHub CLI
+    # Pour Debian/Ubuntu : ajouter le repo officiel de GitHub CLI
     curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
       dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
     chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
@@ -87,7 +90,7 @@ https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cl
     apt-get update
     DEBIAN_FRONTEND=noninteractive apt-get install -y gh
   elif command -v yum &> /dev/null; then
-    # Pour CentOS/RHEL/Fedora, installer le RPM directement
+    # Pour CentOS/RHEL/Fedora : installer le RPM directement
     yum install -y https://github.com/cli/cli/releases/download/v2.46.0/gh_2.46.0_linux_amd64.rpm
   else
     echo "❌ Aucun gestionnaire de paquets (apt-get ou yum) trouvé."
