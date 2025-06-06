@@ -1,41 +1,32 @@
-#!/usr/bin/env bash
-#
-# raw-install.sh
-#
-# This script defines a `raw` function that downloads (via curl)
-# any `.sh` file from your repository’s main branch on GitHub and executes it directly.
-#
-# Usage:
-#   1. Save this file as raw-install.sh
-#   2. Make it executable: chmod +x raw-install.sh
-#   3. Run it like this: sudo ./raw-install.sh install.sh
-#
-# Examples:
-#   sudo ./raw-install.sh install.sh
-#   sudo ./raw-install.sh path/to/another-script.sh
-#
+# Kickstarter : Site Web Apache + Serveur SQL
 
-set -euo pipefail
+Ce **kickstarter** automatise l’installation d’un serveur Apache couplé à une base de données MySQL/MariaDB sur un VPS Debian/Ubuntu.  
+Il inclut :
+- Un script `install.sh` pour dérouler chaque étape.
+- Un diagramme Mermaid détaillant l’avancée, les points de contrôle et la gestion des erreurs.
+- Un exemple de configuration Apache et un script SQL pour créer la base utilisateur.
+- Licence : MIT (voir [LICENSE](./LICENSE)).
 
-# Base URL for raw file content on the GitHub repository
-BASE_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/main"
+---
 
-# Function raw: fetches a .sh script via curl and runs it in-memory with Bash
-raw() {
-    local remote_path="$1"
-    if [[ -z "$remote_path" ]]; then
-        echo "Usage: raw <path/to/script.sh>"
-        return 1
-    fi
-    echo "→ Downloading and running '$remote_path' from GitHub…"
-    bash <(curl -fsSL "${BASE_URL}/${remote_path}")
-}
+## Diagramme d’installation
 
-# If this file is invoked directly with arguments, pass them to raw()
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    if [[ $# -lt 1 ]]; then
-        echo "Error: Please specify the path to the script to run (e.g., install.sh)."
-        exit 1
-    fi
-    raw "$1"
-fi
+```mermaid
+flowchart TD
+    A[Début du script] --> B[Vérifier les privilèges root]
+    B -- Pas root --> Bx([Afficher "Exécutez en root" et quitter]) 
+    B -- Root OK --> C[Mettre à jour le système<br/>(apt update && apt upgrade)]
+    C --> D[Installer Apache<br/>(apt install apache2 -y)]
+    D --> E{Apache installé ?}
+    E -- Oui --> F[Démarrer et activer Apache<br/>(systemctl enable & start apache2)]
+    E -- Non --> Ex([Afficher "Erreur Apache" et quitter])
+    F --> G[Installer MySQL/MariaDB<br/>(apt install mariadb-server -y)]
+    G --> H{SQL installé ?}
+    H -- Oui --> I[Démarrer et sécuriser SQL<br/>(mysql_secure_installation)]
+    H -- Non --> Hx([Afficher "Erreur SQL" et quitter])
+    I --> J[Importer script SQL<br/>(mysql < create_database.sql)]
+    J --> K[Déployer configuration Apache<br/>(copier 000-default.conf)]
+    K --> L{Configuration valide ?}
+    L -- Oui --> M[Recharger Apache<br/>(systemctl reload apache2)]
+    L -- Non --> Lx([Afficher "Erreur config Apache" et quitter])
+    M --> N[Fin avec succès]
