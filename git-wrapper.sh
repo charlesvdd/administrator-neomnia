@@ -16,7 +16,8 @@
 #
 # Exemples d’exécution :
 #   1) Télécharger puis exécuter (recommandé) :
-#        curl -sL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh -o git-wrapper.sh
+#        curl -sL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh \
+#          -o git-wrapper.sh
 #        chmod +x git-wrapper.sh
 #        ./git-wrapper.sh
 #
@@ -25,7 +26,8 @@
 #
 # Remarques :
 #   • Le script se relance automatiquement en tant que root si vous ne l’êtes pas déjà.
-#   • Le token est stocké dans /home/UTILISATEUR/.github_token (ou /root/.github_token si l’utilisateur est root).
+#   • Si vous l’exécutez en pipe (curl … | bash), il le détecte et relance la même commande sous sudo.
+#   • Le token est stocké dans /home/UTILISATEUR/.github_token (ou /root/.github_token si l’utilisateur initial est root).
 #   • L’authentification gh (gh auth login) s’exécute sous l’utilisateur initial pour que la config soit créée
 #     dans ~/.config/gh du bon utilisateur.
 # -----------------------------------------------------------------------------
@@ -35,10 +37,16 @@ set -euo pipefail
 # --- 0. Re-exécuter le script en root si on n’est pas déjà root ---
 if [ "$EUID" -ne 0 ]; then
   echo "🔄 Relance du script en root..."
-  exec sudo bash "$0" "$@"
+  # Si $0 existe comme fichier, on relance ce fichier
+  if [ -f "$0" ]; then
+    exec sudo bash "$0" "$@"
+  else
+    # On est probablement dans un pipe, on ré-exécute la même commande curl | bash sous sudo
+    exec sudo bash -c "curl -sL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh | bash"
+  fi
 fi
 
-# Déterminer l’utilisateur qui a lancé le script initialement
+# --- Déterminer l’utilisateur qui a lancé le script initialement ---
 ORIGINAL_USER="${SUDO_USER:-$(id -un)}"
 USER_HOME=$(eval echo "~$ORIGINAL_USER")
 
@@ -70,7 +78,7 @@ if ! command -v gh &> /dev/null; then
   echo "🔄 GitHub CLI (gh) non trouvé. Tentative d’installation de gh..."
 
   if command -v apt-get &> /dev/null; then
-    # Pour Debian/Ubuntu : ajouter le repo officiel de GitHub CLI
+    # Pour Debian/Ubuntu, ajouter le repo officiel de GitHub CLI
     curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
       dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
     chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
@@ -79,7 +87,7 @@ https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cl
     apt-get update
     DEBIAN_FRONTEND=noninteractive apt-get install -y gh
   elif command -v yum &> /dev/null; then
-    # Pour CentOS/RHEL/Fedora : installer le RPM directement
+    # Pour CentOS/RHEL/Fedora, installer le RPM directement
     yum install -y https://github.com/cli/cli/releases/download/v2.46.0/gh_2.46.0_linux_amd64.rpm
   else
     echo "❌ Aucun gestionnaire de paquets (apt-get ou yum) trouvé."
@@ -102,10 +110,9 @@ read -p "🔑 Nom d’utilisateur GitHub : " GITHUB_USER
 # --- 4. Demander le Personal Access Token (entrée masquée) ---
 if [[ ! -t 0 ]]; then
   echo "❌ Ce script nécessite une entrée interactive pour le PAT."
-  echo "   Exécutez le dans un terminal interactif (TTY)."
+  echo "   Exécutez-le dans un terminal (TTY)."
   exit 1
 fi
-
 read -s -p "🔒 Personal Access Token GitHub : " GITHUB_TOKEN
 echo
 
@@ -118,12 +125,12 @@ chown "$ORIGINAL_USER":"$ORIGINAL_USER" "$TOKEN_FILE"
 chmod 600 "$TOKEN_FILE"
 echo "✅ Token encodé (Base64) enregistré dans : $TOKEN_FILE"
 
-# --- 6. Décoder et authentifier la CLI gh sous l’utilisateur original ---
+# --- 6. Décoder et authentifier la CLI 'gh' sous l’utilisateur original ---
 DECODED_TOKEN=$(base64 -d "$TOKEN_FILE")
-printf "%s" "$DECODED_TOKEN" | sudo -u "$ORIGINAL_USER" gh auth login --with-token
-echo "✅ Authentification GitHub CLI effectuée pour l’utilisateur : $ORIGINAL_USER"
+sudo -u "$ORIGINAL_USER" bash -c "printf '%s' \"$DECODED_TOKEN\" | gh auth login --with-token"
+echo "✅ Authentification GitHub CLI pour l’utilisateur : $ORIGINAL_USER"
 
-# --- 7. Configurer explicitement le nom d’utilisateur gh sous l’utilisateur original ---
+# --- 7. Configurer explicitement le nom d’utilisateur GH sous l’utilisateur original ---
 sudo -u "$ORIGINAL_USER" gh config set user "$GITHUB_USER" &> /dev/null || true
 echo "✅ Configuration de 'gh config set user' pour : $GITHUB_USER"
 
