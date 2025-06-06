@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------------------------
-# install.sh — Kickstarter Apache + SQL
+# apache-wrapper.sh — Kickstarter Apache + SQL (auto-téléchargement du SQL)
 # ------------------------------------------------------------------------------
 
 set -e   # Arrêt à la première erreur
@@ -9,6 +9,10 @@ trap 'echo "[Erreur] Ligne $LINENO échouée. Arrêt du script."; exit 1' ERR
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # Pas de couleur
+
+# URL “raw” du script SQL dans GitHub (branche apache-wrapper)
+SQL_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/apache-wrapper/sql-setup/create_database.sql"
+TMP_SQL="/tmp/create_database.sql"
 
 echo -e "${GREEN}=== Démarrage du kickstarter Apache + SQL ===${NC}"
 
@@ -64,13 +68,32 @@ Y
 EOF
 echo -e "${GREEN}→ MariaDB sécurisé.${NC}"
 
-# 6. Importer le script SQL (création de la BD & utilisateur)
-echo -e "${GREEN}→ Création de la base et utilisateur SQL...${NC}"
-mysql < ./sql-setup/create_database.sql
+# 6. Récupérer automatiquement le script SQL depuis GitHub
+echo -e "${GREEN}→ Téléchargement du script SQL depuis GitHub...${NC}"
+if curl -sSL "$SQL_URL" -o "$TMP_SQL"; then
+  echo -e "${GREEN}→ Script SQL téléchargé dans ${TMP_SQL}.${NC}"
+else
+  echo -e "${RED}[ERREUR] Impossible de télécharger le script SQL depuis :${NC} $SQL_URL"
+  exit 1
+fi
+
+# 7. Importer le script SQL (création de la BD & utilisateur)
+echo -e "${GREEN}→ Création de la base et de l’utilisateur SQL...${NC}"
+mysql < "$TMP_SQL"
 echo -e "${GREEN}→ Base de données créée.${NC}"
 
-# 7. Déploiement de la config Apache
+# 8. Déploiement de la config Apache
 echo -e "${GREEN}→ Déploiement de la configuration Apache...${NC}"
+# Supposons que vous ayez un fichier apache-config/000-default.conf sur votre dépôt.
+# Si vous exécutez en raw, adaptez ce chemin de la même manière que pour le SQL,
+# ou incluez la config en "here-doc" si besoin.
+#
+# Exemple pour un fichier brut sur GitHub :
+# CONFIG_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/apache-wrapper/apache-config/000-default.conf"
+# curl -sSL "$CONFIG_URL" -o /etc/apache2/sites-available/000-default.conf
+
+# Si vous incluez directement la config dans le dépôt local,
+# remplacez simplement la ligne ci-dessous par la copie du fichier existant :
 cp ./apache-config/000-default.conf /etc/apache2/sites-available/000-default.conf
 
 # Vérifier la syntaxe Apache
@@ -81,6 +104,9 @@ else
   echo -e "${RED}[ERREUR] Vérification de la config Apache échouée.${NC}"
   exit 1
 fi
+
+# 9. Nettoyage (supprime le fichier SQL temporaire)
+rm -f "$TMP_SQL"
 
 echo -e "${GREEN}=== Installation terminée avec succès ! ===${NC}"
 exit 0
