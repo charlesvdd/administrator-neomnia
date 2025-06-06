@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ------------------------------------------------------------------------------
-# apache-wrapper.sh — Kickstarter Apache + SQL (SQL dynamique selon l’utilisateur VPS)
+# apache-wrapper.sh — Kickstarter Apache + SQL (SQL embarqué, utilisation du nom VPS)
 # ------------------------------------------------------------------------------
 
-set -e   # Arrêt à la première erreur
+set -e                                      # Arrêt à la première erreur
 trap 'echo "[Erreur] Ligne $LINENO échouée. Arrêt du script."; exit 1' ERR
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
-NC='\033[0m' # Pas de couleur
+NC='\033[0m'                                # Pas de couleur
 
 echo -e "${GREEN}=== Démarrage du kickstarter Apache + SQL ===${NC}"
 
@@ -19,17 +19,16 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 echo -e "${GREEN}→ Exécuté en root : OK${NC}"
 
-# 2. Détecter l’utilisateur VPS (créateur du script)
-# SUDO_USER est défini si on passe par sudo ; sinon, on reste sur whoami (root)
+# 2. Détecter l’utilisateur VPS (celui qui lance sudo)
 if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
   VPS_USER="$SUDO_USER"
 else
   VPS_USER="$(whoami)"
 fi
-echo -e "${GREEN}→ Nom de l’utilisateur VPS détecté : ${VPS_USER}${NC}"
+echo -e "${GREEN}→ Utilisateur VPS détecté : ${VPS_USER}${NC}"
 
 # 3. Demander le mot de passe pour l’utilisateur SQL (masqué)
-echo -e "${GREEN}→ Veuillez saisir le mot de passe pour l’utilisateur SQL \"${VPS_USER}\" :${NC}"
+echo -e "${GREEN}→ Saisissez le mot de passe pour l’utilisateur SQL \"${VPS_USER}\" :${NC}"
 read -s SQL_PASS
 echo
 if [ -z "$SQL_PASS" ]; then
@@ -66,7 +65,7 @@ else
   exit 1
 fi
 
-# 7. Sécuriser MariaDB
+# 7. Sécuriser MariaDB avec mysql_secure_installation
 echo -e "${GREEN}→ Sécurisation de MariaDB (mysql_secure_installation)...${NC}"
 mysql_secure_installation <<EOF
 
@@ -80,7 +79,7 @@ Y
 EOF
 echo -e "${GREEN}→ MariaDB sécurisé.${NC}"
 
-# 8. Création de la base et de l’utilisateur SQL (SQL dynamique)
+# 8. Création de la base et de l’utilisateur SQL (SQL embarqué)
 DB_NAME="${VPS_USER}"
 SQL_USER="${VPS_USER}"
 echo -e "${GREEN}→ Création de la base '${DB_NAME}' et de l’utilisateur SQL '${SQL_USER}'...${NC}"
@@ -90,16 +89,16 @@ CREATE USER IF NOT EXISTS '${SQL_USER}'@'localhost' IDENTIFIED BY '${SQL_PASS}';
 GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${SQL_USER}'@'localhost';
 FLUSH PRIVILEGES;
 EOF
-echo -e "${GREEN}→ Base de données '${DB_NAME}' et utilisateur '${SQL_USER}' créés.${NC}"
+echo -e "${GREEN}→ Base '${DB_NAME}' et utilisateur '${SQL_USER}' créés.${NC}"
 
 # 9. Déploiement de la config Apache
 echo -e "${GREEN}→ Déploiement de la configuration Apache…${NC}"
 
-# Si vous avez un fichier 000-default.conf dans apache-config/, copiez-le :
+# Si vous avez un dossier apache-config/000-default.conf dans votre dépôt,
+# le script recopie ce fichier. Sinon, un VirtualHost minimal est généré.
 if [ -f "./apache-config/000-default.conf" ]; then
   cp ./apache-config/000-default.conf /etc/apache2/sites-available/000-default.conf
 else
-  # Sinon, on crée un vhost basique pointant vers /home/VPS_USER/www/
   mkdir -p /home/"${VPS_USER}"/www
   chown -R "${VPS_USER}":"${VPS_USER}" /home/"${VPS_USER}"/www
 
