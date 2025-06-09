@@ -1,45 +1,79 @@
 #!/usr/bin/env bash
-# kickstart-versioning.sh (root-aware)
+# kickstart-versioning.sh — Setup Semantic Versioning
+# Author: Charles VDD
+# License: MIT
+
 set -e
 
-# 0) auto-élévation
-if [[ "$(id -u)" -ne 0 ]]; then
-  SUDO="sudo"
-else
-  SUDO=""
-fi
+# --- Color & Emoji Logging ---
+info() { echo -e "\e[34mℹ️  $1\e[0m"; }
+success() { echo -e "\e[32m✅ $1\e[0m"; }
+error() { echo -e "\e[31m❌ $1\e[0m"; exit 1; }
 
-# 1) Vérification de la CLI Git
-if ! command -v git >/dev/null; then
-  echo "❌ Git n'est pas installé."
-  exit 1
-fi
-echo "✅ Git CLI détectée : $(git --version)"
+# --- Prerequisites ---
+info "Checking Git CLI..."
+command -v git >/dev/null 2>&1 || error "Git not found. Please install Git and retry."
+success "Git is installed: $(git --version)"
 
-# 2) Vérif/ajout du remote origin + test connexion
+# Check or set up remote origin
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  info "Detected Git repository."
   if git remote get-url origin >/dev/null 2>&1; then
-    REMOTE_URL=$(git remote get-url origin)
-    echo "ℹ️ Remote 'origin' détecté → $REMOTE_URL"
+    origin_url=$(git remote get-url origin)
+    info "Remote 'origin' → $origin_url"
+    git ls-remote origin >/dev/null 2>&1 || error "Cannot reach origin. Check SSH/HTTPS setup."
+    success "Origin reachable."
   else
-    read -p "URL du remote origin : " REMOTE_URL
-    git remote add origin "$REMOTE_URL"
-    echo "Remote 'origin' ajouté → $REMOTE_URL"
+    read -p "Enter GitHub remote URL for 'origin': " origin_url
+    git remote add origin "$origin_url"
+    success "Added remote origin: $origin_url"
   fi
-  echo "Test de connexion à origin…"
-  git ls-remote origin >/dev/null
-  echo "✅ Connexion réussie."
 else
-  echo "⚠️ Pas dans un dépôt Git — repos initialisé plus bas."
+  info "No Git repo found. Will initialize one later."
 fi
 
-# 3) Config interactif (VERSION_FILE, TAG_PREFIX, INITIAL_VERSION, COMMIT_MSG)
-# … (inchangé)
+# --- Interactive Configuration ---
+info "Setting up Semantic Versioning configuration..."
+read -p "Version file name (default VERSION): " VERSION_FILE
+VERSION_FILE=${VERSION_FILE:-VERSION}
+read -p "Tag prefix (default v): " TAG_PREFIX
+TAG_PREFIX=${TAG_PREFIX:-v}
+read -p "Initial version (default 0.1.0): " INITIAL_VERSION
+INITIAL_VERSION=${INITIAL_VERSION:-0.1.0}
+read -p "Commit message template (use %s for new version, default 'chore: bump to %s'): " COMMIT_MSG
+COMMIT_MSG=${COMMIT_MSG:-"chore: bump to %s"}
 
-# 4) Init dépôt + création VERSION + tag initial
-# … (inchangé)
+# Confirm and write config
+cat > .versionrc <<EOF
+VERSION_FILE="$VERSION_FILE"
+TAG_PREFIX="$TAG_PREFIX"
+COMMIT_MSG="$COMMIT_MSG"
+EOF
+success "Configuration saved to .versionrc"
 
-# 5) Génération de bump_version.sh
-# … (inchangé)
+# --- Initialize Git Repo & Version ---
+if [[ ! -d .git ]]; then
+  git init
+  success "Initialized new Git repository."
+fi
 
-echo "🎉 Prêt ! Lancez ./bump_version.sh {patch|minor|major}"
+if [[ ! -f $VERSION_FILE ]]; then
+  echo "$INITIAL_VERSION" > "$VERSION_FILE"
+  git add "$VERSION_FILE" .versionrc
+  git commit -m "chore: initial version $INITIAL_VERSION"
+  git tag -a "${TAG_PREFIX}${INITIAL_VERSION}" -m "Release $INITIAL_VERSION"
+  success "Created $VERSION_FILE (version $INITIAL_VERSION) and tagged ${TAG_PREFIX}${INITIAL_VERSION}."
+else
+  info "$VERSION_FILE already exists, skipping creation."
+fi
+
+# --- Generate bump_version.sh ---
+cat > bump_version.sh <<'EOS'
+$(sed -n '1,200p' kickstart-versioning.sh | sed '1,40d')
+EOS
+chmod +x bump_version.sh
+git add bump_version.sh
+git commit -m "chore: add bump_version.sh"
+success "Generated bump_version.sh and committed to repo."
+
+success "🎉 Semantic Versioning setup complete! Use './bump_version.sh {patch|minor|major}' to bump versions."
