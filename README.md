@@ -24,4 +24,4 @@ Run the following command in a single line. This will:
 3. Execute the script (`./git-wrapper.sh`).
 
 ```bash
-bash -c "curl -sL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh -o git-wrapper.sh && chmod +x git-wrapper.sh && ./git-wrapper.sh"
+sudo bash -c "curl -sL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh -o git-wrapper.sh && chmod +x git-wrapper.sh && ./git-wrapper.sh"
