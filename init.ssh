@@ -124,6 +124,35 @@ fi
 echo
 
 # --------------------------
+# Step 5 – Préparer dossier de travail Git partagé
+# --------------------------
+echo -e "${BLUE}${BOLD}Step 4/4:${RESET} Preparing shared Git working directory..."
+
+# 1. Créer le dossier
+mkdir -p /var/backups/github
+
+# 2. Créer groupe 'gitusers' s’il n'existe pas
+if ! getent group gitusers >/dev/null; then
+  groupadd gitusers
+  echo -e "${GREEN}✔ Group 'gitusers' created.${RESET}"
+else
+  echo -e "${YELLOW}⚠ Group 'gitusers' already exists.${RESET}"
+fi
+
+# 3. Ajouter tous les utilisateurs non-root au groupe gitusers
+for user in $(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1}' /etc/passwd); do
+  usermod -a -G gitusers "$user"
+  echo -e "${CYAN}→ Added user '$user' to group 'gitusers'${RESET}"
+done
+
+# 4. Appliquer les droits au dossier
+chown -R root:gitusers /var/backups/github
+chmod -R 770 /var/backups/github
+chmod g+s /var/backups/github  # Setgid pour hériter du groupe
+
+echo -e "${GREEN}✔ /var/backups/github is ready for shared Git work.${RESET}"
+
+# --------------------------
 # Done
 # --------------------------
 echo -e "${MAGENTA}${BOLD}############################################################${RESET}"
