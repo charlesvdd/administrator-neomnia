@@ -60,8 +60,6 @@ if [ "$IS_RAW" -eq 0 ]; then
   mkdir -p "$TMP_SCRIPT_DIR"
   cp "$SCRIPT_PATH" "$TMP_SCRIPT_PATH"
   chmod +x "$TMP_SCRIPT_PATH"
-
-  # Clean on exit
   trap 'rm -f "$TMP_SCRIPT_PATH"' EXIT
   echo -e "${GREEN}✔ Script copied locally.${RESET}"
 else
@@ -71,7 +69,7 @@ fi
 # --------------------------
 # Step 1 – Update system
 # --------------------------
-echo -e "${BLUE}${BOLD}Step 1/4:${RESET} Updating system..."
+echo -e "${BLUE}${BOLD}Step 1/5:${RESET} Updating system..."
 apt update && apt upgrade -y
 if [ $? -eq 0 ]; then
   echo -e "${GREEN}✔ System updated successfully.${RESET}"
@@ -84,7 +82,7 @@ echo
 # --------------------------
 # Step 2 – Install essentials
 # --------------------------
-echo -e "${BLUE}${BOLD}Step 2/4:${RESET} Installing packages (tree, ufw, git, curl, wget)..."
+echo -e "${BLUE}${BOLD}Step 2/5:${RESET} Installing packages (tree, ufw, git, curl, wget)..."
 apt install -y tree ufw git curl wget
 if [ $? -eq 0 ]; then
   echo -e "${GREEN}✔ Packages installed.${RESET}"
@@ -97,7 +95,7 @@ echo
 # --------------------------
 # Step 3 – Configure UFW
 # --------------------------
-echo -e "${BLUE}${BOLD}Step 3/4:${RESET} Enabling UFW and allowing SSH..."
+echo -e "${BLUE}${BOLD}Step 3/5:${RESET} Enabling UFW and allowing SSH..."
 ufw allow OpenSSH
 ufw --force enable
 if [ $? -eq 0 ]; then
@@ -109,29 +107,11 @@ fi
 echo
 
 # --------------------------
-# Step 4 – Secure /var/backups
+# Step 4 – Create /var/backups/github with group access
 # --------------------------
-echo -e "${BLUE}${BOLD}Step 4/4:${RESET} Setting permissions for /var/backups..."
-mkdir -p /var/backups
-chown -R root:root /var/backups
-chmod -R 700 /var/backups
-if [ $? -eq 0 ]; then
-  echo -e "${GREEN}✔ /var/backups secured.${RESET}"
-else
-  echo -e "${RED}✖ Failed to secure /var/backups.${RESET}"
-  exit 1
-fi
-echo
+echo -e "${BLUE}${BOLD}Step 4/5:${RESET} Preparing shared Git working directory..."
 
-# --------------------------
-# Step 5 – Préparer dossier de travail Git partagé
-# --------------------------
-echo -e "${BLUE}${BOLD}Step 4/4:${RESET} Preparing shared Git working directory..."
-
-# 1. Créer le dossier
-mkdir -p /var/backups/github
-
-# 2. Créer groupe 'gitusers' s’il n'existe pas
+# 1. Créer le groupe gitusers s’il n'existe pas
 if ! getent group gitusers >/dev/null; then
   groupadd gitusers
   echo -e "${GREEN}✔ Group 'gitusers' created.${RESET}"
@@ -139,18 +119,29 @@ else
   echo -e "${YELLOW}⚠ Group 'gitusers' already exists.${RESET}"
 fi
 
-# 3. Ajouter tous les utilisateurs non-root au groupe gitusers
-for user in $(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1}' /etc/passwd); do
-  usermod -a -G gitusers "$user"
-  echo -e "${CYAN}→ Added user '$user' to group 'gitusers'${RESET}"
-done
+# 2. Créer le dossier
+mkdir -p /var/backups/github
 
-# 4. Appliquer les droits au dossier
+# 3. Ajouter l'utilisateur qui a lancé le script (hors root)
+CALLER_USER=$(logname)
+usermod -a -G gitusers "$CALLER_USER"
+echo -e "${CYAN}→ Added current user '$CALLER_USER' to group 'gitusers'${RESET}"
+
+# 4. Appliquer les droits
 chown -R root:gitusers /var/backups/github
-chmod -R 770 /var/backups/github
-chmod g+s /var/backups/github  # Setgid pour hériter du groupe
+chmod -R 2770 /var/backups/github  # rwx pour root et gitusers, rien pour les autres + setgid
 
-echo -e "${GREEN}✔ /var/backups/github is ready for shared Git work.${RESET}"
+echo -e "${GREEN}✔ /var/backups/github is ready for shared Git use.${RESET}"
+echo
+
+# --------------------------
+# Step 5 – Secure /var/backups root dir
+# --------------------------
+echo -e "${BLUE}${BOLD}Step 5/5:${RESET} Securing /var/backups root directory..."
+chown root:root /var/backups
+chmod 755 /var/backups  # lecture/exécution pour tous, nécessaire pour descendre dans github/
+echo -e "${GREEN}✔ /var/backups root is accessible but protected.${RESET}"
+echo
 
 # --------------------------
 # Done
