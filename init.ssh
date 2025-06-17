@@ -12,7 +12,7 @@
 #############################################
 
 # -------------------------------------------
-#  Color definitions for nicer output
+# Color definitions for nicer output
 # -------------------------------------------
 RED="\033[31m"
 GREEN="\033[32m"
@@ -23,101 +23,95 @@ CYAN="\033[36m"
 BOLD="\033[1m"
 RESET="\033[0m"
 
-# Script Metadata
-SCRIPT_NAME=$(basename "$0")
-SCRIPT_PATH=$(realpath "$0")
+# -------------------------------------------
+# Init variables
+# -------------------------------------------
 TMP_SCRIPT_DIR="/tmp/scripts"
+mkdir -p "$TMP_SCRIPT_DIR"
 
-echo -e "${CYAN}${BOLD}############################################################${RESET}"
-echo -e "${CYAN}${BOLD}#   Starting Basic Ubuntu Setup & UFW Firewall           #${RESET}"
-echo -e "${CYAN}${BOLD}############################################################${RESET}"
-echo
-
-# -------------------------------------------
-# 0. Preparation (create tmp script dir & chmod)
-# -------------------------------------------
-echo -e "${BLUE}${BOLD}Preparation:${RESET} ${YELLOW}Creating temp script directory and setting permissions...${RESET}"
-sudo mkdir -p "$TMP_SCRIPT_DIR"
-sudo cp "$SCRIPT_PATH" "$TMP_SCRIPT_DIR/"
-sudo chmod +x "$TMP_SCRIPT_DIR/$SCRIPT_NAME"
-if [ $? -eq 0 ]; then
-  echo -e "${GREEN}✔ Temp script directory created and script copied.${RESET}"
+# Detect script path robustly
+if [ -n "${BASH_SOURCE[0]}" ]; then
+  SCRIPT_PATH=$(realpath "${BASH_SOURCE[0]}")
 else
-  echo -e "${RED}✖ Failed to prepare temp script directory.${RESET}"
+  SCRIPT_PATH=$(realpath "$0")
+fi
+SCRIPT_NAME=$(basename "$SCRIPT_PATH")
+TMP_SCRIPT_PATH="$TMP_SCRIPT_DIR/$SCRIPT_NAME"
+
+# Function to handle cleanup on exit
+cleanup() {
+  echo -e "${YELLOW}🧹 Cleaning up temporary script copy...${RESET}"
+  rm -f "$TMP_SCRIPT_PATH"
+}
+trap cleanup EXIT
+
+# -------------------------------------------
+# Copy self to temp directory
+# -------------------------------------------
+echo -e "${BLUE}${BOLD}Preparation:${RESET} Creating temp script copy..."
+cp "$SCRIPT_PATH" "$TMP_SCRIPT_PATH"
+chmod +x "$TMP_SCRIPT_PATH"
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✔ Temp script created: $TMP_SCRIPT_PATH${RESET}"
+else
+  echo -e "${RED}✖ Failed to prepare temp script.${RESET}"
   exit 1
 fi
-echo
 
 # -------------------------------------------
 # 1. Update the system
 # -------------------------------------------
-echo -e "${BLUE}${BOLD}Step 1/3:${RESET} ${YELLOW}Updating the system...${RESET}"
+echo -e "${BLUE}${BOLD}Step 1/4:${RESET} ${YELLOW}Updating the system...${RESET}"
 sudo apt update && sudo apt upgrade -y
 if [ $? -eq 0 ]; then
-  echo -e "${GREEN}✔ System update completed successfully.${RESET}"
+  echo -e "${GREEN}✔ System update completed.${RESET}"
 else
-  echo -e "${RED}✖ Failed to update the system. Please check your network or sources.list.${RESET}"
+  echo -e "${RED}✖ System update failed.${RESET}"
   exit 1
 fi
-echo
 
 # -------------------------------------------
 # 2. Install essential packages
 # -------------------------------------------
-echo -e "${BLUE}${BOLD}Step 2/3:${RESET} ${YELLOW}Installing essential packages (tree, ufw, git, curl, wget)...${RESET}"
+echo -e "${BLUE}${BOLD}Step 2/4:${RESET} ${YELLOW}Installing essential packages (tree, ufw, git, curl, wget)...${RESET}"
 sudo apt install -y tree ufw git curl wget
 if [ $? -eq 0 ]; then
-  echo -e "${GREEN}✔ Essential packages installed.${RESET}"
+  echo -e "${GREEN}✔ Packages installed.${RESET}"
 else
-  echo -e "${RED}✖ Package installation failed. Check if you have the correct package names and network.${RESET}"
+  echo -e "${RED}✖ Package installation failed.${RESET}"
   exit 1
 fi
-echo
 
 # -------------------------------------------
-# 3. Basic security config with UFW
+# 3. Configure UFW
 # -------------------------------------------
-echo -e "${BLUE}${BOLD}Step 3/3:${RESET} ${YELLOW}Configuring firewall (ufw)…${RESET}"
-sudo ufw enable
+echo -e "${BLUE}${BOLD}Step 3/4:${RESET} ${YELLOW}Configuring firewall (UFW)...${RESET}"
 sudo ufw allow OpenSSH
+sudo ufw --force enable
 if [ $? -eq 0 ]; then
-  echo -e "${GREEN}✔ UFW enabled and SSH rule added.${RESET}"
+  echo -e "${GREEN}✔ UFW enabled and SSH allowed.${RESET}"
 else
-  echo -e "${RED}✖ UFW configuration failed. Make sure UFW is installed.${RESET}"
+  echo -e "${RED}✖ UFW configuration failed.${RESET}"
   exit 1
 fi
-echo
 
 # -------------------------------------------
-# 4. Apply recursive root permissions on /var/backups
+# 4. Apply root permissions to /var/backups
 # -------------------------------------------
-echo -e "${BLUE}${BOLD}Permissions:${RESET} ${YELLOW}Applying root ownership to /var/backups recursively...${RESET}"
+echo -e "${BLUE}${BOLD}Step 4/4:${RESET} ${YELLOW}Securing /var/backups for root access only...${RESET}"
+sudo mkdir -p /var/backups
 sudo chown -R root:root /var/backups
 sudo chmod -R 700 /var/backups
 if [ $? -eq 0 ]; then
-  echo -e "${GREEN}✔ /var/backups secured for root-only access.${RESET}"
+  echo -e "${GREEN}✔ Permissions set for /var/backups.${RESET}"
 else
-  echo -e "${RED}✖ Failed to set permissions on /var/backups.${RESET}"
+  echo -e "${RED}✖ Failed to set /var/backups permissions.${RESET}"
   exit 1
 fi
-echo
 
 # -------------------------------------------
-# 5. Cleanup script from /tmp/scripts
-# -------------------------------------------
-echo -e "${BLUE}${BOLD}Cleanup:${RESET} ${YELLOW}Removing script from temp folder...${RESET}"
-rm -f "$TMP_SCRIPT_DIR/$SCRIPT_NAME"
-if [ $? -eq 0 ]; then
-  echo -e "${GREEN}✔ Script successfully removed from $TMP_SCRIPT_DIR.${RESET}"
-else
-  echo -e "${RED}✖ Failed to delete the script from temp directory.${RESET}"
-fi
-echo
-
-# -------------------------------------------
-# Final Message
+# Final success message
 # -------------------------------------------
 echo -e "${MAGENTA}${BOLD}############################################################${RESET}"
-echo -e "${MAGENTA}${BOLD}#   Setup Complete! System updated and UFW configured.    #${RESET}"
+echo -e "${MAGENTA}${BOLD}#   ✅ Setup Complete! System & firewall configured.      #${RESET}"
 echo -e "${MAGENTA}${BOLD}############################################################${RESET}"
-echo
