@@ -8,12 +8,12 @@
 #  | |_) | |  __/ || (_| | |_) | (_) | | | |#
 #  |_.__/   \___|\__\__,_|_.__/ \___/|_| |_|#
 #                                           #
-#      Basic Ubuntu Setup & UFW Firewall    #
+#     Basic Ubuntu Setup (RAW aware)        #
 #############################################
 
-# -------------------------------------------
-# Color definitions for nicer output
-# -------------------------------------------
+# --------------------------
+# Color Definitions
+# --------------------------
 RED="\033[31m"
 GREEN="\033[32m"
 YELLOW="\033[33m"
@@ -23,95 +23,109 @@ CYAN="\033[36m"
 BOLD="\033[1m"
 RESET="\033[0m"
 
-# -------------------------------------------
-# Init variables
-# -------------------------------------------
-TMP_SCRIPT_DIR="/tmp/scripts"
-mkdir -p "$TMP_SCRIPT_DIR"
+echo -e "${CYAN}${BOLD}############################################################${RESET}"
+echo -e "${CYAN}${BOLD}#   Starting Basic Ubuntu Setup & UFW Firewall           #${RESET}"
+echo -e "${CYAN}${BOLD}############################################################${RESET}"
+echo
 
-# Detect script path robustly
-if [ -n "${BASH_SOURCE[0]}" ]; then
-  SCRIPT_PATH=$(realpath "${BASH_SOURCE[0]}")
-else
-  SCRIPT_PATH=$(realpath "$0")
+# --------------------------
+# Check for root privileges
+# --------------------------
+if [ "$EUID" -ne 0 ]; then
+  echo -e "${YELLOW}⚠ This script needs to run as root. Trying sudo...${RESET}"
+  exec sudo bash "$0" "$@"
 fi
-SCRIPT_NAME=$(basename "$SCRIPT_PATH")
+
+# --------------------------
+# Script Metadata (detect if RAW or FILE)
+# --------------------------
+IS_RAW=0
+if [[ -n "${BASH_SOURCE[0]}" && -f "${BASH_SOURCE[0]}" ]]; then
+  SCRIPT_PATH=$(realpath "${BASH_SOURCE[0]}")
+  SCRIPT_NAME=$(basename "$SCRIPT_PATH")
+else
+  IS_RAW=1
+  SCRIPT_PATH="/dev/stdin"
+  SCRIPT_NAME="raw-script"
+fi
+
+# --------------------------
+# If not RAW, copy to /tmp/scripts
+# --------------------------
+TMP_SCRIPT_DIR="/tmp/scripts"
 TMP_SCRIPT_PATH="$TMP_SCRIPT_DIR/$SCRIPT_NAME"
 
-# Function to handle cleanup on exit
-cleanup() {
-  echo -e "${YELLOW}🧹 Cleaning up temporary script copy...${RESET}"
-  rm -f "$TMP_SCRIPT_PATH"
-}
-trap cleanup EXIT
+if [ "$IS_RAW" -eq 0 ]; then
+  echo -e "${BLUE}${BOLD}Preparation:${RESET} Copying script to $TMP_SCRIPT_PATH..."
+  mkdir -p "$TMP_SCRIPT_DIR"
+  cp "$SCRIPT_PATH" "$TMP_SCRIPT_PATH"
+  chmod +x "$TMP_SCRIPT_PATH"
 
-# -------------------------------------------
-# Copy self to temp directory
-# -------------------------------------------
-echo -e "${BLUE}${BOLD}Preparation:${RESET} Creating temp script copy..."
-cp "$SCRIPT_PATH" "$TMP_SCRIPT_PATH"
-chmod +x "$TMP_SCRIPT_PATH"
-if [ $? -eq 0 ]; then
-  echo -e "${GREEN}✔ Temp script created: $TMP_SCRIPT_PATH${RESET}"
+  # Clean on exit
+  trap 'rm -f "$TMP_SCRIPT_PATH"' EXIT
+  echo -e "${GREEN}✔ Script copied locally.${RESET}"
 else
-  echo -e "${RED}✖ Failed to prepare temp script.${RESET}"
-  exit 1
+  echo -e "${YELLOW}⚠ RAW execution detected. Skipping temp copy.${RESET}"
 fi
 
-# -------------------------------------------
-# 1. Update the system
-# -------------------------------------------
-echo -e "${BLUE}${BOLD}Step 1/4:${RESET} ${YELLOW}Updating the system...${RESET}"
-sudo apt update && sudo apt upgrade -y
+# --------------------------
+# Step 1 – Update system
+# --------------------------
+echo -e "${BLUE}${BOLD}Step 1/4:${RESET} Updating system..."
+apt update && apt upgrade -y
 if [ $? -eq 0 ]; then
-  echo -e "${GREEN}✔ System update completed.${RESET}"
+  echo -e "${GREEN}✔ System updated successfully.${RESET}"
 else
   echo -e "${RED}✖ System update failed.${RESET}"
   exit 1
 fi
+echo
 
-# -------------------------------------------
-# 2. Install essential packages
-# -------------------------------------------
-echo -e "${BLUE}${BOLD}Step 2/4:${RESET} ${YELLOW}Installing essential packages (tree, ufw, git, curl, wget)...${RESET}"
-sudo apt install -y tree ufw git curl wget
+# --------------------------
+# Step 2 – Install essentials
+# --------------------------
+echo -e "${BLUE}${BOLD}Step 2/4:${RESET} Installing packages (tree, ufw, git, curl, wget)..."
+apt install -y tree ufw git curl wget
 if [ $? -eq 0 ]; then
   echo -e "${GREEN}✔ Packages installed.${RESET}"
 else
   echo -e "${RED}✖ Package installation failed.${RESET}"
   exit 1
 fi
+echo
 
-# -------------------------------------------
-# 3. Configure UFW
-# -------------------------------------------
-echo -e "${BLUE}${BOLD}Step 3/4:${RESET} ${YELLOW}Configuring firewall (UFW)...${RESET}"
-sudo ufw allow OpenSSH
-sudo ufw --force enable
+# --------------------------
+# Step 3 – Configure UFW
+# --------------------------
+echo -e "${BLUE}${BOLD}Step 3/4:${RESET} Enabling UFW and allowing SSH..."
+ufw allow OpenSSH
+ufw --force enable
 if [ $? -eq 0 ]; then
   echo -e "${GREEN}✔ UFW enabled and SSH allowed.${RESET}"
 else
   echo -e "${RED}✖ UFW configuration failed.${RESET}"
   exit 1
 fi
+echo
 
-# -------------------------------------------
-# 4. Apply root permissions to /var/backups
-# -------------------------------------------
-echo -e "${BLUE}${BOLD}Step 4/4:${RESET} ${YELLOW}Securing /var/backups for root access only...${RESET}"
-sudo mkdir -p /var/backups
-sudo chown -R root:root /var/backups
-sudo chmod -R 700 /var/backups
+# --------------------------
+# Step 4 – Secure /var/backups
+# --------------------------
+echo -e "${BLUE}${BOLD}Step 4/4:${RESET} Setting permissions for /var/backups..."
+mkdir -p /var/backups
+chown -R root:root /var/backups
+chmod -R 700 /var/backups
 if [ $? -eq 0 ]; then
-  echo -e "${GREEN}✔ Permissions set for /var/backups.${RESET}"
+  echo -e "${GREEN}✔ /var/backups secured.${RESET}"
 else
-  echo -e "${RED}✖ Failed to set /var/backups permissions.${RESET}"
+  echo -e "${RED}✖ Failed to secure /var/backups.${RESET}"
   exit 1
 fi
+echo
 
-# -------------------------------------------
-# Final success message
-# -------------------------------------------
+# --------------------------
+# Done
+# --------------------------
 echo -e "${MAGENTA}${BOLD}############################################################${RESET}"
-echo -e "${MAGENTA}${BOLD}#   ✅ Setup Complete! System & firewall configured.      #${RESET}"
+echo -e "${MAGENTA}${BOLD}#   ✅ Setup Complete. Everything is configured.         #${RESET}"
 echo -e "${MAGENTA}${BOLD}############################################################${RESET}"
