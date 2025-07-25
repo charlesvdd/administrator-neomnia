@@ -1,12 +1,11 @@
 #!/bin/bash
 set -e
+
 #############################################
 #   Basic Ubuntu Setup & Permanent Bash     #
 #############################################
 
-# --------------------------
 # Ensure running under bash
-# --------------------------
 if [ -z "$BASH_VERSION" ]; then
   echo "Switching to bash..."
   exec bash "$0" "$@"
@@ -15,9 +14,7 @@ fi
 echo -e "Running under Bash version: $BASH_VERSION ($(which bash))"
 echo
 
-# --------------------------
 # Color Definitions
-# --------------------------
 RED="\033[31m"
 GREEN="\033[32m"
 YELLOW="\033[33m"
@@ -27,9 +24,7 @@ CYAN="\033[36m"
 BOLD="\033[1m"
 RESET="\033[0m"
 
-# --------------------------
 # Detect raw or local file
-# --------------------------
 IS_RAW=0
 if [[ -n "${BASH_SOURCE[0]}" && -f "${BASH_SOURCE[0]}" ]]; then
   SCRIPT_PATH=$(realpath "${BASH_SOURCE[0]}")
@@ -40,9 +35,7 @@ else
   SCRIPT_NAME="raw-script"
 fi
 
-# --------------------------
 # Privilege check
-# --------------------------
 if [ "$EUID" -ne 0 ]; then
   if [ "$IS_RAW" -eq 1 ]; then
     echo -e "${RED}✖ This script needs root privileges.${RESET}"
@@ -54,9 +47,7 @@ if [ "$EUID" -ne 0 ]; then
   fi
 fi
 
-# --------------------------
 # Hostname setup
-# --------------------------
 read -p "Enter the new hostname: " NEW_HOSTNAME
 echo -e "${BLUE}🔹 Setting hostname to '$NEW_HOSTNAME'...${RESET}"
 hostnamectl set-hostname "$NEW_HOSTNAME"
@@ -67,9 +58,7 @@ echo "$NEW_HOSTNAME" > /etc/hostname
 echo -e "${GREEN}✔ Hostname is now $NEW_HOSTNAME${RESET}"
 echo
 
-# --------------------------
 # User & group setup (skip if user exists)
-# --------------------------
 read -p "Enter the new user name: " NEW_USER_NAME
 if id "$NEW_USER_NAME" &>/dev/null; then
   echo -e "${YELLOW}ℹ User '$NEW_USER_NAME' already exists. Skipping creation.${RESET}"
@@ -79,12 +68,16 @@ else
   chsh -s /bin/bash "$NEW_USER_NAME"
   echo -e "${GREEN}✔ User '$NEW_USER_NAME' created with shell $(getent passwd "$NEW_USER_NAME" | cut -d: -f7)${RESET}"
   read -s -p "Enter password for '$NEW_USER_NAME': " NEW_USER_PASSWORD
-echo
-echo "$NEW_USER_NAME:$NEW_USER_PASSWORD" | chpasswd
-echo -e "${GREEN}✔ Password set.${RESET}"
-fi
+  echo
+  echo "$NEW_USER_NAME:$NEW_USER_PASSWORD" | chpasswd
+  echo -e "${GREEN}✔ Password set.${RESET}"
 
+  # Add user to sudoers
+  echo "$NEW_USER_NAME ALL=(ALL) NOPASSWD:ALL" | tee "/etc/sudoers.d/$NEW_USER_NAME"
+  echo -e "${GREEN}✔ User '$NEW_USER_NAME' added to sudoers with no password requirement.${RESET}"
+fi
 echo
+
 read -p "Enter the group name (default gitusers): " GROUP_NAME
 GROUP_NAME=${GROUP_NAME:-gitusers}
 if [ "$SKIP_USER" != "1" ]; then
@@ -94,11 +87,13 @@ if [ "$SKIP_USER" != "1" ]; then
   else
     echo -e "${YELLOW}⚠ Group '$GROUP_NAME' exists. Skipping creation.${RESET}"
   fi
+
+  # Add group to sudoers
+  echo "%$GROUP_NAME ALL=(ALL) NOPASSWD:ALL" | tee "/etc/sudoers.d/$GROUP_NAME"
+  echo -e "${GREEN}✔ Group '$GROUP_NAME' added to sudoers with no password requirement.${RESET}"
 fi
 
-# --------------------------
 # Customize user .bashrc if newly created
-# --------------------------
 if [ "$SKIP_USER" != "1" ]; then
   BASHRC_FILE="/home/$NEW_USER_NAME/.bashrc"
   cat << 'EOF' >> "$BASHRC_FILE"
@@ -108,18 +103,14 @@ EOF
   chown "$NEW_USER_NAME:$NEW_USER_NAME" "$BASHRC_FILE"
   echo -e "${GREEN}✔ Updated .bashrc for custom prompt.${RESET}"
 fi
-
 echo
-# --------------------------
+
 # GitHub credentials
-# --------------------------
 read -p "GitHub username: " GITHUB_USERNAME
 read -s -p "GitHub API key: " GITHUB_API_KEY
 echo
 
-# --------------------------
 # Copy script locally
-# --------------------------
 TMP_DIR="/tmp/scripts"
 if [ "$IS_RAW" -eq 0 ]; then
   mkdir -p "$TMP_DIR"
@@ -130,27 +121,21 @@ if [ "$IS_RAW" -eq 0 ]; then
 else
   echo -e "${YELLOW}⚠ RAW execution – skipping copy${RESET}"
 fi
-
 echo
-# --------------------------
+
 # Steps
-# --------------------------
 echo -e "${BLUE}${BOLD}🔹 Step 1/7:${RESET} Updating system..."
 apt update && apt upgrade -y && echo -e "${GREEN}✔ Updated.${RESET}"
-
 echo -e "${BLUE}${BOLD}🔹 Step 2/7:${RESET} Installing essentials..."
 apt install -y tree ufw git curl wget && echo -e "${GREEN}✔ Installed.${RESET}"
-
 echo -e "${BLUE}${BOLD}🔹 Step 3/7:${RESET} Configuring UFW..."
 ufw allow OpenSSH && ufw --force enable && echo -e "${GREEN}✔ UFW enabled.${RESET}"
-
 echo -e "${BLUE}${BOLD}🔹 Step 4/7:${RESET} Setting Git config..."
 read -p "Git email: " GIT_EMAIL
 read -p "Git username: " GIT_CONF_USERNAME
 git config --global user.email "$GIT_EMAIL"
 git config --global user.name "$GIT_CONF_USERNAME"
 echo -e "${GREEN}✔ Git configured.${RESET}"
-
 echo -e "${BLUE}${BOLD}🔹 Step 5/7:${RESET} Preparing /var/backups/github..."
 mkdir -p /var/backups/github
 if [ "$SKIP_USER" != "1" ]; then
@@ -158,11 +143,9 @@ if [ "$SKIP_USER" != "1" ]; then
 fi
 chown root:"$GROUP_NAME" /var/backups/github
 chmod 2770 /var/backups/github && echo -e "${GREEN}✔ Directory ready.${RESET}"
-
 echo -e "${BLUE}${BOLD}🔹 Step 6/7:${RESET} Securing /var/backups..."
 chown root:root /var/backups
 chmod 755 /var/backups && echo -e "${GREEN}✔ Secured.${RESET}"
-
 echo -e "${BLUE}${BOLD}🔹 Step 7/7:${RESET} Testing access..."
 if [ "$SKIP_USER" != "1" ] && sudo -u "$NEW_USER_NAME" test -w /var/backups/github; then
   echo -e "${GREEN}✔ Write access OK.${RESET}"
@@ -173,5 +156,4 @@ fi
 echo -e "${MAGENTA}${BOLD}############################################################${RESET}"
 echo -e "${MAGENTA}${BOLD}#                   Setup Complete                     #${RESET}"
 echo -e "${MAGENTA}${BOLD}############################################################${RESET}"
-
 echo -e "${BLUE}Summary:${RESET} Hostname=$NEW_HOSTNAME, User=$NEW_USER_NAME, Group=$GROUP_NAME, Shell=$(getent passwd "$NEW_USER_NAME" | cut -d: -f7)"
