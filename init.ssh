@@ -1,5 +1,4 @@
 #!/bin/bash
-
 #############################################
 #   _            _        _                 #
 #  | |          | |      | |                #
@@ -10,7 +9,6 @@
 #                                           #
 #     Basic Ubuntu Setup (RAW aware)        #
 #############################################
-
 # --------------------------
 # Color Definitions
 # --------------------------
@@ -22,12 +20,10 @@ MAGENTA="\033[35m"
 CYAN="\033[36m"
 BOLD="\033[1m"
 RESET="\033[0m"
-
 echo -e "${CYAN}${BOLD}############################################################${RESET}"
 echo -e "${CYAN}${BOLD}#   Starting Basic Ubuntu Setup & UFW Firewall           #${RESET}"
 echo -e "${CYAN}${BOLD}############################################################${RESET}"
 echo
-
 # --------------------------
 # Check for root privileges
 # --------------------------
@@ -35,7 +31,21 @@ if [ "$EUID" -ne 0 ]; then
   echo -e "${YELLOW}⚠ This script needs to run as root. Trying sudo...${RESET}"
   exec sudo bash "$0" "$@"
 fi
-
+# --------------------------
+# Prompt for new user name
+# --------------------------
+read -p "Enter the new user name: " NEW_USER_NAME
+# --------------------------
+# Prompt for group name
+# --------------------------
+read -p "Enter the group name (default is gitusers): " GROUP_NAME
+GROUP_NAME=${GROUP_NAME:-gitusers}
+# --------------------------
+# Prompt for GitHub credentials
+# --------------------------
+read -p "Enter the GitHub username: " GITHUB_USERNAME
+read -s -p "Enter the GitHub API key: " GITHUB_API_KEY
+echo
 # --------------------------
 # Script Metadata (detect if RAW or FILE)
 # --------------------------
@@ -48,15 +58,13 @@ else
   SCRIPT_PATH="/dev/stdin"
   SCRIPT_NAME="raw-script"
 fi
-
 # --------------------------
 # If not RAW, copy to /tmp/scripts
 # --------------------------
 TMP_SCRIPT_DIR="/tmp/scripts"
 TMP_SCRIPT_PATH="$TMP_SCRIPT_DIR/$SCRIPT_NAME"
-
 if [ "$IS_RAW" -eq 0 ]; then
-  echo -e "${BLUE}${BOLD}Preparation:${RESET} Copying script to $TMP_SCRIPT_PATH..."
+  echo -e "${BLUE}${BOLD}🔹 Preparation:${RESET} Copying script to $TMP_SCRIPT_PATH..."
   mkdir -p "$TMP_SCRIPT_DIR"
   cp "$SCRIPT_PATH" "$TMP_SCRIPT_PATH"
   chmod +x "$TMP_SCRIPT_PATH"
@@ -65,11 +73,10 @@ if [ "$IS_RAW" -eq 0 ]; then
 else
   echo -e "${YELLOW}⚠ RAW execution detected. Skipping temp copy.${RESET}"
 fi
-
 # --------------------------
 # Step 1 – Update system
 # --------------------------
-echo -e "${BLUE}${BOLD}Step 1/6:${RESET} Updating system..."
+echo -e "${BLUE}${BOLD}🔹 Step 1/6:${RESET} Updating system..."
 apt update && apt upgrade -y
 if [ $? -eq 0 ]; then
   echo -e "${GREEN}✔ System updated successfully.${RESET}"
@@ -78,11 +85,10 @@ else
   exit 1
 fi
 echo
-
 # --------------------------
 # Step 2 – Install essentials
 # --------------------------
-echo -e "${BLUE}${BOLD}Step 2/6:${RESET} Installing packages (tree, ufw, git, curl, wget)..."
+echo -e "${BLUE}${BOLD}🔹 Step 2/6:${RESET} Installing packages (tree, ufw, git, curl, wget)..."
 apt install -y tree ufw git curl wget
 if [ $? -eq 0 ]; then
   echo -e "${GREEN}✔ Packages installed.${RESET}"
@@ -91,11 +97,10 @@ else
   exit 1
 fi
 echo
-
 # --------------------------
 # Step 3 – Configure UFW
 # --------------------------
-echo -e "${BLUE}${BOLD}Step 3/6:${RESET} Enabling UFW and allowing SSH..."
+echo -e "${BLUE}${BOLD}🔹 Step 3/6:${RESET} Enabling UFW and allowing SSH..."
 ufw allow OpenSSH
 ufw --force enable
 if [ $? -eq 0 ]; then
@@ -105,58 +110,47 @@ else
   exit 1
 fi
 echo
-
 # --------------------------
 # Step 4 – Create /var/backups/github with group access
 # --------------------------
-echo -e "${BLUE}${BOLD}Step 4/6:${RESET} Preparing shared Git working directory..."
-
-# 1. Créer le groupe gitusers s’il n'existe pas
-if ! getent group gitusers >/dev/null; then
-  groupadd gitusers
-  echo -e "${GREEN}✔ Group 'gitusers' created.${RESET}"
+echo -e "${BLUE}${BOLD}🔹 Step 4/6:${RESET} Preparing shared Git working directory..."
+# 1. Create the group if it doesn't exist
+if ! getent group "$GROUP_NAME" >/dev/null; then
+  groupadd "$GROUP_NAME"
+  echo -e "${GREEN}✔ Group '$GROUP_NAME' created.${RESET}"
 else
-  echo -e "${YELLOW}⚠ Group 'gitusers' already exists.${RESET}"
+  echo -e "${YELLOW}⚠ Group '$GROUP_NAME' already exists.${RESET}"
 fi
-
-# 2. Créer le dossier
+# 2. Create the directory
 mkdir -p /var/backups/github
-
-# 3. Ajouter l'utilisateur qui a lancé le script
-CALLER_USER=$(logname)
-usermod -a -G gitusers "$CALLER_USER"
-echo -e "${CYAN}→ Added current user '$CALLER_USER' to group 'gitusers'${RESET}"
-
-# 4. Appliquer les droits
-chown -R root:gitusers /var/backups/github
-chmod -R 2770 /var/backups/github  # rwx pour root et gitusers, rien pour les autres + setgid
-chmod 755 /var/backups             # nécessaire pour que le dossier soit accessible
-
+# 3. Add the user who ran the script to the group
+usermod -a -G "$GROUP_NAME" "$NEW_USER_NAME"
+echo -e "${CYAN}→ Added user '$NEW_USER_NAME' to group '$GROUP_NAME'${RESET}"
+# 4. Apply permissions
+chown -R root:"$GROUP_NAME" /var/backups/github
+chmod -R 2770 /var/backups/github  # rwx for root and group, nothing for others + setgid
+chmod 755 /var/backups             # necessary for the folder to be accessible
 echo -e "${GREEN}✔ /var/backups/github is ready for shared Git use.${RESET}"
 echo
-
 # --------------------------
 # Step 5 – Secure /var/backups root dir
 # --------------------------
-echo -e "${BLUE}${BOLD}Step 5/6:${RESET} Securing /var/backups root directory..."
+echo -e "${BLUE}${BOLD}🔹 Step 5/6:${RESET} Securing /var/backups root directory..."
 chown root:root /var/backups
 chmod 755 /var/backups
 echo -e "${GREEN}✔ /var/backups root is accessible but protected.${RESET}"
 echo
-
 # --------------------------
-# Step 6 – Test accès utilisateur
+# Step 6 – Test user access
 # --------------------------
-echo -e "${BLUE}${BOLD}Step 6/6:${RESET} Testing user access to /var/backups/github..."
-
-if sudo -u "$CALLER_USER" test -w /var/backups/github; then
-  echo -e "${GREEN}✔ User '$CALLER_USER' has write access to /var/backups/github.${RESET}"
+echo -e "${BLUE}${BOLD}🔹 Step 6/6:${RESET} Testing user access to /var/backups/github..."
+if sudo -u "$NEW_USER_NAME" test -w /var/backups/github; then
+  echo -e "${GREEN}✔ User '$NEW_USER_NAME' has write access to /var/backups/github.${RESET}"
 else
-  echo -e "${RED}✖ User '$CALLER_USER' does NOT yet have access.${RESET}"
-  echo -e "${YELLOW}ℹ Please open a new session or run: ${BOLD}newgrp gitusers${RESET}${YELLOW} to apply group membership immediately.${RESET}"
+  echo -e "${RED}✖ User '$NEW_USER_NAME' does NOT yet have access.${RESET}"
+  echo -e "${YELLOW}ℹ Please open a new session or run: ${BOLD}newgrp $GROUP_NAME${RESET}${YELLOW} to apply group membership immediately.${RESET}"
 fi
 echo
-
 # --------------------------
 # Done
 # --------------------------
