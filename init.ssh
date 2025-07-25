@@ -43,10 +43,28 @@ else
   exit 1
 fi
 # --------------------------
+# Prompt for and set user password
+# --------------------------
+read -s -p "Enter password for '$NEW_USER_NAME': " NEW_USER_PASSWORD
+echo "$NEW_USER_NAME:$NEW_USER_PASSWORD" | chpasswd
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✔ Password for user '$NEW_USER_NAME' set successfully.${RESET}"
+else
+  echo -e "${RED}✖ Failed to set password for user '$NEW_USER_NAME'.${RESET}"
+  exit 1
+fi
+# --------------------------
 # Prompt for group name
 # --------------------------
 read -p "Enter the group name (default is gitusers): " GROUP_NAME
 GROUP_NAME=${GROUP_NAME:-gitusers}
+# Check if the group already exists
+if ! getent group "$GROUP_NAME" >/dev/null; then
+  groupadd "$GROUP_NAME"
+  echo -e "${GREEN}✔ Group '$GROUP_NAME' created.${RESET}"
+else
+  echo -e "${YELLOW}⚠ Group '$GROUP_NAME' already exists.${RESET}"
+fi
 # --------------------------
 # Prompt for GitHub credentials
 # --------------------------
@@ -132,16 +150,9 @@ echo
 # Step 4 – Create /var/backups/github with group access
 # --------------------------
 echo -e "${BLUE}${BOLD}🔹 Step 4/6:${RESET} Preparing shared Git working directory..."
-# 1. Create the group if it doesn't exist
-if ! getent group "$GROUP_NAME" >/dev/null; then
-  groupadd "$GROUP_NAME"
-  echo -e "${GREEN}✔ Group '$GROUP_NAME' created.${RESET}"
-else
-  echo -e "${YELLOW}⚠ Group '$GROUP_NAME' already exists.${RESET}"
-fi
 # 2. Create the directory
 mkdir -p /var/backups/github
-# 3. Add the new user to the group
+# 3. Add the user who ran the script to the group
 usermod -a -G "$GROUP_NAME" "$NEW_USER_NAME"
 echo -e "${CYAN}→ Added user '$NEW_USER_NAME' to group '$GROUP_NAME'${RESET}"
 # 4. Apply permissions
