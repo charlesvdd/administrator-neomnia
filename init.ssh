@@ -5,6 +5,14 @@ set -e
 #############################################
 
 # --------------------------
+# Ensure running under bash
+# --------------------------
+if [ -z "$BASH_VERSION" ]; then
+  echo "Switching to bash..."
+  exec bash "$0" "$@"
+fi
+
+# --------------------------
 # Color Definitions
 # --------------------------
 RED="\033[31m"
@@ -22,7 +30,7 @@ echo -e "${CYAN}${BOLD}#########################################################
 echo
 
 # --------------------------
-# Detect if the script is RAW (curl | bash) or local
+# Detect if script is RAW or local file
 # --------------------------
 IS_RAW=0
 if [[ -n "${BASH_SOURCE[0]}" && -f "${BASH_SOURCE[0]}" ]]; then
@@ -49,20 +57,36 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # --------------------------
+# Prompt and set new hostname
+# --------------------------
+read -p "Enter the new hostname: " NEW_HOSTNAME
+echo -e "${BLUE}🔹 Setting hostname to '${NEW_HOSTNAME}'...${RESET}"
+hostnamectl set-hostname "$NEW_HOSTNAME"
+# Update /etc/hosts for localhost alias
+if grep -q "127\.0\.1\.1" /etc/hosts; then
+  sed -i "s/127\.0\.1\.1.*/127.0.1.1\t$NEW_HOSTNAME/" /etc/hosts
+else
+  echo -e "127.0.1.1\t$NEW_HOSTNAME" >> /etc/hosts
+fi
+# Ensure /etc/hostname is correct
+echo "$NEW_HOSTNAME" > /etc/hostname
+echo -e "${GREEN}✔ Hostname set to ${NEW_HOSTNAME}${RESET}"
+echo
+
+# --------------------------
 # Prompt for user & group
 # --------------------------
 read -p "Enter the new user name: " NEW_USER_NAME
-useradd -m "$NEW_USER_NAME"
-echo -e "${GREEN}✔ User '$NEW_USER_NAME' created.${RESET}"
+useradd -m -s /bin/bash "$NEW_USER_NAME"
+echo -e "${GREEN}✔ User '$NEW_USER_NAME' created with shell /bin/bash.${RESET}"
 
 read -s -p "Enter password for '$NEW_USER_NAME': " NEW_USER_PASSWORD
 echo
 echo "$NEW_USER_NAME:$NEW_USER_PASSWORD" | chpasswd
-echo -e "${GREEN}✔ Password set.${RESET}"
+echo -e "${GREEN}✔ Password set for $NEW_USER_NAME.${RESET}"
 
 read -p "Enter the group name (default is gitusers): " GROUP_NAME
 GROUP_NAME=${GROUP_NAME:-gitusers}
-
 if ! getent group "$GROUP_NAME" >/dev/null; then
   groupadd "$GROUP_NAME"
   echo -e "${GREEN}✔ Group '$GROUP_NAME' created.${RESET}"
@@ -95,7 +119,7 @@ fi
 # --------------------------
 # Step 1 – System update
 # --------------------------
-echo -e "${BLUE}${BOLD}🔹 Step 1/6:${RESET} Updating system..."
+echo -e "${BLUE}${BOLD}🔹 Step 1/7:${RESET} Updating system..."
 apt update && apt upgrade -y
 echo -e "${GREEN}✔ System updated.${RESET}"
 echo
@@ -103,7 +127,7 @@ echo
 # --------------------------
 # Step 2 – Install essentials
 # --------------------------
-echo -e "${BLUE}${BOLD}🔹 Step 2/6:${RESET} Installing packages..."
+echo -e "${BLUE}${BOLD}🔹 Step 2/7:${RESET} Installing packages..."
 apt install -y tree ufw git curl wget
 echo -e "${GREEN}✔ Packages installed.${RESET}"
 echo
@@ -111,7 +135,7 @@ echo
 # --------------------------
 # Step 3 – Configure UFW
 # --------------------------
-echo -e "${BLUE}${BOLD}🔹 Step 3/6:${RESET} Configuring UFW firewall..."
+echo -e "${BLUE}${BOLD}🔹 Step 3/7:${RESET} Configuring UFW firewall..."
 ufw allow OpenSSH
 ufw --force enable
 echo -e "${GREEN}✔ UFW enabled.${RESET}"
@@ -130,7 +154,7 @@ echo
 # --------------------------
 # Step 5 – Setup /var/backups/github
 # --------------------------
-echo -e "${BLUE}${BOLD}🔹 Step 4/6:${RESET} Preparing shared Git directory..."
+echo -e "${BLUE}${BOLD}🔹 Step 4/7:${RESET} Preparing shared Git directory..."
 mkdir -p /var/backups/github
 usermod -a -G "$GROUP_NAME" "$NEW_USER_NAME"
 chown -R root:"$GROUP_NAME" /var/backups/github
@@ -142,7 +166,7 @@ echo
 # --------------------------
 # Step 6 – Secure backups dir
 # --------------------------
-echo -e "${BLUE}${BOLD}🔹 Step 5/6:${RESET} Securing /var/backups..."
+echo -e "${BLUE}${BOLD}🔹 Step 5/7:${RESET} Securing /var/backups..."
 chown root:root /var/backups
 chmod 755 /var/backups
 echo -e "${GREEN}✔ Root backup dir secured.${RESET}"
@@ -151,7 +175,7 @@ echo
 # --------------------------
 # Step 7 – Test user access
 # --------------------------
-echo -e "${BLUE}${BOLD}🔹 Step 6/6:${RESET} Testing user access..."
+echo -e "${BLUE}${BOLD}🔹 Step 6/7:${RESET} Testing user access..."
 if sudo -u "$NEW_USER_NAME" test -w /var/backups/github; then
   echo -e "${GREEN}✔ User '$NEW_USER_NAME' has write access to /var/backups/github.${RESET}"
 else
@@ -161,8 +185,11 @@ fi
 echo
 
 # --------------------------
-# Done
+# Final Summary
 # --------------------------
 echo -e "${MAGENTA}${BOLD}############################################################${RESET}"
-echo -e "${MAGENTA}${BOLD}#   ✅ Setup Complete. Everything is configured.         #${RESET}"
+echo -e "${MAGENTA}${BOLD}#                   Setup Complete                     #${RESET}"
 echo -e "${MAGENTA}${BOLD}############################################################${RESET}"
+echo
+USER_SHELL=$(getent passwd "$NEW_USER_NAME" | cut -d: -f7)
+echo -e "${BLUE}Summary:${RESET} Hostname=${NEW_HOSTNAME}, User=${NEW_USER_NAME}, Group=${GROUP_NAME}, Shell=${USER_SHELL}"
