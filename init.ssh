@@ -32,9 +32,16 @@ if [ "$EUID" -ne 0 ]; then
   exec sudo bash "$0" "$@"
 fi
 # --------------------------
-# Prompt for new user name
+# Prompt for new user name and create the user
 # --------------------------
 read -p "Enter the new user name: " NEW_USER_NAME
+useradd -m "$NEW_USER_NAME"
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✔ User '$NEW_USER_NAME' created successfully.${RESET}"
+else
+  echo -e "${RED}✖ Failed to create user '$NEW_USER_NAME'.${RESET}"
+  exit 1
+fi
 # --------------------------
 # Prompt for group name
 # --------------------------
@@ -111,6 +118,17 @@ else
 fi
 echo
 # --------------------------
+# Set up Git user identity
+# --------------------------
+read -p "Enter your Git email: " GIT_EMAIL
+read -p "Enter your Git username: " GIT_USERNAME
+
+git config --global user.email "$GIT_EMAIL"
+git config --global user.name "$GIT_USERNAME"
+
+echo -e "${GREEN}✔ Git user identity set.${RESET}"
+echo
+# --------------------------
 # Step 4 – Create /var/backups/github with group access
 # --------------------------
 echo -e "${BLUE}${BOLD}🔹 Step 4/6:${RESET} Preparing shared Git working directory..."
@@ -123,7 +141,7 @@ else
 fi
 # 2. Create the directory
 mkdir -p /var/backups/github
-# 3. Add the user who ran the script to the group
+# 3. Add the new user to the group
 usermod -a -G "$GROUP_NAME" "$NEW_USER_NAME"
 echo -e "${CYAN}→ Added user '$NEW_USER_NAME' to group '$GROUP_NAME'${RESET}"
 # 4. Apply permissions
