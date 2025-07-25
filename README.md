@@ -1,3 +1,12 @@
+![Logo](URL_TO_YOUR_LOGO)
+
+[![Release Notes](https://img.shields.io/badge/release-1.0.1201-blue)](URL_TO_RELEASE_NOTES)
+[![License](https://img.shields.io/badge/license-MIT-green)](URL_TO_LICENSE)
+[![Downloads](https://img.shields.io/badge/downloads-1000+-brightgreen)](URL_TO_DOWNLOAD_STATS)
+[![GitHub Stars](https://img.shields.io/badge/stars-500+-yellow)](URL_TO_GITHUB_STARS)
+[![Open Issues](https://img.shields.io/badge/issues-open-red)](URL_TO_ISSUES)
+
+> **Note**: Ce script est conçu pour configurer rapidement un serveur Ubuntu (VPS) en automatisant les mises à jour du système, l'installation de paquets essentiels et la configuration du pare-feu.
 
 # 🖥️ Install “init.ssh” Script via RAW GitHub
 
