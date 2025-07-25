@@ -1,14 +1,9 @@
 #!/bin/bash
+set -e
 #############################################
-#   _            _        _                 #
-#  | |          | |      | |                #
-#  | |__     ___| |_ __ _| |__   ___  _ __  #
-#  | '_ \   / _ \ __/ _` | '_ \ / _ \| '_ \ #
-#  | |_) | |  __/ || (_| | |_) | (_) | | | |#
-#  |_.__/   \___|\__\__,_|_.__/ \___/|_| |_|#
-#                                           #
-#     Basic Ubuntu Setup (RAW aware)        #
+#   Basic Ubuntu Setup (RAW aware)          #
 #############################################
+
 # --------------------------
 # Color Definitions
 # --------------------------
@@ -20,62 +15,14 @@ MAGENTA="\033[35m"
 CYAN="\033[36m"
 BOLD="\033[1m"
 RESET="\033[0m"
+
 echo -e "${CYAN}${BOLD}############################################################${RESET}"
-echo -e "${CYAN}${BOLD}#   Starting Basic Ubuntu Setup & UFW Firewall           #${RESET}"
+echo -e "${CYAN}${BOLD}#   Starting Basic Ubuntu Setup & UFW Firewall             #${RESET}"
 echo -e "${CYAN}${BOLD}############################################################${RESET}"
 echo
+
 # --------------------------
-# Check for root privileges
-# --------------------------
-if [ "$EUID" -ne 0 ]; then
-  echo -e "${YELLOW}⚠ This script needs to run as root. Trying sudo...${RESET}"
-  exec sudo bash "$0" "$@"
-fi
-# --------------------------
-# Prompt for new user name and create the user
-# --------------------------
-read -p "Enter the new user name: " NEW_USER_NAME
-if useradd -m "$NEW_USER_NAME"; then
-  echo -e "${GREEN}✔ User '$NEW_USER_NAME' created successfully.${RESET}"
-else
-  echo -e "${RED}✖ Failed to create user '$NEW_USER_NAME'.${RESET}"
-  exit 1
-fi
-# --------------------------
-# Prompt for and set user password
-# --------------------------
-read -s -p "Enter password for '$NEW_USER_NAME': " NEW_USER_PASSWORD
-echo
-if echo "$NEW_USER_NAME:$NEW_USER_PASSWORD" | chpasswd; then
-  echo -e "${GREEN}✔ Password for user '$NEW_USER_NAME' set successfully.${RESET}"
-else
-  echo -e "${RED}✖ Failed to set password for user '$NEW_USER_NAME'.${RESET}"
-  exit 1
-fi
-# --------------------------
-# Prompt for group name
-# --------------------------
-read -p "Enter the group name (default is gitusers): " GROUP_NAME
-GROUP_NAME=${GROUP_NAME:-gitusers}
-# Check if the group already exists
-if ! getent group "$GROUP_NAME" >/dev/null; then
-  if groupadd "$GROUP_NAME"; then
-    echo -e "${GREEN}✔ Group '$GROUP_NAME' created.${RESET}"
-  else
-    echo -e "${RED}✖ Failed to create group '$GROUP_NAME'.${RESET}"
-    exit 1
-  fi
-else
-  echo -e "${YELLOW}⚠ Group '$GROUP_NAME' already exists.${RESET}"
-fi
-# --------------------------
-# Prompt for GitHub credentials
-# --------------------------
-read -p "Enter the GitHub username: " GITHUB_USERNAME
-read -s -p "Enter the GitHub API key: " GITHUB_API_KEY
-echo
-# --------------------------
-# Script Metadata (detect if RAW or FILE)
+# Detect if the script is RAW (curl | bash) or local
 # --------------------------
 IS_RAW=0
 if [[ -n "${BASH_SOURCE[0]}" && -f "${BASH_SOURCE[0]}" ]]; then
@@ -86,111 +33,133 @@ else
   SCRIPT_PATH="/dev/stdin"
   SCRIPT_NAME="raw-script"
 fi
+
 # --------------------------
-# If not RAW, copy to /tmp/scripts
+# Check for root privileges
+# --------------------------
+if [ "$EUID" -ne 0 ]; then
+  if [ "$IS_RAW" -eq 1 ]; then
+    echo -e "${RED}✖ This script must be run with sudo/root privileges.${RESET}"
+    echo -e "${YELLOW}💡 Try again with: ${BOLD}curl ... | sudo bash${RESET}"
+    exit 1
+  else
+    echo -e "${YELLOW}⚠ This script needs to run as root. Relaunching with sudo...${RESET}"
+    exec sudo bash "$SCRIPT_PATH" "$@"
+  fi
+fi
+
+# --------------------------
+# Prompt for user & group
+# --------------------------
+read -p "Enter the new user name: " NEW_USER_NAME
+useradd -m "$NEW_USER_NAME"
+echo -e "${GREEN}✔ User '$NEW_USER_NAME' created.${RESET}"
+
+read -s -p "Enter password for '$NEW_USER_NAME': " NEW_USER_PASSWORD
+echo
+echo "$NEW_USER_NAME:$NEW_USER_PASSWORD" | chpasswd
+echo -e "${GREEN}✔ Password set.${RESET}"
+
+read -p "Enter the group name (default is gitusers): " GROUP_NAME
+GROUP_NAME=${GROUP_NAME:-gitusers}
+
+if ! getent group "$GROUP_NAME" >/dev/null; then
+  groupadd "$GROUP_NAME"
+  echo -e "${GREEN}✔ Group '$GROUP_NAME' created.${RESET}"
+else
+  echo -e "${YELLOW}⚠ Group '$GROUP_NAME' already exists.${RESET}"
+fi
+
+# --------------------------
+# Prompt GitHub credentials
+# --------------------------
+read -p "Enter the GitHub username: " GITHUB_USERNAME
+read -s -p "Enter the GitHub API key: " GITHUB_API_KEY
+echo
+
+# --------------------------
+# Optional: copy script locally if not RAW
 # --------------------------
 TMP_SCRIPT_DIR="/tmp/scripts"
 TMP_SCRIPT_PATH="$TMP_SCRIPT_DIR/$SCRIPT_NAME"
 if [ "$IS_RAW" -eq 0 ]; then
-  echo -e "${BLUE}${BOLD}🔹 Preparation:${RESET} Copying script to $TMP_SCRIPT_PATH..."
   mkdir -p "$TMP_SCRIPT_DIR"
   cp "$SCRIPT_PATH" "$TMP_SCRIPT_PATH"
   chmod +x "$TMP_SCRIPT_PATH"
   trap 'rm -f "$TMP_SCRIPT_PATH"' EXIT
-  echo -e "${GREEN}✔ Script copied locally.${RESET}"
+  echo -e "${GREEN}✔ Script copied to ${TMP_SCRIPT_PATH}${RESET}"
 else
-  echo -e "${YELLOW}⚠ RAW execution detected. Skipping temp copy.${RESET}"
+  echo -e "${YELLOW}⚠ RAW execution detected – skipping temp copy.${RESET}"
 fi
+
 # --------------------------
-# Step 1 – Update system
+# Step 1 – System update
 # --------------------------
 echo -e "${BLUE}${BOLD}🔹 Step 1/6:${RESET} Updating system..."
-if apt update && apt upgrade -y; then
-  echo -e "${GREEN}✔ System updated successfully.${RESET}"
-else
-  echo -e "${RED}✖ System update failed.${RESET}"
-  exit 1
-fi
+apt update && apt upgrade -y
+echo -e "${GREEN}✔ System updated.${RESET}"
 echo
+
 # --------------------------
 # Step 2 – Install essentials
 # --------------------------
-echo -e "${BLUE}${BOLD}🔹 Step 2/6:${RESET} Installing packages (tree, ufw, git, curl, wget)..."
-if apt install -y tree ufw git curl wget; then
-  echo -e "${GREEN}✔ Packages installed.${RESET}"
-else
-  echo -e "${RED}✖ Package installation failed.${RESET}"
-  exit 1
-fi
+echo -e "${BLUE}${BOLD}🔹 Step 2/6:${RESET} Installing packages..."
+apt install -y tree ufw git curl wget
+echo -e "${GREEN}✔ Packages installed.${RESET}"
 echo
+
 # --------------------------
 # Step 3 – Configure UFW
 # --------------------------
-echo -e "${BLUE}${BOLD}🔹 Step 3/6:${RESET} Enabling UFW and allowing SSH..."
-if ufw allow OpenSSH && ufw --force enable; then
-  echo -e "${GREEN}✔ UFW enabled and SSH allowed.${RESET}"
-else
-  echo -e "${RED}✖ UFW configuration failed.${RESET}"
-  exit 1
-fi
+echo -e "${BLUE}${BOLD}🔹 Step 3/6:${RESET} Configuring UFW firewall..."
+ufw allow OpenSSH
+ufw --force enable
+echo -e "${GREEN}✔ UFW enabled.${RESET}"
 echo
+
 # --------------------------
-# Set up Git user identity
+# Step 4 – Set Git identity
 # --------------------------
 read -p "Enter your Git email: " GIT_EMAIL
 read -p "Enter your Git username: " GIT_USERNAME
+git config --global user.email "$GIT_EMAIL"
+git config --global user.name "$GIT_USERNAME"
+echo -e "${GREEN}✔ Git identity configured.${RESET}"
+echo
 
-if git config --global user.email "$GIT_EMAIL" && git config --global user.name "$GIT_USERNAME"; then
-  echo -e "${GREEN}✔ Git user identity set.${RESET}"
-else
-  echo -e "${RED}✖ Failed to set Git user identity.${RESET}"
-  exit 1
-fi
+# --------------------------
+# Step 5 – Setup /var/backups/github
+# --------------------------
+echo -e "${BLUE}${BOLD}🔹 Step 4/6:${RESET} Preparing shared Git directory..."
+mkdir -p /var/backups/github
+usermod -a -G "$GROUP_NAME" "$NEW_USER_NAME"
+chown -R root:"$GROUP_NAME" /var/backups/github
+chmod -R 2770 /var/backups/github
+chmod 755 /var/backups
+echo -e "${GREEN}✔ Shared directory ready.${RESET}"
 echo
+
 # --------------------------
-# Step 4 – Create /var/backups/github with group access
+# Step 6 – Secure backups dir
 # --------------------------
-echo -e "${BLUE}${BOLD}🔹 Step 4/6:${RESET} Preparing shared Git working directory..."
-if mkdir -p /var/backups/github; then
-  if usermod -a -G "$GROUP_NAME" "$NEW_USER_NAME"; then
-    echo -e "${CYAN}→ Added user '$NEW_USER_NAME' to group '$GROUP_NAME'${RESET}"
-    if chown -R root:"$GROUP_NAME" /var/backups/github && chmod -R 2770 /var/backups/github && chmod 755 /var/backups; then
-      echo -e "${GREEN}✔ /var/backups/github is ready for shared Git use.${RESET}"
-    else
-      echo -e "${RED}✖ Failed to set permissions on /var/backups/github.${RESET}"
-      exit 1
-    fi
-  else
-    echo -e "${RED}✖ Failed to add user '$NEW_USER_NAME' to group '$GROUP_NAME'.${RESET}"
-    exit 1
-  fi
-else
-  echo -e "${RED}✖ Failed to create directory /var/backups/github.${RESET}"
-  exit 1
-fi
+echo -e "${BLUE}${BOLD}🔹 Step 5/6:${RESET} Securing /var/backups..."
+chown root:root /var/backups
+chmod 755 /var/backups
+echo -e "${GREEN}✔ Root backup dir secured.${RESET}"
 echo
+
 # --------------------------
-# Step 5 – Secure /var/backups root dir
+# Step 7 – Test user access
 # --------------------------
-echo -e "${BLUE}${BOLD}🔹 Step 5/6:${RESET} Securing /var/backups root directory..."
-if chown root:root /var/backups && chmod 755 /var/backups; then
-  echo -e "${GREEN}✔ /var/backups root is accessible but protected.${RESET}"
-else
-  echo -e "${RED}✖ Failed to secure /var/backups root directory.${RESET}"
-  exit 1
-fi
-echo
-# --------------------------
-# Step 6 – Test user access
-# --------------------------
-echo -e "${BLUE}${BOLD}🔹 Step 6/6:${RESET} Testing user access to /var/backups/github..."
+echo -e "${BLUE}${BOLD}🔹 Step 6/6:${RESET} Testing user access..."
 if sudo -u "$NEW_USER_NAME" test -w /var/backups/github; then
   echo -e "${GREEN}✔ User '$NEW_USER_NAME' has write access to /var/backups/github.${RESET}"
 else
-  echo -e "${RED}✖ User '$NEW_USER_NAME' does NOT yet have access.${RESET}"
-  echo -e "${YELLOW}ℹ Please open a new session or run: ${BOLD}newgrp $GROUP_NAME${RESET}${YELLOW} to apply group membership immediately.${RESET}"
+  echo -e "${RED}✖ Access test failed.${RESET}"
+  echo -e "${YELLOW}ℹ Suggestion: run ${BOLD}newgrp $GROUP_NAME${RESET}${YELLOW} or re-login as user.${RESET}"
 fi
 echo
+
 # --------------------------
 # Done
 # --------------------------
