@@ -27,11 +27,6 @@ CYAN="\033[36m"
 BOLD="\033[1m"
 RESET="\033[0m"
 
-echo -e "${CYAN}${BOLD}############################################################${RESET}"
-echo -e "${CYAN}${BOLD}#   Starting Basic Ubuntu Setup & UFW Firewall             #${RESET}"
-echo -e "${CYAN}${BOLD}############################################################${RESET}"
-echo
-
 # --------------------------
 # Detect raw or local file
 # --------------------------
@@ -73,38 +68,48 @@ echo -e "${GREEN}✔ Hostname is now $NEW_HOSTNAME${RESET}"
 echo
 
 # --------------------------
-# User & group setup
+# User & group setup (skip if user exists)
 # --------------------------
 read -p "Enter the new user name: " NEW_USER_NAME
-useradd -m -s /bin/bash "$NEW_USER_NAME"
-chsh -s /bin/bash "$NEW_USER_NAME"
-echo -e "${GREEN}✔ User '$NEW_USER_NAME' created with shell $(getent passwd "$NEW_USER_NAME" | cut -d: -f7)${RESET}"
-
-read -s -p "Enter password for '$NEW_USER_NAME': " NEW_USER_PASSWORD
+if id "$NEW_USER_NAME" &>/dev/null; then
+  echo -e "${YELLOW}ℹ User '$NEW_USER_NAME' already exists. Skipping creation.${RESET}"
+  SKIP_USER=1
+else
+  useradd -m -s /bin/bash "$NEW_USER_NAME"
+  chsh -s /bin/bash "$NEW_USER_NAME"
+  echo -e "${GREEN}✔ User '$NEW_USER_NAME' created with shell $(getent passwd "$NEW_USER_NAME" | cut -d: -f7)${RESET}"
+  read -s -p "Enter password for '$NEW_USER_NAME': " NEW_USER_PASSWORD
 echo
 echo "$NEW_USER_NAME:$NEW_USER_PASSWORD" | chpasswd
 echo -e "${GREEN}✔ Password set.${RESET}"
+fi
 
 echo
 read -p "Enter the group name (default gitusers): " GROUP_NAME
 GROUP_NAME=${GROUP_NAME:-gitusers}
-if ! getent group "$GROUP_NAME" >/dev/null; then
-  groupadd "$GROUP_NAME"
-  echo -e "${GREEN}✔ Group '$GROUP_NAME' created.${RESET}"
-else
-  echo -e "${YELLOW}⚠ Group '$GROUP_NAME' exists.${RESET}"
+if [ "$SKIP_USER" != "1" ]; then
+  if ! getent group "$GROUP_NAME" >/dev/null; then
+    groupadd "$GROUP_NAME"
+    echo -e "${GREEN}✔ Group '$GROUP_NAME' created.${RESET}"
+  else
+    echo -e "${YELLOW}⚠ Group '$GROUP_NAME' exists. Skipping creation.${RESET}"
+  fi
 fi
 
 # --------------------------
-# Customize user .bashrc
+# Customize user .bashrc if newly created
 # --------------------------
-BASHRC_FILE="/home/$NEW_USER_NAME/.bashrc"
-echo -e "\n# Custom prompt: user@hostname in color" >> "$BASHRC_FILE"
-echo "export PS1='\\[\\e[32m\\]\u@\\h\\[\\e[0m\\]:\\[\\e[34m\\]\w\\[\\e[0m\\]\\$ '" >> "$BASHRC_FILE"
-chown "$NEW_USER_NAME:$NEW_USER_NAME" "$BASHRC_FILE"
-echo -e "${GREEN}✔ Updated .bashrc for custom prompt.${RESET}"
-echo
+if [ "$SKIP_USER" != "1" ]; then
+  BASHRC_FILE="/home/$NEW_USER_NAME/.bashrc"
+  cat << 'EOF' >> "$BASHRC_FILE"
+# Custom prompt: user@hostname in color
+export PS1='\[\e[32m\]\u@\h\[\e[0m\]:\[\e[34m\]\w\[\e[0m\]\$ '
+EOF
+  chown "$NEW_USER_NAME:$NEW_USER_NAME" "$BASHRC_FILE"
+  echo -e "${GREEN}✔ Updated .bashrc for custom prompt.${RESET}"
+fi
 
+echo
 # --------------------------
 # GitHub credentials
 # --------------------------
@@ -148,7 +153,9 @@ echo -e "${GREEN}✔ Git configured.${RESET}"
 
 echo -e "${BLUE}${BOLD}🔹 Step 5/7:${RESET} Preparing /var/backups/github..."
 mkdir -p /var/backups/github
-usermod -a -G "$GROUP_NAME" "$NEW_USER_NAME"
+if [ "$SKIP_USER" != "1" ]; then
+  usermod -a -G "$GROUP_NAME" "$NEW_USER_NAME"
+fi
 chown root:"$GROUP_NAME" /var/backups/github
 chmod 2770 /var/backups/github && echo -e "${GREEN}✔ Directory ready.${RESET}"
 
@@ -157,14 +164,14 @@ chown root:root /var/backups
 chmod 755 /var/backups && echo -e "${GREEN}✔ Secured.${RESET}"
 
 echo -e "${BLUE}${BOLD}🔹 Step 7/7:${RESET} Testing access..."
-if sudo -u "$NEW_USER_NAME" test -w /var/backups/github; then
+if [ "$SKIP_USER" != "1" ] && sudo -u "$NEW_USER_NAME" test -w /var/backups/github; then
   echo -e "${GREEN}✔ Write access OK.${RESET}"
 else
-  echo -e "${RED}✖ Write access failed.${RESET}"
-  echo -e "${YELLOW}ℹ run 'newgrp $GROUP_NAME' or re-login${RESET}"
+  echo -e "${YELLOW}ℹ No write test needed or skipped for existing user.${RESET}"
 fi
 
 echo -e "${MAGENTA}${BOLD}############################################################${RESET}"
 echo -e "${MAGENTA}${BOLD}#                   Setup Complete                     #${RESET}"
 echo -e "${MAGENTA}${BOLD}############################################################${RESET}"
+
 echo -e "${BLUE}Summary:${RESET} Hostname=$NEW_HOSTNAME, User=$NEW_USER_NAME, Group=$GROUP_NAME, Shell=$(getent passwd "$NEW_USER_NAME" | cut -d: -f7)"
