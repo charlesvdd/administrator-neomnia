@@ -2,7 +2,6 @@
 
 > *Automated Linux onboarding scripts, proudly forged at **Neonia***
 
-![Neonia Banner](https://placehold.co/1000x200?text=NEONIA+ADMINISTRATOR+TOOLKIT)
 
 ---
 
