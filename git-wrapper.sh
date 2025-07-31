@@ -1,106 +1,132 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
+# git-wrapper.sh – NEOMNIA™ Secure GitHub Backup & Release Helper
+# Version: 1.0.0
+# -----------------------------------------------------------------------------
 # MIT License
-#
 # Copyright (c) 2025 Charles VDD
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the “Software”), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # -----------------------------------------------------------------------------
 
 set -euo pipefail
 
-# -----------------------------------------------------------------------------
-# NEOMNIA ASCII Banner
-# -----------------------------------------------------------------------------
-echo -e "NEOMNIA: ███╗   ██╗███████╗ ██████╗ ███╗   ███╗███╗   ██╗██╗ █████╗"
-echo -e "NEOMNIA: ████╗  ██║██╔════╝██╔═══██╗████╗ ████║████╗  ██║██║██╔══██╗"
-echo -e "NEOMNIA: ██╔██╗ ██║█████╗  ██║   ██║██╔████╔██║██╔██╗ ██║██║███████║"
-echo -e "NEOMNIA: ██║╚██╗██║██╔══╝  ██║   ██║██║╚██╔╝██║██║╚██╗██║██║██╔══██║"
-echo -e "NEOMNIA: ██║ ╚████║███████╗╚██████╔╝██║ ╚═╝ ██║██║ ╚████║██║██║  ██║"
-echo -e "NEOMNIA: ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝"
-echo -e "NEOMNIA: Backup Script Initialisation"
-echo
+# ======================  CONFIGURABLE  =======================================
+BACKUP_DIR="/var/backups/github"              # dossier de sauvegarde
+WRAPPER_REPO="charlesvdd/administrator-neomnia" # repo du wrapper pour les releases
+DEFAULT_BUMP="patch"                           # bump par défaut si --release sans --bump
+# =============================================================================
 
-# Elevate to root if not already
-if [ "$EUID" -ne 0 ]; then
-  echo "NEOMNIA: 🔄 Relaunching script as root..."
+# -----------------------  ASCII BANNER  --------------------------------------
+cat <<'EOF'
+NEOMNIA: ███╗   ██╗███████╗ ██████╗ ███╗   ███╗███╗   ██╗██╗ █████╗
+NEOMNIA: ████╗  ██║██╔════╝██╔═══██╗████╗ ████║████╗  ██║██║██╔══██╗
+NEOMNIA: ██╔██╗ ██║█████╗  ██║   ██║██╔████╔██║██╔██╗ ██║██║███████║
+NEOMNIA: ██║╚██╗██║██╔══╝  ██║   ██║██║╚██╔╝██║██║╚██╗██║██║██╔══██║
+NEOMNIA: ██║ ╚████║███████╗╚██████╔╝██║ ╚═╝ ██║██║ ╚████║██║██║  ██║
+NEOMNIA: ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝
+EOF
+printf "NEOMNIA: Git‑Wrapper initialisation (v%s)\n\n" "${VERSION:-1.0.0}"
+
+# -----------------------  ROOT PRIVILEGES  -----------------------------------
+if [[ $EUID -ne 0 ]]; then
+  echo "NEOMNIA: 🔄 Re-executing as root…"
   exec sudo bash "$0" "$@"
 fi
 
-echo "NEOMNIA: Running as root"
-
 ORIGINAL_USER="${SUDO_USER:-$(id -un)}"
 USER_HOME=$(eval echo "~$ORIGINAL_USER")
-echo "NEOMNIA: Original user detected as $ORIGINAL_USER"
 
-# ----------------------------------------------------------------------------
-# Install Git & GitHub CLI if missing
-# ----------------------------------------------------------------------------
-command -v git  &> /dev/null || { echo "NEOMNIA: 🔄 Installing git..."; apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y git; }
-command -v gh   &> /dev/null || { echo "NEOMNIA: 🔄 Installing gh..."; apt-get install -y curl && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list && apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y gh; }
-echo "NEOMNIA: ✅ git & gh ready"
+# -----------------------  INSTALL DEPENDENCIES  -----------------------------
+install_pkg() {
+  apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y "$@"
+}
 
-# ----------------------------------------------------------------------------
-# Authenticate with GitHub
-# ----------------------------------------------------------------------------
-echo "NEOMNIA: 🔐 Authenticate GitHub CLI"
-if [[ -z "${GITHUB_TOKEN:-}" ]]; then
-  gh auth login
-else
-  echo "$GITHUB_TOKEN" | gh auth login --with-token
+command -v git >/dev/null 2>&1 || { echo "NEOMNIA: Installing git…"; install_pkg git; }
+command -v gh  >/dev/null 2>&1 || {
+  echo "NEOMNIA: Installing GitHub CLI (gh)…";
+  install_pkg curl gnupg;
+  curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+  chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+  install_pkg gh
+}
+
+echo "NEOMNIA: ✅ git & gh prêts"
+
+# -----------------------  AUTHENTICATION  -------------------------------------
+if ! gh auth status &>/dev/null; then
+  echo "NEOMNIA: 🔐 Authentification à GitHub CLI… (GH_TOKEN si défini sinon prompt)"
+  if [[ -n "${GH_TOKEN:-}" ]]; then
+    echo "$GH_TOKEN" | gh auth login --with-token >/dev/null
+  else
+    gh auth login
+  fi
 fi
 
-echo "NEOMNIA: ✅ Authenticated as $(gh auth status --hostname github.com | grep Username)"
+echo "NEOMNIA: ✅ Authentifié en tant que $(gh api user --jq '.login')"
 
-# ----------------------------------------------------------------------------
-# Prepare backup directory
-# ----------------------------------------------------------------------------
-BACKUP_DIR="/var/backups/github"
-echo "NEOMNIA: Setting up $BACKUP_DIR"
-mkdir -p "$BACKUP_DIR"
-chown "$ORIGINAL_USER":"$ORIGINAL_USER" "$BACKUP_DIR"
-chmod 770 "$BACKUP_DIR"
+# -----------------------  OPTIONS PARSING  -----------------------------------
+CREATE_RELEASE=false
+BUMP="" # major|minor|patch
+VERSION_TAG=""
 
-echo "NEOMNIA: ✅ Backup directory ready"
+while [[ $# -gt 0 && $1 == --* ]]; do
+  case $1 in
+    --release) CREATE_RELEASE=true ; shift ;;
+    --bump)    BUMP=$2 ; shift 2 ;;
+    --version) VERSION_TAG=$2 ; shift 2 ;;
+    *) break ;;
+  esac
+done
 
-# ----------------------------------------------------------------------------
-# Clone or update a single repository
-# ----------------------------------------------------------------------------
-if [ "$#" -lt 1 ]; then
-  echo "NEOMNIA: Usage: $0 owner/repo"
+if [[ $CREATE_RELEASE == true && -z $VERSION_TAG && -z $BUMP ]]; then
+  BUMP=$DEFAULT_BUMP
+fi
+
+# -----------------------  BACKUP LOGIC  --------------------------------------
+if [[ $# -lt 1 ]]; then
+  echo "NEOMNIA: Usage: $0 [--release] [--bump major|minor|patch|none] [--version x.y.z] owner/repo [owner2/repo2 …]"
   exit 1
 fi
-do
-  REPO="$1"
+
+mkdir -p "$BACKUP_DIR"
+
+for REPO in "$@"; do
   TARGET="$BACKUP_DIR/$(basename "$REPO")"
-  echo "NEOMNIA: Processing $REPO"
-  if [ -d "$TARGET/.git" ]; then
-    echo "NEOMNIA: • Pulling updates"
+  echo "NEOMNIA: 📦 $REPO → $TARGET"
+  if [[ -d "$TARGET/.git" ]]; then
+    echo "NEOMNIA: ↪️  Pulling updates…"
     git -C "$TARGET" pull --ff-only
   else
-    echo "NEOMNIA: • Cloning"
+    echo "NEOMNIA: ⬇️  Cloning…"
     gh repo clone "$REPO" "$TARGET"
   fi
-  shift
-finished
+done
 
-# Fix permissions recursively
 chown -R "$ORIGINAL_USER":"$ORIGINAL_USER" "$BACKUP_DIR"
 chmod -R 770 "$BACKUP_DIR"
 
-echo "NEOMNIA: ✅ Done! Repository(ies) are in $BACKUP_DIR"
+echo "NEOMNIA: ✅ Backups terminés dans $BACKUP_DIR"
+
+# -----------------------  RELEASE SECTION  -----------------------------------
+if [[ $CREATE_RELEASE == true ]]; then
+  echo "NEOMNIA: 🔄 Publication d'une nouvelle version du wrapper…"
+  CURRENT_TAG=$(gh release list --repo "$WRAPPER_REPO" --limit 1 --json tagName --jq '.[0].tagName' || echo "v0.0.0")
+  [[ $CURRENT_TAG =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] && {
+    MAJOR=${BASH_REMATCH[1]} ; MINOR=${BASH_REMATCH[2]} ; PATCH=${BASH_REMATCH[3]}
+  } || { MAJOR=0; MINOR=0; PATCH=0; }
+
+  if [[ -n $VERSION_TAG ]]; then
+    NEW_TAG="v$VERSION_TAG"
+  else
+    case "$BUMP" in
+      major) ((MAJOR++)); MINOR=0; PATCH=0 ;;
+      minor) ((MINOR++)); PATCH=0           ;;
+      patch|*) ((PATCH++))                  ;;
+    esac
+    NEW_TAG="v$MAJOR.$MINOR.$PATCH"
+  fi
+
+  echo "NEOMNIA: Création du tag $NEW_TAG sur $WRAPPER_REPO…"
+  gh release create "$NEW_TAG" --repo "$WRAPPER_REPO" --generate-notes
+  echo "NEOMNIA: ✅ Release $NEW_TAG publiée !"
+fi
