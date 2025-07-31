@@ -1,4 +1,4 @@
-# 🤖 **Neonia Administrator Toolkit**
+# 🤖 **Neomnia Administrator Toolkit**
 
 > *Automated Linux onboarding scripts, proudly forged at **Neonia***
 
