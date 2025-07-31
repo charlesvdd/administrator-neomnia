@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
 # git-wrapper.sh – NEOMNIA™ Secure GitHub Backup & Release Helper
-# Version: 1.0.0
+# Version: 1.0.1
 # -----------------------------------------------------------------------------
 # MIT License
 # Copyright (c) 2025 Charles VDD
@@ -10,9 +10,9 @@
 set -euo pipefail
 
 # ======================  CONFIGURABLE  =======================================
-BACKUP_DIR="/var/backups/github"              # dossier de sauvegarde
+BACKUP_DIR="/var/backups/github"               # dossier de sauvegarde
 WRAPPER_REPO="charlesvdd/administrator-neomnia" # repo du wrapper pour les releases
-DEFAULT_BUMP="patch"                           # bump par défaut si --release sans --bump
+DEFAULT_BUMP="patch"                            # bump par défaut si --release sans --bump
 # =============================================================================
 
 # -----------------------  ASCII BANNER  --------------------------------------
@@ -24,7 +24,7 @@ NEOMNIA: ██║╚██╗██║██╔══╝  ██║   ██║
 NEOMNIA: ██║ ╚████║███████╗╚██████╔╝██║ ╚═╝ ██║██║ ╚████║██║██║  ██║
 NEOMNIA: ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝
 EOF
-printf "NEOMNIA: Git‑Wrapper initialisation (v%s)\n\n" "${VERSION:-1.0.0}"
+printf "NEOMNIA: Git‑Wrapper initialisation (v%s)\n\n" "${VERSION:-1.0.1}"
 
 # -----------------------  ROOT PRIVILEGES  -----------------------------------
 if [[ $EUID -ne 0 ]]; then
@@ -53,16 +53,30 @@ command -v gh  >/dev/null 2>&1 || {
 echo "NEOMNIA: ✅ git & gh prêts"
 
 # -----------------------  AUTHENTICATION  -------------------------------------
-if ! gh auth status &>/dev/null; then
-  echo "NEOMNIA: 🔐 Authentification à GitHub CLI… (GH_TOKEN si défini sinon prompt)"
+ensure_gh_auth() {
+  # 1. Si GH_TOKEN fourni, tester
   if [[ -n "${GH_TOKEN:-}" ]]; then
-    echo "$GH_TOKEN" | gh auth login --with-token >/dev/null
-  else
-    gh auth login
+    if gh api user >/dev/null 2>&1; then
+      echo "NEOMNIA: ✅ Auth via GH_TOKEN pour $(gh api user --jq '.login')"
+      return
+    else
+      echo "NEOMNIA: 🚫 GH_TOKEN fourni mais invalide – on ignore."
+      unset GH_TOKEN
+    fi
   fi
-fi
 
-echo "NEOMNIA: ✅ Authentifié en tant que $(gh api user --jq '.login')"
+  # 2. Si déjà loggé (clé en cache)
+  if gh auth status -h github.com >/dev/null 2>&1; then
+    echo "NEOMNIA: ✅ Déjà authentifié en tant que $(gh api user --jq '.login')"
+    return
+  fi
+
+  # 3. Sinon lancer le login interactif
+  echo "NEOMNIA: 🔐 Aucune authentification valide trouvée. Lancement de 'gh auth login'…"
+  gh auth login -h github.com -p https
+}
+
+ensure_gh_auth
 
 # -----------------------  OPTIONS PARSING  -----------------------------------
 CREATE_RELEASE=false
@@ -110,7 +124,7 @@ echo "NEOMNIA: ✅ Backups terminés dans $BACKUP_DIR"
 # -----------------------  RELEASE SECTION  -----------------------------------
 if [[ $CREATE_RELEASE == true ]]; then
   echo "NEOMNIA: 🔄 Publication d'une nouvelle version du wrapper…"
-  CURRENT_TAG=$(gh release list --repo "$WRAPPER_REPO" --limit 1 --json tagName --jq '.[0].tagName' || echo "v0.0.0")
+  CURRENT_TAG=$(gh release list --repo "$WRAPPER_REPO" --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || echo "v0.0.0")
   [[ $CURRENT_TAG =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] && {
     MAJOR=${BASH_REMATCH[1]} ; MINOR=${BASH_REMATCH[2]} ; PATCH=${BASH_REMATCH[3]}
   } || { MAJOR=0; MINOR=0; PATCH=0; }
