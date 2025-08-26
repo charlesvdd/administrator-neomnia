@@ -92,9 +92,12 @@ fi
 
 echo "%$GROUP_NAME ALL=(ALL) NOPASSWD:ALL" | tee "/etc/sudoers.d/$GROUP_NAME"
 usermod -a -G "$GROUP_NAME" "$NEW_USER_NAME"
+
+# Permissions sur /opt avec ACL
 chown -R root:"$GROUP_NAME" /opt
 chmod -R 2775 /opt
-ok "Droits récursifs appliqués sur /opt au groupe $GROUP_NAME."
+setfacl -R -m g:$GROUP_NAME:rwx /opt
+ok "Droits récursifs appliqués sur /opt avec ACL pour $GROUP_NAME."
 
 
 ##########################################
@@ -104,8 +107,8 @@ log "Mise à jour du système..."
 apt update && apt upgrade -y
 ok "Système à jour."
 
-log "Installation des outils de base..."
-apt install -y tree ufw git curl wget jq
+log "Installation des outils de base (curl, git, ufw, tree, wget, jq, acl)..."
+apt install -y tree ufw git curl wget jq acl
 ok "Paquets installés."
 
 log "Configuration du pare-feu UFW..."
@@ -144,6 +147,6 @@ fi
 echo -e "\n${MAGENTA}${BOLD}############## Vérification finale ##############${RESET}"
 [[ -n "$NEW_HOSTNAME" ]] && ok "Hostname configuré."
 [[ -n "$NEW_USER_NAME" ]] && ok "Utilisateur $NEW_USER_NAME prêt."
-[[ -n "$GROUP_NAME" ]] && ok "Groupe $GROUP_NAME appliqué à /opt."
+[[ -n "$GROUP_NAME" ]] && ok "Groupe $GROUP_NAME appliqué à /opt avec ACL."
 [[ -n "$USER_LOGIN" ]] && ok "GitHub API valide pour $USER_LOGIN."
 echo -e "${MAGENTA}${BOLD}##############   Setup complet   ##############${RESET}\n"
