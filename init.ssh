@@ -1,122 +1,260 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-#!/bin/bash
-set -e
 ##########################################################################
-#  Script d’installation et configuration système pour Azure              #
+#  Neomnia — Script d’installation & configuration système (Azure)        #
 #  Licence : Charles Van den Driessche                                    #
 #  Auteur  : @neomnia                                                     #
+#  Repo    : https://github.com/charlesvdd/administrator-neomnia/tree/azure
+#  Version : 2025-08-27
 ##########################################################################
 
-# Ensure running under bash
-if [ -z "$BASH_VERSION" ]; then
-  echo "Switching to bash..."
+# ──────────────────────────────────────────────────────────────────────────
+# 🎨 Couleurs & style (ANSI)
+# ──────────────────────────────────────────────────────────────────────────
+RED="\033[31m"; GREEN="\033[32m"; YELLOW="\033[33m"; BLUE="\033[34m"
+MAGENTA="\033[35m"; CYAN="\033[36m"; BOLD="\033[1m"; RESET="\033[0m"
+
+# Bannière ASCII (ACSS 😉)
+banner() {
+  cat <<'EOF'
+ _   _                           _           
+| \ | | ___  _ __  _ __ ___   __| | ___ _ __ 
+|  \| |/ _ \| '_ \| '__/ _ \ / _` |/ _ \ '__|
+| |\  | (_) | | | | | | (_) | (_| |  __/ |   
+|_| \_|\___/|_| |_|_|  \___/ \__,_|\___|_|   
+            Administrator • Azure Setup
+EOF
+}
+
+# ──────────────────────────────────────────────────────────────────────────
+# 📝 Logging (chaque ligne préfixée [Neomnia], horodatée, + fichier log)
+# ──────────────────────────────────────────────────────────────────────────
+LOGFILE="/var/log/neomnia-setup.log"
+mkdir -p "$(dirname "$LOGFILE")" || true
+touch "$LOGFILE" || true
+
+_log_line() {
+  # $1 = message déjà coloré éventuellement
+  local ts
+  ts="$(date '+%F %T')"
+  # Écrit stdout + fichier log (sans codes ANSI dans le fichier)
+  echo -e "${CYAN}[Neomnia]${RESET} $1"
+  # Stripping ANSI for logfile
+  echo -e "[$ts] [Neomnia] $(echo -e "$1" | sed -r 's/\x1B\[[0-9;]*[mK]//g')" >> "$LOGFILE"
+}
+
+log()  { _log_line "$@"; }
+ok()   { _log_line "${GREEN}✔${RESET} $*"; }
+warn() { _log_line "${YELLOW}⚠${RESET} $*"; }
+err()  { _log_line "${RED}✖${RESET} $*"; }
+
+trap 'err "Une erreur est survenue (ligne ${BASH_LINENO[0]}). Consulter $LOGFILE."' ERR
+
+# ──────────────────────────────────────────────────────────────────────────
+# 🛡️ Prérequis & utilitaires
+# ──────────────────────────────────────────────────────────────────────────
+require_root() {
+  if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+    err "Ce script doit être exécuté en root (sudo)."
+    exit 1
+  fi
+}
+
+require_cmd() {
+  # usage: require_cmd curl jq
+  for c in "$@"; do
+    command -v "$c" >/dev/null 2>&1 || {
+      err "Commande requise manquante: $c"
+      exit 1
+    }
+  done
+}
+
+validate_hostname() {
+  local h="$1"
+  # règles simples host RFC—lettres, chiffres, tirets, points; pas de tiret en début/fin de label
+  if [[ ! "$h" =~ ^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$ ]]; then
+    return 1
+  fi
+  return 0
+}
+
+# ──────────────────────────────────────────────────────────────────────────
+# 🌐 Base RAW du dépôt (branche azure) pour récupérer des fichiers si besoin
+# ──────────────────────────────────────────────────────────────────────────
+GITHUB_OWNER="charlesvdd"
+GITHUB_REPO="administrator-neomnia"
+GITHUB_BRANCH="azure"
+RAW_BASE="https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}"
+
+fetch_raw() {
+  # usage: fetch_raw path/vers/fichier [/chemin/dest]
+  local remote_path="$1"
+  local dest="${2:-$(basename "$remote_path")}"
+  log "Téléchargement depuis le dépôt (raw): ${BLUE}${RAW_BASE}/${remote_path}${RESET} → ${dest}"
+  curl -fsSL "${RAW_BASE}/${remote_path}" -o "$dest"
+  ok "Fichier récupéré: $dest"
+}
+
+# ──────────────────────────────────────────────────────────────────────────
+# 🚀 Début
+# ──────────────────────────────────────────────────────────────────────────
+require_root
+banner | while IFS= read -r line; do log "$line"; done
+
+# S’assurer qu’on est bien sous bash (au cas où)
+if [[ -z "${BASH_VERSION:-}" ]]; then
+  log "Basculer vers bash…"
   exec bash "$0" "$@"
 fi
 
-##########################################
-#      🎨 Définition des couleurs         #
-##########################################
-RED="\033[31m"
-GREEN="\033[32m"
-YELLOW="\033[33m"
-BLUE="\033[34m"
-MAGENTA="\033[35m"
-CYAN="\033[36m"
-BOLD="\033[1m"
-RESET="\033[0m"
-
-log() {
-  echo -e "${CYAN}[Neomnia]${RESET} $1"
-}
-
-ok() {
-  echo -e "${CYAN}[Neomnia]${RESET} ${GREEN}✔ $1${RESET}"
-}
-
-warn() {
-  echo -e "${CYAN}[Neomnia]${RESET} ${YELLOW}⚠ $1${RESET}"
-}
-
-err() {
-  echo -e "${CYAN}[Neomnia]${RESET} ${RED}✖ $1${RESET}"
-}
-
-##########################################
-#           Hostname setup               #
-##########################################
-read -p "Nom du nouvel hostname : " NEW_HOSTNAME
-log "Configuration du hostname → $NEW_HOSTNAME"
-hostnamectl set-hostname "$NEW_HOSTNAME"
-grep -q "127\.0\.1\.1" /etc/hosts \
-  && sed -i "s/127\.0\.1\.1.*/127.0.1.1\t$NEW_HOSTNAME/" /etc/hosts \
-  || echo -e "127.0.1.1\t$NEW_HOSTNAME" >> /etc/hosts
-echo "$NEW_HOSTNAME" > /etc/hostname
-ok "Hostname configuré en $NEW_HOSTNAME"
-
-##########################################
-#          Group setup                   #
-##########################################
-read -p "Nom du groupe (défaut gitusers) : " GROUP_NAME
-GROUP_NAME=${GROUP_NAME:-gitusers}
-if ! getent group "$GROUP_NAME" >/dev/null; then
-  groupadd "$GROUP_NAME"
-  ok "Groupe $GROUP_NAME créé."
-else
-  warn "Groupe $GROUP_NAME déjà existant."
-fi
-
-# Ajout de l'utilisateur par défaut d'Azure (azureuser) au groupe
-usermod -a -G "$GROUP_NAME" azureuser
-
-# Permissions sur /opt avec ACL
-chown -R root:"$GROUP_NAME" /opt
-chmod -R 2775 /opt
-setfacl -R -m g:$GROUP_NAME:rwx /opt
-ok "Droits récursifs appliqués sur /opt avec ACL pour $GROUP_NAME."
-
-##########################################
-#            Packages & UFW              #
-##########################################
-log "Mise à jour du système..."
-apt update && apt upgrade -y
+# ──────────────────────────────────────────────────────────────────────────
+# 📦 Mises à jour & paquets de base
+# ──────────────────────────────────────────────────────────────────────────
+log "Mise à jour du système…"
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y >>"$LOGFILE" 2>&1
+apt-get upgrade -y >>"$LOGFILE" 2>&1
 ok "Système à jour."
 
-log "Installation des outils de base (curl, git, ufw, tree, wget, jq, acl)..."
-apt install -y tree ufw git curl wget jq acl
+log "Installation des outils (curl, git, ufw, tree, wget, jq, acl)…"
+apt-get install -y curl git ufw tree wget jq acl >>"$LOGFILE" 2>&1
 ok "Paquets installés."
 
-log "Configuration du pare-feu UFW..."
-ufw allow OpenSSH
-ufw --force enable
+# ──────────────────────────────────────────────────────────────────────────
+# 🖥️ Hostname
+# ──────────────────────────────────────────────────────────────────────────
+read -r -p "$(echo -e "${CYAN}[Neomnia]${RESET} Nom du nouvel hostname : ")" NEW_HOSTNAME
+if ! validate_hostname "$NEW_HOSTNAME"; then
+  err "Hostname invalide: $NEW_HOSTNAME"
+  exit 1
+fi
+log "Configuration du hostname → ${BOLD}$NEW_HOSTNAME${RESET}"
+hostnamectl set-hostname "$NEW_HOSTNAME"
+if grep -qE '^127\.0\.1\.1' /etc/hosts; then
+  sed -i "s/^127\.0\.1\.1.*/127.0.1.1\t$NEW_HOSTNAME/" /etc/hosts
+else
+  echo -e "127.0.1.1\t$NEW_HOSTNAME" >> /etc/hosts
+fi
+echo "$NEW_HOSTNAME" > /etc/hostname
+ok "Hostname configuré."
+
+# ──────────────────────────────────────────────────────────────────────────
+# 👥 Groupe + ACL sur /opt
+# ──────────────────────────────────────────────────────────────────────────
+read -r -p "$(echo -e "${CYAN}[Neomnia]${RESET} Nom du groupe (défaut gitusers) : ")" GROUP_NAME
+GROUP_NAME="${GROUP_NAME:-gitusers}"
+if getent group "$GROUP_NAME" >/dev/null; then
+  warn "Groupe ${GROUP_NAME} déjà existant."
+else
+  groupadd "$GROUP_NAME"
+  ok "Groupe ${GROUP_NAME} créé."
+fi
+
+# Détecter l’utilisateur Azure par défaut si présent
+AZ_USER=""
+for u in azureuser admin ubuntu; do
+  id "$u" >/dev/null 2>&1 && AZ_USER="$u" && break
+done
+if [[ -n "$AZ_USER" ]]; then
+  usermod -a -G "$GROUP_NAME" "$AZ_USER"
+  ok "Utilisateur $AZ_USER ajouté au groupe ${GROUP_NAME}."
+else
+  warn "Aucun utilisateur 'azureuser/admin/ubuntu' détecté — saute l’ajout au groupe."
+fi
+
+# Droits & ACL récurrents sur /opt
+mkdir -p /opt
+chown -R root:"$GROUP_NAME" /opt
+chmod -R 2775 /opt
+setfacl -R -m g:"$GROUP_NAME":rwx /opt
+setfacl -dR -m g:"$GROUP_NAME":rwx /opt
+ok "Droits récursifs & ACL appliqués sur /opt pour ${GROUP_NAME}."
+
+# ──────────────────────────────────────────────────────────────────────────
+# 🔥 Pare-feu UFW
+# ──────────────────────────────────────────────────────────────────────────
+log "Configuration du pare-feu UFW…"
+ufw allow OpenSSH >>"$LOGFILE" 2>&1 || true
+# (optionnel) ouvrir HTTP/HTTPS maintenant, sinon commente les deux lignes suivantes
+# ufw allow 80/tcp >>"$LOGFILE" 2>&1 || true
+# ufw allow 443/tcp >>"$LOGFILE" 2>&1 || true
+ufw --force enable >>"$LOGFILE" 2>&1 || ufw status verbose >>"$LOGFILE" 2>&1
 ok "Pare-feu activé."
 
-##########################################
-#        Git Config + GitHub API         #
-##########################################
-read -p "Email Git : " GIT_EMAIL
-read -p "Nom Git : " GIT_CONF_USERNAME
+# ──────────────────────────────────────────────────────────────────────────
+# 🧰 Git config + vérification GitHub API & scopes
+# ──────────────────────────────────────────────────────────────────────────
+read -r -p "$(echo -e "${CYAN}[Neomnia]${RESET} Email Git : ")" GIT_EMAIL
+read -r -p "$(echo -e "${CYAN}[Neomnia]${RESET} Nom Git (user.name) : ")" GIT_CONF_USERNAME
 git config --global user.email "$GIT_EMAIL"
 git config --global user.name "$GIT_CONF_USERNAME"
 ok "Configuration Git appliquée."
 
-read -p "GitHub username: " GITHUB_USERNAME
-read -s -p "GitHub API key: " GITHUB_API_KEY
+read -r -p "$(echo -e "${CYAN}[Neomnia]${RESET} GitHub username : ")" GITHUB_USERNAME
+read -r -s -p "$(echo -e "${CYAN}[Neomnia]${RESET} GitHub API token (masqué) : ")" GITHUB_API_KEY
 echo
-log "Vérification des droits GitHub API..."
-RESPONSE=$(curl -s -H "Authorization: token $GITHUB_API_KEY" https://api.github.com/user)
-if echo "$RESPONSE" | jq -e '.login' >/dev/null; then
-  USER_LOGIN=$(echo "$RESPONSE" | jq -r '.login')
-  ok "Connexion GitHub OK → $USER_LOGIN"
-else
-  err "Impossible de valider la clé API GitHub."
+
+require_cmd curl jq
+
+log "Vérification de l’authentification GitHub…"
+# On récupère headers (scopes) + body
+GH_RESP_HEADERS="$(mktemp)"
+GH_RESP_BODY="$(mktemp)"
+curl -fsSL -D "$GH_RESP_HEADERS" -H "Authorization: token $GITHUB_API_KEY" https://api.github.com/user -o "$GH_RESP_BODY" || {
+  err "Connexion à l’API GitHub impossible."
+  exit 1
+}
+USER_LOGIN="$(jq -r '.login // empty' < "$GH_RESP_BODY")"
+if [[ -z "$USER_LOGIN" ]]; then
+  err "Impossible de valider la clé API GitHub (login vide)."
+  cat "$GH_RESP_BODY" >>"$LOGFILE"
   exit 1
 fi
+ok "Connexion GitHub OK → ${BOLD}$USER_LOGIN${RESET}"
 
-##########################################
-#            Vérification finale          #
-##########################################
+# Lire les scopes depuis les headers
+GH_SCOPES="$(grep -i '^x-oauth-scopes:' "$GH_RESP_HEADERS" | cut -d':' -f2- | sed 's/^[[:space:]]*//')"
+if [[ -z "${GH_SCOPES// /}" ]]; then
+  warn "Aucun scope détecté dans les headers. (Token fine-grained ? GitHub peut masquer les scopes.)"
+else
+  log "Scopes détectés: ${MAGENTA}${GH_SCOPES}${RESET}"
+fi
+rm -f "$GH_RESP_HEADERS" "$GH_RESP_BODY"
+
+# Vérification simple de scopes utiles (indicatif)
+NEEDED=("repo" "workflow")
+MISSING=()
+for s in "${NEEDED[@]}"; do
+  if [[ "$GH_SCOPES" != *"$s"* ]]; then
+    MISSING+=("$s")
+  fi
+done
+if ((${#MISSING[@]})); then
+  warn "Scopes manquants (indicatif): ${MISSING[*]} — confirme dans GitHub si nécessaire."
+else
+  ok "Scopes essentiels présents (ou token fine-grained adéquat)."
+fi
+
+# ──────────────────────────────────────────────────────────────────────────
+# 🧩 (Optionnel) Exemple d’usage du RAW de ton dépôt
+# ──────────────────────────────────────────────────────────────────────────
+# Ex.: récupérer un script commun depuis /scripts/bootstrap.sh
+# if curl --head --silent --fail "${RAW_BASE}/scripts/bootstrap.sh" >/dev/null; then
+#   fetch_raw "scripts/bootstrap.sh" "/usr/local/bin/neomnia-bootstrap"
+#   chmod +x /usr/local/bin/neomnia-bootstrap
+#   ok "Bootstrap installé: /usr/local/bin/neomnia-bootstrap"
+# else
+#   warn "scripts/bootstrap.sh introuvable sur la branche ${GITHUB_BRANCH}."
+# fi
+
+# ──────────────────────────────────────────────────────────────────────────
+# ✅ Vérification finale
+# ──────────────────────────────────────────────────────────────────────────
 echo -e "\n${MAGENTA}${BOLD}############## Vérification finale ##############${RESET}"
-[[ -n "$NEW_HOSTNAME" ]] && ok "Hostname configuré."
-[[ -n "$GROUP_NAME" ]] && ok "Groupe $GROUP_NAME appliqué à /opt avec ACL."
-[[ -n "$USER_LOGIN" ]] && ok "GitHub API valide pour $USER_LOGIN."
+[[ -n "${NEW_HOSTNAME:-}" ]] && ok "Hostname configuré → ${NEW_HOSTNAME}"
+[[ -n "${GROUP_NAME:-}"   ]] && ok "Groupe ${GROUP_NAME} appliqué à /opt (ACL activées)."
+[[ -n "${USER_LOGIN:-}"   ]] && ok "GitHub API valide pour ${USER_LOGIN}"
+ok "Journal : ${LOGFILE}"
 echo -e "${MAGENTA}${BOLD}##############   Setup complet   ##############${RESET}\n"
