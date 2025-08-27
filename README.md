@@ -34,6 +34,10 @@ chmod +x init.ssh
 sudo ./init.ssh
 ```
 
+```bash
+curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/init/init.ssh -o init.ssh
+```
+
 ## Script Details
 The script performs the following steps:
 1. **Fetching the Script**: Downloads the `init.ssh` script directly from GitHub.
