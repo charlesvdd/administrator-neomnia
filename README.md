@@ -1,110 +1,52 @@
-# NEOMNIA™ Git-Wrapper
+![Logo](URL_TO_YOUR_LOGO)
 
-kickstarter for AZURE SYSTEM
+For AZURE SYSTEM
 
-![Git-Wrapper v1.0.0 – Secure GitOps Ready™](https://img.shields.io/badge/Git--Wrapper_v1.0.0-Secure_GitOps_Ready%E2%84%A2-blue)
+[![Release Notes](https://img.shields.io/badge/release-1.0.1201-blue)](URL_TO_RELEASE_NOTES)
+[![License](https://img.shields.io/badge/license-MIT-green)](URL_TO_LICENSE)
+[![Downloads](https://img.shields.io/badge/downloads-1000+-brightgreen)](URL_TO_DOWNLOAD_STATS)
+[![GitHub Stars](https://img.shields.io/badge/stars-500+-yellow)](URL_TO_GITHUB_STARS)
+[![Open Issues](https://img.shields.io/badge/issues-open-red)](URL_TO_ISSUES)
 
-> **Secure GitHub Backup & Wrapper Tool**
-> Version **1.0.0** – © NEOMNIA 2025
+> **Note**: Ce script est conçu pour configurer rapidement un serveur Ubuntu (VPS) en automatisant les mises à jour du système, l'installation de paquets essentiels et la configuration du pare-feu.
 
----
+# 🖥️ Install “init.ssh” Script via RAW GitHub
 
-## 🚀 Présentation
+## Overview
+This script automates the initial setup of an Ubuntu server (VPS) by performing essential tasks such as updating the system, installing necessary packages, and configuring a basic firewall. It is designed to be fetched and executed directly from GitHub for quick and easy deployment.
 
-**NEOMNIA™ Git-Wrapper** est un script Bash élégant et sécurisé qui permet de **cloner** ou **mettre à jour** en masse vos dépôts GitHub tout en protégeant votre Personal Access Token grâce à un chiffrement AES-256. Il intègre :
+## Features
+- **System Update**: Ensures your system is up-to-date with the latest packages.
+- **Essential Packages Installation**: Installs commonly required packages for server management.
+- **UFW Configuration**: Sets up a basic firewall to allow OpenSSH and enhance server security.
 
-* 🔒 Chiffrement du token GitHub (PAT) avec OpenSSL
-* 🛡️ Authentification automatique via GitHub CLI
-* 📁 Clonage OU mise à jour (`git pull`) de plusieurs dépôts
-* 🧾 Journalisation pas-à-pas avec emoji et logo NEOMNIA™
-* 🔐 Permissions sécurisées (770) sur le dossier de sauvegarde
-* 🔢 Versioning interne (`VERSION=1.0.0`)
+> **Note**: Previous versions included steps to create an “admins” group and adjust permissions in `/etc` and `/opt`, which could potentially break `sudo`. These steps have been removed in this version to ensure system stability.
 
----
+## Version History
+| Version | Description |
+|---------|-------------|
+| 1.0.1201 | Initial release with basic setup functionalities including system update, essential package installation, and UFW configuration. |
 
-## 📦 Installation rapide
-
-```bash
-# Exécution directe depuis GitHub RAW
-bash <(curl -s https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/main/git-wrapper.sh) owner/repo [owner2/repo2 ...]
-```
-
-> Remplace `owner/repo` par le ou les dépôts que tu souhaites sauvegarder.
-
----
-
-## 🛠️ Installation locale classique
+## 🚀 Execution Command
+To quickly set up your Ubuntu server, open a terminal on your machine (or your VPS) and run the following commands:
 
 ```bash
-# 1. Clone le dépôt
-git clone https://github.com/charlesvdd/administrator-neomnia.git
-cd administrator-neomnia
-
-# 2. Rends le script exécutable
-chmod +x git-wrapper.sh
-
-# 3. Lance-le
-./git-wrapper.sh owner/repo [owner2/repo2 ...]
+curl -fsSL -o init.ssh https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/init/init.ssh
+chmod +x init.ssh
+sudo ./init.ssh
 ```
 
----
+## Script Details
+The script performs the following steps:
+1. **Fetching the Script**: Downloads the `init.ssh` script directly from GitHub.
+2. **Setting Permissions**: Makes the script executable.
+3. **Running the Script**: Executes the script with root privileges to perform system setup tasks.
 
-## 📋 Modes de fonctionnement
+## Requirements
+- Ubuntu operating system
+- Internet connection to fetch the script and install packages
+- Root or sudo access
 
-1. **Première exécution** :
-   • Demande d’une passphrase → création du fichier `~/.config/neomnia/.passphrase`
-   • Demande d’un token GitHub → chiffrement dans `~/.config/neomnia/.token.enc`
-2. **Exécutions suivantes** :
-   • Déchiffrement transparent du token
-   • Authentification silencieuse (`gh auth login --with-token`)
-   • Clonage ou `pull` sur chaque dépôt passé en argument
-3. **Logs** : un fichier horodaté est créé dans `$HOME/github-backups`.
-
----
-
-## 🖥️ Exemple de sortie
-
-```
- _   _ ______ ______ ___  __  __ _ _           
-| \ | |  ____|  ____|__ \|  \/  (_) |          
-|  \| | |__  | |__     ) | \  / |_| | ___  ___ 
-| . ` |  __| |  __|   / /| |\/| | | |/ _ \/ __|
-| |\  | |____| |____ / /_| |  | | | |  __/\__ \
-|_| \_|______|______|____|_|  |_|_|_|\___||___/
-
-        🚀 GitHub Wrapper v1.0.0 - by NEOMNIA™
-
-🧩 ÉTAPE 1/5 – Vérification de la passphrase … ✅
-🧩 ÉTAPE 2/5 – Chargement du token GitHub … ✅
-🧩 ÉTAPE 3/5 – Authentification GitHub CLI … ✅
-🧩 ÉTAPE 4/5 – Récupération des dépôts … ✅
-🧩 ÉTAPE 5/5 – Ajustement des permissions … ✅
-🎉 NEOMNIA: Sauvegarde complétée avec succès.
-```
-
----
-
-## 💡 Bonnes pratiques
-
-* **Ne publie jamais** le fichier `~/.config/neomnia/.token.enc` : il est local.
-* Donne uniquement les **scopes nécessaires** à ton PAT (souvent `repo`, `workflow`, `read:org`).
-* Configure un **cron** ou un **systemd timer** pour automatiser les sauvegardes.
-* Incrémente la variable `VERSION` du script pour chaque release majeure.
-
----
-
-## 🗺️ Roadmap
-
-* [ ] Menu TUI (dialog/whiptail)
-* [ ] Notifications Slack/Discord/email
-* [ ] Support multi-utilisateur & multi-token
-* [ ] Intégration GitOps pour déploiement continu
-
----
-
-## 📜 Licence
-
-Ce projet est distribué sous licence **MIT**.
-Copyright © 2025 **NEOMNIA™**
-
-Pour toute question : [contact@neomnia.company](mailto:contact@neomnia.net)
+## Notes
+- Ensure you have a backup of any critical data before running setup scripts.
+- This script is intended for use on a fresh installation of Ubuntu to avoid conflicts with existing configurations.
