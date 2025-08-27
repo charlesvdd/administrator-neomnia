@@ -1,5 +1,7 @@
 # NEOMNIA™ Git-Wrapper
 
+kickstarter for AZURE SYSTEM
+
 ![Git-Wrapper v1.0.0 – Secure GitOps Ready™](https://img.shields.io/badge/Git--Wrapper_v1.0.0-Secure_GitOps_Ready%E2%84%A2-blue)
 
 > **Secure GitHub Backup & Wrapper Tool**
