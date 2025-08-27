@@ -31,7 +31,7 @@ This script automates the initial setup of an Ubuntu server (VPS) by performing 
 To quickly set up your Ubuntu server, open a terminal on your machine (or your VPS) and run the following commands:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/azure/init.ssh | sudo bash
+sudo curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/azure/init.ssh | sudo bash
 
 ```
 
