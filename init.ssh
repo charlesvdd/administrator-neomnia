@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 ##########################################################################
-#  Neomnia — Script d’installation & configuration système (Azure)        #
+#  Neomnia — Kickstarter Azure (install & setup)                          #
 #  Licence : Charles Van den Driessche                                    #
 #  Auteur  : @neomnia                                                     #
 #  Repo    : https://github.com/charlesvdd/administrator-neomnia/tree/azure
@@ -10,16 +10,15 @@ set -Eeuo pipefail
 ##########################################################################
 
 # ──────────────────────────────────────────────────────────────────────────
-# 🎨 Couleurs & style (ANSI)
+# 🎨 Couleurs
 # ──────────────────────────────────────────────────────────────────────────
 RED="\033[31m"; GREEN="\033[32m"; YELLOW="\033[33m"; BLUE="\033[34m"
 MAGENTA="\033[35m"; CYAN="\033[36m"; BOLD="\033[1m"; RESET="\033[0m"
 
 # ──────────────────────────────────────────────────────────────────────────
-# 📝 Logging (chaque ligne préfixée [Neomnia], horodatée, + fichier log)
+# 📝 Logging (console + fichier) — chaque ligne préfixée [Neomnia]
 # ──────────────────────────────────────────────────────────────────────────
 LOGFILE="/var/log/neomnia-setup.log"
-# Fallback si /var/log non accessible (exécution sans sudo, conteneur, etc.)
 if ! (mkdir -p "$(dirname "$LOGFILE")" && touch "$LOGFILE" 2>/dev/null); then
   LOGFILE="/tmp/neomnia-setup.log"
   mkdir -p "$(dirname "$LOGFILE")" || true
@@ -27,13 +26,10 @@ if ! (mkdir -p "$(dirname "$LOGFILE")" && touch "$LOGFILE" 2>/dev/null); then
 fi
 
 _log_line() {
-  # $* = message (peut contenir des couleurs)
   local ts; ts="$(date '+%F %T')"
   echo -e "${CYAN}[Neomnia]${RESET} $*"
-  # Strip ANSI dans le fichier log
   echo -e "[$ts] [Neomnia] $(echo -e "$*" | sed -r 's/\x1B\[[0-9;]*[mK]//g')" >> "$LOGFILE"
 }
-
 log()  { _log_line "$*"; }
 ok()   { _log_line "${GREEN}✔${RESET} $*"; }
 warn() { _log_line "${YELLOW}⚠${RESET} $*"; }
@@ -42,14 +38,13 @@ err()  { _log_line "${RED}✖${RESET} $*"; }
 trap 'err "Une erreur est survenue (ligne ${BASH_LINENO[0]}). Consulter $LOGFILE."' ERR
 
 # ──────────────────────────────────────────────────────────────────────────
-# 🌀 Spinner pour les longues commandes
+# 🌀 Spinner & mini animations
 # ──────────────────────────────────────────────────────────────────────────
 spinner() {
-  # spinner <pid>
-  local pid="$1" delay=0.1 spinstr='|/-\'
+  local pid="$1" delay=0.1 spin='|/-\'
   while kill -0 "$pid" 2>/dev/null; do
-    for (( i=0; i<${#spinstr}; i++ )); do
-      printf "\r${CYAN}[Neomnia]${RESET} ⏳ %c " "${spinstr:$i:1}"
+    for ((i=0; i<${#spin}; i++)); do
+      printf "\r${CYAN}[Neomnia]${RESET} ⏳ %c " "${spin:$i:1}"
       sleep "$delay"
     done
   done
@@ -57,17 +52,39 @@ spinner() {
 }
 
 run_with_spinner() {
-  # run_with_spinner "Message…" cmd args...
   local msg="$1"; shift
   log "$msg"
   ("$@" >>"$LOGFILE" 2>&1) &
   local pid=$!
   spinner "$pid"
   wait "$pid"
+  ok "$msg terminé."
+}
+
+typewriter() {
+  # petite animation “login/logo”
+  local text="$1" delay="${2:-0.02}" out=""
+  for ((i=0; i<${#text}; i++)); do
+    out+="${text:$i:1}"
+    printf "\r${CYAN}[Neomnia]${RESET} %s" "$out"
+    sleep "$delay"
+  done
+  echo
+}
+
+banner() {
+  cat <<'EOF' | while IFS= read -r line; do log "$line"; done
+ _   _                 _       _              _           
+| \ | | ___  _ __  ___| | __ _| |_ __ _ _ __ (_)_ __  ___ 
+|  \| |/ _ \| '_ \/ __| |/ _` | __/ _` | '_ \| | '_ \/ __|
+| |\  | (_) | | | \__ \ | (_| | || (_| | | | | | | | \__ \
+|_| \_|\___/|_| |_|___/_|\__,_|\__\__,_|_| |_|_|_| |_|___/
+                     Kickstarter • Azure
+EOF
 }
 
 # ──────────────────────────────────────────────────────────────────────────
-# 🛡️ Prérequis & utilitaires
+# 🛡️ Prérequis
 # ──────────────────────────────────────────────────────────────────────────
 require_root() {
   if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
@@ -77,30 +94,13 @@ require_root() {
 }
 
 require_cmd() {
-  # usage: require_cmd curl jq ufw
-  local missing=()
-  for c in "$@"; do
-    command -v "$c" >/dev/null 2>&1 || missing+=("$c")
-  done
-  if ((${#missing[@]})); then
-    err "Commandes manquantes: ${missing[*]}"
-    exit 1
-  fi
-}
-
-banner() {
-  cat <<'EOF' | while IFS= read -r line; do log "$line"; done
- _   _                           _           
-| \ | | ___  _ __  _ __ ___   __| | ___ _ __ 
-|  \| |/ _ \| '_ \| '__/ _ \ / _` |/ _ \ '__|
-| |\  | (_) | | | | | | (_) | (_| |  __/ |   
-|_| \_|\___/|_| |_|_|  \___/ \__,_|\___|_|   
-            Administrator • Azure Setup
-EOF
+  local miss=()
+  for c in "$@"; do command -v "$c" >/dev/null 2>&1 || miss+=("$c"); done
+  if ((${#miss[@]})); then err "Commandes manquantes: ${miss[*]}"; exit 1; fi
 }
 
 # ──────────────────────────────────────────────────────────────────────────
-# 🌐 Base RAW du dépôt (branche azure)
+# 🌐 RAW GitHub helpers (branche azure)
 # ──────────────────────────────────────────────────────────────────────────
 GITHUB_OWNER="charlesvdd"
 GITHUB_REPO="administrator-neomnia"
@@ -108,21 +108,16 @@ GITHUB_BRANCH="azure"
 RAW_BASE="https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}"
 
 fetch_raw() {
-  # fetch_raw path/vers/fichier [/chemin/dest]
-  local remote_path="$1"
-  local dest="${2:-$(basename "$remote_path")}"
-  log "Téléchargement RAW : ${BLUE}${RAW_BASE}/${remote_path}${RESET} → ${dest}"
-  curl -fsSL "${RAW_BASE}/${remote_path}" -o "$dest"
+  local remote="$1" dest="${2:-$(basename "$1")}"
+  log "Téléchargement RAW : ${BLUE}${RAW_BASE}/${remote}${RESET} → ${dest}"
+  curl -fsSL "${RAW_BASE}/${remote}" -o "$dest"
   ok "Fichier récupéré: $dest"
 }
-
 run_raw() {
-  # run_raw path/vers/script.sh  (télécharge et exécute)
-  local remote_path="$1"
-  local tmp="/tmp/$(basename "$remote_path")"
-  fetch_raw "$remote_path" "$tmp"
+  local remote="$1" tmp="/tmp/$(basename "$remote")"
+  fetch_raw "$remote" "$tmp"
   chmod +x "$tmp"
-  log "Exécution du script RAW: ${BLUE}$remote_path${RESET}"
+  log "Exécution du script RAW: ${BLUE}$remote${RESET}"
   bash "$tmp"
 }
 
@@ -131,118 +126,63 @@ run_raw() {
 # ──────────────────────────────────────────────────────────────────────────
 require_root
 banner
+typewriter "Login Neomnia… OK" 0.03
+typewriter "Chargement des modules… OK" 0.02
+typewriter "Initialisation Kickstarter Azure… OK" 0.02
 
 export DEBIAN_FRONTEND=noninteractive
 
-run_with_spinner "Mise à jour du système…" apt-get update -y
-run_with_spinner "Installation des mises à niveau…" apt-get upgrade -y
-
-# Paquets de base (inclut ce qu’on utilise plus bas)
-run_with_spinner "Installation des outils (curl, git, ufw, tree, wget, jq, acl)…" \
+# Mises à jour + paquets
+run_with_spinner "Mise à jour du cache APT" apt-get update -y
+run_with_spinner "Installation des mises à niveau" apt-get upgrade -y
+run_with_spinner "Installation des outils (curl git ufw tree wget jq acl)" \
   apt-get install -y curl git ufw tree wget jq acl
 
 require_cmd curl jq ufw git setfacl
 
-# ──────────────────────────────────────────────────────────────────────────
-# 👥 Groupe + ACL sur /opt (sans hostname)
-# ──────────────────────────────────────────────────────────────────────────
-# Demande non bloquante : si vide → gitusers
+# Groupe + ACL /opt (aucune gestion de hostname ici)
 read -r -p "$(echo -e "${CYAN}[Neomnia]${RESET} Nom du groupe (défaut gitusers) : ")" GROUP_NAME || true
 GROUP_NAME="${GROUP_NAME:-gitusers}"
 
 if getent group "$GROUP_NAME" >/dev/null; then
   warn "Groupe ${GROUP_NAME} déjà existant."
 else
-  run_with_spinner "Création du groupe ${GROUP_NAME}…" groupadd "$GROUP_NAME"
-  ok "Groupe ${GROUP_NAME} créé."
+  run_with_spinner "Création du groupe ${GROUP_NAME}" groupadd "$GROUP_NAME"
 fi
 
-# Ajout d’un utilisateur standard si détecté
 AZ_USER=""
-for u in azureuser admin ubuntu; do
-  if id "$u" >/dev/null 2>&1; then AZ_USER="$u"; break; fi
-done
+for u in azureuser admin ubuntu; do id "$u" >/dev/null 2>&1 && AZ_USER="$u" && break; done
 if [[ -n "$AZ_USER" ]]; then
-  run_with_spinner "Ajout de ${AZ_USER} au groupe ${GROUP_NAME}…" usermod -a -G "$GROUP_NAME" "$AZ_USER"
-  ok "Utilisateur ${AZ_USER} ajouté au groupe ${GROUP_NAME}."
+  run_with_spinner "Ajout de ${AZ_USER} au groupe ${GROUP_NAME}" usermod -a -G "$GROUP_NAME" "$AZ_USER"
 else
   warn "Aucun utilisateur 'azureuser/admin/ubuntu' détecté — saut de l’ajout au groupe."
 fi
 
-# ACL /opt (avec héritage par défaut)
 mkdir -p /opt
-run_with_spinner "Application des droits + ACL sur /opt…" bash -c "
+run_with_spinner "Application des droits + ACL sur /opt" bash -c "
   chown -R root:'$GROUP_NAME' /opt &&
   chmod -R 2775 /opt &&
   setfacl -R -m g:'$GROUP_NAME':rwx /opt &&
   setfacl -dR -m g:'$GROUP_NAME':rwx /opt
 "
-ok "Droits & ACL appliqués sur /opt pour ${GROUP_NAME}."
 
-# ──────────────────────────────────────────────────────────────────────────
-# 🔥 Pare-feu UFW
-# ──────────────────────────────────────────────────────────────────────────
-run_with_spinner "Configuration du pare-feu UFW (OpenSSH)…" ufw allow OpenSSH
-# (Optionnel) ouvrir HTTP/HTTPS :
-# run_with_spinner "Ouverture des ports 80/443…" bash -c 'ufw allow 80/tcp && ufw allow 443/tcp'
-run_with_spinner "Activation de UFW…" ufw --force enable
-ok "Pare-feu activé."
+# UFW
+run_with_spinner "Ouverture OpenSSH dans UFW" ufw allow OpenSSH
+# run_with_spinner "Ouverture HTTP/HTTPS (80/443)" bash -c 'ufw allow 80/tcp && ufw allow 443/tcp'
+run_with_spinner "Activation de UFW" ufw --force enable
 
-# ──────────────────────────────────────────────────────────────────────────
-# 🧰 Git config + vérification GitHub API (facultative si token vide)
-# ──────────────────────────────────────────────────────────────────────────
-read -r -p "$(echo -e "${CYAN}[Neomnia]${RESET} Email Git : ")" GIT_EMAIL || true
-read -r -p "$(echo -e "${CYAN}[Neomnia]${RESET} Nom Git (user.name) : ")" GIT_CONF_USERNAME || true
-
-if [[ -n "${GIT_EMAIL:-}" ]]; then
-  git config --global user.email "$GIT_EMAIL"
-fi
-if [[ -n "${GIT_CONF_USERNAME:-}" ]]; then
-  git config --global user.name "$GIT_CONF_USERNAME"
-fi
+# Git (sans token obligatoire)
+read -r -p "$(echo -e "${CYAN}[Neomnia]${RESET} Email Git (optionnel) : ")" GIT_EMAIL || true
+read -r -p "$(echo -e "${CYAN}[Neomnia]${RESET} Nom Git (user.name, optionnel) : ")" GIT_NAME || true
+[[ -n "${GIT_EMAIL:-}" ]] && git config --global user.email "$GIT_EMAIL"
+[[ -n "${GIT_NAME:-}"  ]] && git config --global user.name  "$GIT_NAME"
 ok "Configuration Git appliquée."
 
-read -r -p "$(echo -e "${CYAN}[Neomnia]${RESET} GitHub username (optionnel) : ")" GITHUB_USERNAME || true
-read -r -s -p "$(echo -e "${CYAN}[Neomnia]${RESET} GitHub API token (optionnel, masqué) : ")" GITHUB_API_KEY || true
-echo
+# Exemple d’exécution RAW (désactivé par défaut) :
+# run_raw "scripts/ton-script.sh"
+# run_raw "init.ssh"   # ⚠ éviter la récursion si c’est ce fichier
 
-if [[ -n "${GITHUB_API_KEY:-}" ]]; then
-  log "Vérification de l’authentification GitHub…"
-  GH_RESP_HEADERS="$(mktemp)"
-  GH_RESP_BODY="$(mktemp)"
-  if curl -fsSL -D "$GH_RESP_HEADERS" -H "Authorization: token $GITHUB_API_KEY" https://api.github.com/user -o "$GH_RESP_BODY"; then
-    USER_LOGIN="$(jq -r '.login // empty' < "$GH_RESP_BODY")"
-    if [[ -n "$USER_LOGIN" ]]; then
-      ok "Connexion GitHub OK → ${BOLD}$USER_LOGIN${RESET}"
-      GH_SCOPES="$(grep -i '^x-oauth-scopes:' "$GH_RESP_HEADERS" | cut -d':' -f2- | sed 's/^[[:space:]]*//')"
-      if [[ -n "${GH_SCOPES// /}" ]]; then
-        log "Scopes détectés: ${MAGENTA}${GH_SCOPES}${RESET}"
-      else
-        warn "Aucun scope visible (token fine-grained ?)."
-      fi
-    else
-      warn "Clé GitHub fournie mais login vide — vérifie le token."
-    fi
-  else
-    warn "Impossible de contacter l’API GitHub — vérifie la connectivité/le token."
-  fi
-  rm -f "$GH_RESP_HEADERS" "$GH_RESP_BODY"
-else
-  warn "Aucun token GitHub fourni — étape API sautée."
-fi
-
-# ──────────────────────────────────────────────────────────────────────────
-# 🧩 Exemple (optionnel) d’exécution d’un script depuis ton dépôt RAW
-# ──────────────────────────────────────────────────────────────────────────
-# Pour déclencher : décommente la ligne suivante et adapte le chemin :
-# run_raw "init.ssh"          # exécute https://raw.githubusercontent.com/.../azure/init.ssh
-# run_raw "scripts/setup.sh"  # autre exemple
-
-# ──────────────────────────────────────────────────────────────────────────
-# ✅ Vérification finale
-# ──────────────────────────────────────────────────────────────────────────
 echo -e "\n${MAGENTA}${BOLD}############## Vérification finale ##############${RESET}"
 ok "Groupe ${GROUP_NAME} appliqué à /opt (ACL héritables)."
-[[ -n "${USER_LOGIN:-}" ]] && ok "GitHub API valide pour ${USER_LOGIN}"
 ok "Journal : ${LOGFILE}"
 echo -e "${MAGENTA}${BOLD}##############   Setup complet   ##############${RESET}\n"
