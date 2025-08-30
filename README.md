@@ -24,7 +24,7 @@
 
 ```bash
 # Exécution directe depuis GitHub RAW
-bash <(curl -s https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/main/git-wrapper.sh) owner/repo [owner2/repo2 ...]
+bash <(curl -s https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/main/setup_venv.sh) owner/repo [owner2/repo2 ...]
 ```
 
 > Remplace `owner/repo` par le ou les dépôts que tu souhaites sauvegarder.
