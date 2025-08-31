@@ -9,7 +9,7 @@ set -Eeuo pipefail
 #  Version : 2025-08-31
 ###########################################################################
 
-# 🎨 Couleurs
+# 🎨 Couleurs pour les messages
 RED="\033[31m"
 GREEN="\033[32m"
 YELLOW="\033[33m"
@@ -19,38 +19,42 @@ CYAN="\033[36m"
 BOLD="\033[1m"
 RESET="\033[0m"
 
-# 📝 Logging
+# 📝 Configuration du logging
 LOGFILE="/var/log/neomnia-setup.log"
-mkdir -p "$(dirname "$LOGFILE")" || true
-touch "$LOGFILE" || LOGFILE="/tmp/neomnia-setup.log"
 
-_log_line() {
-    local ts
-    ts="$(date '+%F %T')"
-    echo -e "${CYAN}[Neomnia]${RESET} $*"
-    echo -e "[$ts] [Neomnia] $(echo -e "$*" | sed -r 's/\x1B\[[0-9;]*[mK]//g')" >> "$LOGFILE"
+# Créer le fichier de log si nécessaire
+create_logfile() {
+    if ! mkdir -p "$(dirname "$LOGFILE")" 2>/dev/null; then
+        LOGFILE="/tmp/neomnia-setup.log"
+        mkdir -p "/tmp" 2>/dev/null || true
+    fi
+    touch "$LOGFILE" || {
+        echo "Erreur : Impossible de créer le fichier de log $LOGFILE."
+        exit 1
+    }
 }
 
+# Fonction pour logger les messages
 log() {
-    _log_line "$@"
+    local timestamp
+    timestamp="$(date '+%F %T')"
+    echo -e "${CYAN}[Neomnia]${RESET} $*"
+    echo -e "[$timestamp] [Neomnia] $*" | sed -r 's/\x1B\[[0-9;]*[mK]//g' >> "$LOGFILE"
 }
 
 ok() {
-    _log_line "${GREEN}✔${RESET} $@"
+    log "${GREEN}✔${RESET} $*"
 }
 
 warn() {
-    _log_line "${YELLOW}⚠${RESET} $@"
+    log "${YELLOW}⚠${RESET} $*"
 }
 
 err() {
-    _log_line "${RED}✖${RESET} $@"
+    log "${RED}✖${RESET} $*"
 }
 
-# Gestion des erreurs
-trap 'err "Une erreur est survenue (ligne ${BASH_LINENO[0]}). Consultez $LOGFILE pour plus de détails."' ERR
-
-# 🌀 Spinner & animations
+# 🌀 Spinner pour les commandes longues
 spinner() {
     local pid="$1"
     local delay=0.1
@@ -64,11 +68,15 @@ spinner() {
     printf "\r${CYAN}[Neomnia]${RESET}    \b\b\b\b"
 }
 
+# Exécuter une commande avec un spinner
 run_with_spinner() {
     local msg="$1"
     shift
     log "$msg"
-    ("$@" >> "$LOGFILE" 2>&1)
+    ("$@" >> "$LOGFILE" 2>&1) &
+    local pid=$!
+    spinner "$pid"
+    wait "$pid"
     local status=$?
     if [[ $status -ne 0 ]]; then
         err "$msg a échoué (code $status). Consultez $LOGFILE pour plus de détails."
@@ -78,6 +86,7 @@ run_with_spinner() {
     fi
 }
 
+# Effet de machine à écrire
 typewriter() {
     local text="$1"
     local delay="${2:-0.02}"
@@ -90,10 +99,9 @@ typewriter() {
     echo
 }
 
+# Afficher le banner Neomnia
 banner() {
-    cat <<'EOF' | while IFS= read -r line; do
-        log "$line"
-    done
+    cat <<'EOF'
  _
 | \ | | ___  _ __  ___| | __ _| |_ __ _ _ __ (_)_ __  ___
 |  \| |/ _ \| '_ \/ __| |/ _` | __/ _` | '_ \| | '_ \/ __|
@@ -103,7 +111,7 @@ banner() {
 EOF
 }
 
-# 🛡️ Prérequis
+# 🛡️ Vérification des prérequis
 require_root() {
     if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
         err "Ce script doit être exécuté en root (sudo)."
@@ -112,127 +120,128 @@ require_root() {
 }
 
 require_cmd() {
-    local miss=()
-    for c in "$@"; do
-        if ! command -v "$c" >/dev/null 2>&1; then
-            miss+=("$c")
+    local missing=()
+    for cmd in "$@"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            missing+=("$cmd")
         fi
     done
-    if ((${#miss[@]})); then
-        err "Commandes manquantes: ${miss[*]}"
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        err "Commandes manquantes : ${missing[*]}"
         exit 1
     fi
 }
 
-# 🌐 RAW GitHub helpers
+# 🌐 Téléchargement et exécution de scripts distants depuis GitHub
 GITHUB_OWNER="charlesvdd"
 GITHUB_REPO="administrator-neomnia"
 GITHUB_BRANCH="azure"
 RAW_BASE="https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}"
 
 fetch_raw() {
-    local remote="$1"
-    local dest="${2:-$(basename "$1")}"
-    log "Téléchargement RAW : ${BLUE}${RAW_BASE}/${remote}${RESET} → ${dest}"
-    if ! curl -fsSL "${RAW_BASE}/${remote}" -o "$dest"; then
-        err "Échec du téléchargement de ${RAW_BASE}/${remote}"
+    local remote_path="$1"
+    local dest="${2:-$(basename "$remote_path")}"
+    log "Téléchargement de ${BLUE}${RAW_BASE}/${remote_path}${RESET} vers $dest"
+    if ! curl -fsSL "${RAW_BASE}/${remote_path}" -o "$dest"; then
+        err "Échec du téléchargement de ${RAW_BASE}/${remote_path}"
         return 1
     fi
-    ok "Fichier récupéré: $dest"
+    ok "Fichier téléchargé : $dest"
 }
 
 run_raw() {
-    local remote="$1"
-    local tmp="/tmp/$(basename "$remote")"
-    fetch_raw "$remote" "$tmp" || return 1
-    chmod +x "$tmp"
-    log "Exécution du script RAW: ${BLUE}$remote${RESET}"
-    if ! bash "$tmp"; then
-        err "Échec de l'exécution du script $remote"
+    local remote_path="$1"
+    local tmp_file="/tmp/$(basename "$remote_path")"
+    if ! fetch_raw "$remote_path" "$tmp_file"; then
+        return 1
+    fi
+    chmod +x "$tmp_file"
+    log "Exécution du script ${BLUE}$remote_path${RESET}"
+    if ! bash "$tmp_file"; then
+        err "Échec de l'exécution du script $remote_path"
         return 1
     fi
 }
 
 # 🚀 Début du script
-require_root
-banner
-typewriter "Login Neomnia… OK" 0.03
-typewriter "Chargement des modules… OK" 0.02
-typewriter "Initialisation Kickstarter Azure… OK" 0.02
+main() {
+    create_logfile
+    require_root
+    banner
 
-export DEBIAN_FRONTEND=noninteractive
+    typewriter "Initialisation de Neomnia Kickstarter Azure..." 0.03
 
-# Mise à jour et installation des outils
-run_with_spinner "Mise à jour du cache APT" apt-get update -y
-run_with_spinner "Installation des mises à niveau" apt-get upgrade -y
-run_with_spinner "Installation des outils (curl git ufw tree wget jq acl)" apt-get install -y curl git ufw tree wget jq acl
+    # Mise à jour du système et installation des outils
+    export DEBIAN_FRONTEND=noninteractive
+    run_with_spinner "Mise à jour du cache APT" apt-get update -y
+    run_with_spinner "Mise à jour des paquets" apt-get upgrade -y
+    run_with_spinner "Installation des outils (curl, git, ufw, tree, wget, jq, acl)" \
+        apt-get install -y curl git ufw tree wget jq acl
 
-# Vérification des commandes nécessaires
-require_cmd curl jq ufw git setfacl acl
+    # Vérification des commandes nécessaires
+    require_cmd curl jq ufw git setfacl acl
 
-# 👥 Groupe + ACL /opt
-GROUP_NAME="${NEO_GROUP:-${GROUP_NAME:-gitusers}}"
-log "Groupe cible: ${BOLD}${GROUP_NAME}${RESET}"
+    # Configuration du groupe et des permissions sur /opt
+    local GROUP_NAME="${NEO_GROUP:-gitusers}"
+    log "Configuration du groupe ${BOLD}$GROUP_NAME${RESET}"
 
-if ! getent group "$GROUP_NAME" >/dev/null; then
-    run_with_spinner "Création du groupe ${GROUP_NAME}" groupadd "$GROUP_NAME"
-else
-    warn "Groupe ${GROUP_NAME} déjà existant."
-fi
-
-# Ajout de l'utilisateur au groupe
-AZ_USER=""
-for u in azureuser admin ubuntu; do
-    if id "$u" >/dev/null 2>&1; then
-        AZ_USER="$u"
-        break
+    if ! getent group "$GROUP_NAME" >/dev/null; then
+        run_with_spinner "Création du groupe $GROUP_NAME" groupadd "$GROUP_NAME"
+    else
+        warn "Le groupe $GROUP_NAME existe déjà."
     fi
-done
 
-if [[ -n "$AZ_USER" ]]; then
-    run_with_spinner "Ajout de ${AZ_USER} au groupe ${GROUP_NAME}" usermod -a -G "$GROUP_NAME" "$AZ_USER"
-else
-    warn "Aucun utilisateur 'azureuser/admin/ubuntu' détecté — saut de l’ajout au groupe."
-fi
+    # Ajout de l'utilisateur Azure au groupe
+    local AZ_USER=""
+    for user in azureuser admin ubuntu; do
+        if id "$user" >/dev/null 2>&1; then
+            AZ_USER="$user"
+            break
+        fi
+    done
 
-# Configuration des permissions sur /opt
-mkdir -p /opt
-if [[ -d "/opt" && "$(ls -A /opt 2>/dev/null)" ]]; then
-    warn "/opt n'est pas vide. Vérifiez que les permissions actuelles ne causeront pas de problèmes."
-fi
+    if [[ -n "$AZ_USER" ]]; then
+        run_with_spinner "Ajout de $AZ_USER au groupe $GROUP_NAME" \
+            usermod -a -G "$GROUP_NAME" "$AZ_USER"
+    else
+        warn "Aucun utilisateur Azure (azureuser, admin, ubuntu) trouvé. Ignorer l'ajout au groupe."
+    fi
 
-run_with_spinner "Application des droits + ACL sur /opt" bash -c "
-    chown -R root:'$GROUP_NAME' /opt &&
-    chmod -R 2775 /opt &&
-    setfacl -R -m g:'$GROUP_NAME':rwx /opt &&
-    setfacl -dR -m g:'$GROUP_NAME':rwx /opt
-"
+    # Configuration des permissions sur /opt
+    mkdir -p /opt
+    run_with_spinner "Configuration des permissions sur /opt" bash -c "
+        chown -R root:'$GROUP_NAME' /opt &&
+        chmod -R 2775 /opt &&
+        setfacl -R -m g:'$GROUP_NAME':rwx /opt &&
+        setfacl -dR -m g:'$GROUP_NAME':rwx /opt
+    "
 
-# 🔥 Configuration UFW
-if ! ufw status | grep -q "Status: active"; then
-    run_with_spinner "Ouverture OpenSSH dans UFW" ufw allow OpenSSH
-    run_with_spinner "Activation de UFW" ufw --force enable
-else
-    warn "UFW est déjà activé."
-fi
+    # Configuration du pare-feu UFW
+    if ! ufw status | grep -q "Status: active"; then
+        run_with_spinner "Ouverture du port OpenSSH dans UFW" ufw allow OpenSSH
+        run_with_spinner "Activation de UFW" ufw --force enable
+    else
+        warn "UFW est déjà activé."
+    fi
 
-# 🧰 Configuration Git
-GIT_CONFIGURED="non configurée"
-if [[ -n "${GIT_EMAIL:-}" && -n "${GIT_NAME:-}" ]]; then
-    git config --global user.email "$GIT_EMAIL"
-    git config --global user.name "$GIT_NAME"
-    GIT_CONFIGURED="configurée"
-    ok "Configuration Git appliquée."
-else
-    warn "Les variables GIT_EMAIL et/ou GIT_NAME ne sont pas définies. La configuration Git a été ignorée."
-fi
+    # Configuration de Git
+    if [[ -n "${GIT_EMAIL:-}" && -n "${GIT_NAME:-}" ]]; then
+        git config --global user.email "$GIT_EMAIL"
+        git config --global user.name "$GIT_NAME"
+        ok "Configuration Git appliquée."
+    else
+        warn "Les variables GIT_EMAIL et GIT_NAME ne sont pas définies. Configuration Git ignorée."
+    fi
 
-# Vérification finale
-echo -e "\n${MAGENTA}${BOLD}############## Résumé des actions ##############${RESET}"
-ok "Mise à jour du cache APT : terminée."
-ok "Installation des outils (curl, git, ufw, etc.) : terminée."
-ok "Configuration UFW : terminée."
-ok "Configuration Git : $GIT_CONFIGURED."
-ok "Permissions sur /opt : appliquées au groupe $GROUP_NAME."
-ok "Journal : ${LOGFILE}"
-echo -e "${MAGENTA}${BOLD}################################################${RESET}\n"
+    # Résumé final
+    echo -e "\n${MAGENTA}${BOLD}############## Résumé ##############${RESET}"
+    ok "Mise à jour du système : terminée."
+    ok "Installation des outils : terminée."
+    ok "Configuration UFW : terminée."
+    ok "Permissions sur /opt : configurées pour le groupe $GROUP_NAME."
+    ok "Journal des opérations : $LOGFILE"
+    echo -e "${MAGENTA}${BOLD}#####################################${RESET}\n"
+}
+
+# Exécuter le script principal
+main
