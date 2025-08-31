@@ -18,44 +18,6 @@ LOGFILE="/var/log/neomnia-setup.log"
 if ! (mkdir -p "$(dirname "$LOGFILE")" && touch "$LOGFILE" 2>/dev/null); then
   LOGFILE="/tmp/neomnia-setup.log"; mkdir -p /tmp || true; touch "$LOGFILE" || true
 fi
-_log_line(){ local ts; ts="$(date '+%F %T')"; echo -e "${CYAN}[Neomnia]${RESET} $*"; echo -e "[$ts] [Neomnia] $(echo -e "$*" | sed -r 's/\x1B\[[0-9;]*[mK]//g')" >>"$LOGFILE"; }
-log(){ _log_line "$*"; }; ok(){ _log_line "${GREEN}✔${RESET} $*"; }; warn(){ _log_line "${YELLOW}⚠${RESET} $*"; }; err(){ _log_line "${RED}✖${RESET} $*"; }
-trap 'err "Une erreur est survenue (ligne ${BASH_LINENO[0]}). Consulter $LOGFILE."' ERR
-
-# 🌀 Spinner & mini animations
-spinner(){ local pid="$1" delay=0.1 spin='|/-\'; while kill -0 "$pid" 2>/dev/null; do for ((i=0;i<${#spin};i++)); do printf "\r${CYAN}[Neomnia]${RESET} ⏳ %c " "${spin:$i:1}"; sleep "$delay"; done; done; printf "\r${CYAN}[Neomnia]${RESET}    \b\b\b\b"; }
-run_with_spinner(){ local msg="$1"; shift; log "$msg"; ( "$@" >>"$LOGFILE" 2>&1 ) & local pid=$!; spinner "$pid"; wait "$pid"; ok "$msg terminé."; }
-typewriter(){ local text="$1" delay="${2:-0.02}" out=""; for ((i=0;i<${#text};i++)); do out+="${text:$i:1}"; printf "\r${CYAN}[Neomnia]${RESET} %s" "$out"; sleep "$delay"; done; echo; }
-banner(){ cat <<'EOF' | while IFS= read -r line; do log "$line"; done
- _   _                 _       _              _           
-| \ | | ___  _ __  ___| | __ _| |_ __ _ _ __ (_)_ __  ___ 
-|  \| |/ _ \| '_ \/ __| |/ _` | __/ _` | '_ \| | '_ \/ __|
-| |\  | (_) | | | \__ \ | (_| | || (_| | | | | | | | \__ \
-|_| \_|\___/|_| |_|___/_|\__,_|\__\__,_|_| |_|_|_| |_|___/
-                     Kickstarter • Azure
-EOF
-}
-
-#!/usr/bin/env bash
-set -Eeuo pipefail
-
-##########################################################################
-#  Neomnia — Kickstarter Azure (install & setup)                          #
-#  Licence : Charles Van den Driessche                                    #
-#  Auteur  : @neomnia                                                     #
-#  Repo    : https://github.com/charlesvdd/administrator-neomnia/tree/azure
-#  Version : 2025-08-27
-##########################################################################
-
-# 🎨 Couleurs
-RED="\033[31m"; GREEN="\033[32m"; YELLOW="\033[33m"; BLUE="\033[34m"
-MAGENTA="\033[35m"; CYAN="\033[36m"; BOLD="\033[1m"; RESET="\033[0m"
-
-# 📝 Logging (console + fichier), chaque ligne préfixée [Neomnia]
-LOGFILE="/var/log/neomnia-setup.log"
-if ! (mkdir -p "$(dirname "$LOGFILE")" && touch "$LOGFILE" 2>/dev/null); then
-  LOGFILE="/tmp/neomnia-setup.log"; mkdir -p /tmp || true; touch "$LOGFILE" || true
-fi
 
 _log_line() {
   local ts; ts="$(date '+%F %T')";
@@ -131,27 +93,6 @@ require_cmd() {
   fi;
 }
 
-# 🌐 RAW GitHub helpers (branche azure)
-GITHUB_OWNER="charlesvdd";
-GITHUB_REPO="administrator-neomnia";
-GITHUB_BRANCH="azure";
-RAW_BASE="https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}"
-
-fetch_raw() {
-  local remote="$1" dest="${2:-$(basename "$1")}";
-  log "Téléchargement RAW : ${BLUE}${RAW_BASE}/${remote}${RESET} → ${dest}";
-  curl -fsSL "${RAW_BASE}/${remote}" -o "$dest";
-  ok "Fichier récupéré: $dest";
-}
-
-run_raw() {
-  local remote="$1" tmp="/tmp/$(basename "$remote")";
-  fetch_raw "$remote" "$tmp";
-  chmod +x "$tmp";
-  log "Exécution du script RAW: ${BLUE}$remote${RESET}";
-  bash "$tmp";
-}
-
 # 🚀 Début (aucun code hostname dans cette version)
 require_root
 banner
@@ -164,6 +105,31 @@ run_with_spinner "Mise à jour du cache APT" apt-get update -y
 run_with_spinner "Installation des mises à niveau" apt-get upgrade -y
 run_with_spinner "Installation des outils (curl git ufw tree wget jq acl)" apt-get install -y curl git ufw tree wget jq acl
 require_cmd curl jq ufw git setfacl
+
+# 👥 Installation de GitHub CLI (gh)
+if ! command -v gh >/dev/null 2>&1; then
+  run_with_spinner "Installation de GitHub CLI (gh)" bash -c "
+    apt-get install -y curl gnupg &&
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg &&
+    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg &&
+    echo 'deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main' > /etc/apt/sources.list.d/github-cli.list &&
+    apt-get update -y &&
+    apt-get install -y gh
+  "
+else
+  log "GitHub CLI (gh) est déjà installé."
+fi
+
+# 👥 Téléchargement et exécution de git-wrapper.sh
+GIT_WRAPPER_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh"
+GIT_WRAPPER_PATH="/usr/local/bin/git-wrapper.sh"
+
+run_with_spinner "Téléchargement de git-wrapper.sh" curl -fsSL "$GIT_WRAPPER_URL" -o "$GIT_WRAPPER_PATH"
+run_with_spinner "Application des permissions sur git-wrapper.sh" chmod +x "$GIT_WRAPPER_PATH"
+
+# Exécution de git-wrapper.sh
+log "Exécution de git-wrapper.sh..."
+bash "$GIT_WRAPPER_PATH"
 
 # 👥 Groupe + ACL /opt (non-interactif)
 GROUP_NAME="${NEO_GROUP:-${GROUP_NAME:-gitusers}}"
@@ -208,20 +174,6 @@ run_with_spinner "Application des droits + ACL sur /opt" bash -c "
   setfacl -dR -m g:'$GROUP_NAME':rwx /opt
 "
 
-# Installer GitHub CLI (gh)
-if ! command -v gh >/dev/null 2>&1; then
-  run_with_spinner "Installation de GitHub CLI (gh)" bash -c "
-    apt-get install -y curl gnupg &&
-    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg &&
-    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg &&
-    echo 'deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main' > /etc/apt/sources.list.d/github-cli.list &&
-    apt-get update -y &&
-    apt-get install -y gh
-  "
-else
-  log "GitHub CLI (gh) est déjà installé."
-fi
-
 # 🔥 UFW
 run_with_spinner "Ouverture OpenSSH dans UFW" ufw allow OpenSSH
 run_with_spinner "Activation de UFW" ufw --force enable
@@ -231,22 +183,11 @@ run_with_spinner "Activation de UFW" ufw --force enable
 [[ -n "${GIT_NAME:-}"  ]] && git config --global user.name  "$GIT_NAME"
 ok "Configuration Git appliquée (si variables définies)."
 
-# Télécharger et exécuter git-wrapper.sh
-GIT_WRAPPER_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh"
-GIT_WRAPPER_PATH="/usr/local/bin/git-wrapper.sh"
-
-run_with_spinner "Téléchargement de git-wrapper.sh" curl -fsSL "$GIT_WRAPPER_URL" -o "$GIT_WRAPPER_PATH"
-run_with_spinner "Application des permissions sur git-wrapper.sh" chmod +x "$GIT_WRAPPER_PATH"
-
-# Exécuter git-wrapper.sh automatiquement
-log "Exécution de git-wrapper.sh..."
-bash "$GIT_WRAPPER_PATH"
-
 # Vérification finale
 echo -e "\n${MAGENTA}${BOLD}############## Vérification finale ##############${RESET}"
-ok "Groupe ${GROUP_NAME} appliqué à /opt (ACL héritables)."
-ok "Groupe ${GITHUB_GROUP} créé et utilisateur ajouté."
 ok "GitHub CLI (gh) installé."
 ok "Script git-wrapper.sh téléchargé et exécuté."
+ok "Groupe ${GROUP_NAME} appliqué à /opt (ACL héritables)."
+ok "Groupe ${GITHUB_GROUP} créé et utilisateur ajouté."
 ok "Journal : ${LOGFILE}"
 echo -e "${MAGENTA}${BOLD}##############   Setup complet   ##############${RESET}\n"
