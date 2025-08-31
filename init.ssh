@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-set -o errexit
-set -o pipefail
-IFS=$'\n\t'
-
+set -Eeuo pipefail
 ##########################################################################
 #  Neomnia — Kickstarter Azure (install & setup)                          #
 #  Licence : Charles Van den Driessche                                    #
@@ -15,62 +12,17 @@ RED="\033[31m"; GREEN="\033[32m"; YELLOW="\033[33m"; BLUE="\033[34m"
 MAGENTA="\033[35m"; CYAN="\033[36m"; BOLD="\033[1m"; RESET="\033[0m"
 # 📝 Logging (console + fichier), chaque ligne préfixée [Neomnia]
 LOGFILE="/var/log/neomnia-setup.log"
-mkdir -p "$(dirname "$LOGFILE")" || mkdir -p /tmp
-touch "$LOGFILE" || LOGFILE="/tmp/neomnia-setup.log"
-
-log() {
-    local ts; ts="$(date '+%F %T')"
-    echo -e "${CYAN}[Neomnia]${RESET} $*"
-    echo -e "[$ts] [Neomnia] $*" >> "$LOGFILE"
-}
-
-ok() {
-    log "${GREEN}✔${RESET} $*"
-}
-
-warn() {
-    log "${YELLOW}⚠${RESET} $*"
-}
-
-err() {
-    log "${RED}✖${RESET} $*"
-}
-
+if ! (mkdir -p "$(dirname "$LOGFILE")" && touch "$LOGFILE" 2>/dev/null); then
+  LOGFILE="/tmp/neomnia-setup.log"; mkdir -p /tmp || true; touch "$LOGFILE" || true
+fi
+_log_line(){ local ts; ts="$(date '+%F %T')"; echo -e "${CYAN}[Neomnia]${RESET} $*"; echo -e "[$ts] [Neomnia] $(echo -e "$*" | sed -r 's/\x1B\[[0-9;]*[mK]//g')" >>"$LOGFILE"; }
+log(){ _log_line "$*"; }; ok(){ _log_line "${GREEN}✔${RESET} $*"; }; warn(){ _log_line "${YELLOW}⚠${RESET} $*"; }; err(){ _log_line "${RED}✖${RESET} $*"; }
+trap 'err "Une erreur est survenue (ligne ${LINENO}). Consulter $LOGFILE."' ERR
 # 🌀 Spinner & mini animations
-spinner() {
-    local pid="$1" delay=0.1 spin='|/-\'
-    while kill -0 "$pid" 2>/dev/null; do
-        for ((i=0; i<${#spin}; i++)); do
-            printf "\r${CYAN}[Neomnia]${RESET} ⏳ %c " "${spin:$i:1}"
-            sleep "$delay"
-        done
-    done
-    printf "\r${CYAN}[Neomnia]${RESET}    \b\b\b\b"
-}
-
-run_with_spinner() {
-    local msg="$1"; shift
-    log "$msg"
-    if ! ("$@" >>"$LOGFILE" 2>&1); then
-        err "$msg a échoué."
-        return 1
-    fi
-    ok "$msg terminé."
-    return 0
-}
-
-typewriter() {
-    local text="$1" delay="${2:-0.02}" out=""
-    for ((i=0; i<${#text}; i++)); do
-        out+="${text:$i:1}"
-        printf "\r${CYAN}[Neomnia]${RESET} %s" "$out"
-        sleep "$delay"
-    done
-    echo
-}
-
-banner() {
-    cat <<'EOF' | while IFS= read -r line; do log "$line"; done
+spinner(){ local pid="$1" delay=0.1 spin='|/-\'; while kill -0 "$pid" 2>/dev/null; do for ((i=0;i<${#spin};i++)); do printf "\r${CYAN}[Neomnia]${RESET} ⏳ %c " "${spin:$i:1}"; sleep "$delay"; done; done; printf "\r${CYAN}[Neomnia]${RESET}    \b\b\b\b"; }
+run_with_spinner(){ local msg="$1"; shift; log "$msg"; ( "$@" >>"$LOGFILE" 2>&1 ) & local pid=$!; spinner "$pid"; wait "$pid"; ok "$msg terminé."; }
+typewriter(){ local text="$1" delay="${2:-0.02}" out=""; for ((i=0;i<${#text};i++)); do out+="${text:$i:1}"; printf "\r${CYAN}[Neomnia]${RESET} %s" "$out"; sleep "$delay"; done; echo; }
+banner(){ cat <<'EOF' | while IFS= read -r line; do log "$line"; done
  _   _                 _       _              _           
 | \ | | ___  _ __  ___| | __ _| |_ __ _ _ __ (_)_ __  ___  _
 |  \| |/ _ \| '_ \/ __| |/ _` | __/ _` | '_ \| | '_ \/ __|
@@ -79,160 +31,73 @@ banner() {
                      Kickstarter • Azure
 EOF
 }
-
 # 🛡️ Prérequis
-require_root() {
-    if [[ "$(id -u)" -ne 0 ]]; then
-        err "Ce script doit être exécuté en root (sudo)."
-        exit 1
-    fi
-}
-
-# Vérifie si un paquet est disponible
-is_package_available() {
-    local package="$1"
-    apt-cache policy "$package" 2>/dev/null | grep -q 'Candidate:'
-}
-
-# Installe un paquet s'il est disponible
-install_package() {
-    local package="$1"
-    if is_package_available "$package"; then
-        log "Installation de $package"
-        if apt-get install -y "$package" >>"$LOGFILE" 2>&1; then
-            ok "$package installé avec succès."
-            return 0
-        else
-            err "Échec de l'installation de $package."
-            return 1
-        fi
-    else
-        warn "$package n'est pas disponible."
-        return 1
-    fi
-}
-
-# 🚀 Début
+require_root(){ if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then err "Ce script doit être exécuté en root (sudo)."; exit 1; fi; }
+require_cmd(){ local miss=(); for c in "$@"; do command -v "$c" >/dev/null 2>&1 || miss+=("$c"); done; if ((${#miss[@]})); then err "Commandes manquantes: ${miss[*]}"; exit 1; fi; }
+# 🌐 RAW GitHub helpers (branche azure)
+GITHUB_OWNER="charlesvdd"; GITHUB_REPO="administrator-neomnia"; GITHUB_BRANCH="azure"
+RAW_BASE="https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}"
+fetch_raw(){ local remote="$1" dest="${2:-$(basename "$1")}"; log "Téléchargement RAW : ${BLUE}${RAW_BASE}/${remote}${RESET} → ${dest}"; curl -fsSL "${RAW_BASE}/${remote}" -o "$dest"; ok "Fichier récupéré: $dest"; }
+run_raw(){ local remote="$1" tmp="/tmp/$(basename "$remote")"; fetch_raw "$remote" "$tmp"; chmod +x "$tmp"; log "Exécution du script RAW: ${BLUE}$remote${RESET}"; bash "$tmp"; }
+# 🚀 Début (aucun code hostname dans cette version)
 require_root
 banner
 typewriter "Login Neomnia… OK" 0.03
 typewriter "Chargement des modules… OK" 0.02
 typewriter "Initialisation Kickstarter Azure… OK" 0.02
 export DEBIAN_FRONTEND=noninteractive
+run_with_spinner "Mise à jour du cache APT" apt-get update -y
+run_with_spinner "Installation des mises à niveau" apt-get upgrade -y
+run_with_spinner "Installation des outils (curl git ufw tree wget jq acl python3 python3-pip python3-venv)" apt-get install -y curl git ufw tree wget jq acl python3 python3-pip python3-venv
+require_cmd curl jq ufw git setfacl python3 pip3
 
-# Mise à jour du cache APT
-if ! apt-get update -y >>"$LOGFILE" 2>&1; then
-    err "Échec de la mise à jour du cache APT. Vérifiez votre connexion Internet ou les dépôts APT."
-    exit 1
-fi
-ok "Mise à jour du cache APT terminée."
-
-# Installation des mises à niveau
-if ! apt-get upgrade -y >>"$LOGFILE" 2>&1; then
-    warn "Certaines mises à niveau ont échoué. Continuons malgré tout..."
-fi
-ok "Installation des mises à niveau terminée."
-
-# Installation des dépendances pour un environnement Python standard
-log "Vérification et installation des dépendances pour un environnement Python"
-
-# Installation de git
-install_package git || warn "Git ne sera pas installé."
-
-# Installation de python3
-if ! install_package python3; then
-    err "Python3 est requis. Impossible de continuer."
-    exit 1
-fi
-
-# Installation de python3-pip
-install_package python3-pip || warn "python3-pip ne sera pas installé."
-
-# Installation de acl
-install_package acl || warn "acl ne sera pas installé."
-
-# Vérification et installation de python3-venv ou python3.12-venv
-if ! install_package python3.12-venv; then
-    if ! install_package python3-venv; then
-        warn "Ni python3.12-venv ni python3-venv ne sont disponibles. Installation de venv via ensurepip..."
-        if ! python3 -m ensurepip --upgrade >>"$LOGFILE" 2>&1; then
-            err "Échec de l'installation de ensurepip."
-        fi
-        if ! python3 -m pip install --upgrade virtualenv >>"$LOGFILE" 2>&1; then
-            err "Échec de l'installation de virtualenv."
-        else
-            ok "virtualenv installé via pip."
-        fi
-    fi
-fi
-
-# Mise à jour de pip
-if ! python3 -m pip install --upgrade pip >>"$LOGFILE" 2>&1; then
-    err "Échec de la mise à jour de pip."
-    exit 1
-fi
-ok "Mise à jour de pip terminée."
-
-# 👥 Groupe + ACL /opt (interactif pour le nom du groupe)
-read -p "Entrez le nom du groupe à créer ou utiliser : " GROUP_NAME
-
-# Créer le groupe s'il n'existe pas
-if ! getent group "$GROUP_NAME" >/dev/null; then
-    if ! groupadd "$GROUP_NAME" >>"$LOGFILE" 2>&1; then
-        err "Échec de la création du groupe ${GROUP_NAME}."
-        exit 1
-    fi
-    ok "Groupe ${GROUP_NAME} créé."
+# 👥 Groupe + ACL /opt (non-interactif)
+GROUP_NAME="${NEO_GROUP:-${GROUP_NAME:-gitusers}}"
+log "Groupe cible: ${BOLD}${GROUP_NAME}${RESET}"
+if getent group "$GROUP_NAME" >/dev/null; then
+  warn "Groupe ${GROUP_NAME} déjà existant."
 else
-    warn "Groupe ${GROUP_NAME} déjà existant."
+  run_with_spinner "Création du groupe ${GROUP_NAME}" groupadd "$GROUP_NAME"
+fi
+
+AZ_USER=""
+for u in azureuser admin ubuntu; do if id "$u" >/dev/null 2>&1; then AZ_USER="$u"; break; fi; done
+if [[ -n "$AZ_USER" ]]; then
+  run_with_spinner "Ajout de ${AZ_USER} au groupe ${GROUP_NAME}" usermod -a -G "$GROUP_NAME" "$AZ_USER"
+else
+  warn "Aucun utilisateur 'azureuser/admin/ubuntu' détecté — saut de l’ajout au groupe."
 fi
 
 # Ajouter l'utilisateur actif au groupe
 CURRENT_USER="$(whoami)"
 if [[ "$CURRENT_USER" != "root" ]]; then
-    if ! usermod -a -G "$GROUP_NAME" "$CURRENT_USER" >>"$LOGFILE" 2>&1; then
-        err "Échec de l'ajout de l'utilisateur actif au groupe ${GROUP_NAME}."
-        exit 1
-    fi
-    ok "Utilisateur actif (${CURRENT_USER}) ajouté au groupe ${GROUP_NAME}."
-else
-    warn "L'utilisateur actif est root. Il est déjà privilégié."
+  run_with_spinner "Ajout de l'utilisateur actif (${CURRENT_USER}) au groupe ${GROUP_NAME}" usermod -a -G "$GROUP_NAME" "$CURRENT_USER"
 fi
 
-# Configurer les ACL pour /opt
 mkdir -p /opt
-if ! chown -R root:"$GROUP_NAME" /opt >>"$LOGFILE" 2>&1; then
-    err "Échec de la modification du propriétaire de /opt."
-    exit 1
-fi
-if ! chmod -R 2775 /opt >>"$LOGFILE" 2>&1; then
-    err "Échec de la modification des permissions de /opt."
-    exit 1
-fi
-if ! setfacl -R -m g:"$GROUP_NAME":rwx /opt >>"$LOGFILE" 2>&1; then
-    err "Échec de l'application des ACL sur /opt."
-    exit 1
-fi
-if ! setfacl -dR -m g:"$GROUP_NAME":rwx /opt >>"$LOGFILE" 2>&1; then
-    err "Échec de la configuration des ACL par défaut sur /opt."
-    exit 1
-fi
-ok "Droits et ACL appliqués sur /opt."
+run_with_spinner "Application des droits + ACL sur /opt" bash -c "
+  chown -R root:'$GROUP_NAME' /opt &&
+  chmod -R 2775 /opt &&
+  setfacl -R -m g:'$GROUP_NAME':rwx /opt &&
+  setfacl -dR -m g:'$GROUP_NAME':rwx /opt
+"
+
+# Mise à jour de pip
+run_with_spinner "Mise à jour de pip" python3 -m pip install --upgrade pip
 
 # 🔥 UFW
-if ! ufw allow OpenSSH >>"$LOGFILE" 2>&1; then
-    warn "Échec de l'ouverture du port OpenSSH dans UFW."
-fi
-# Activation de UFW
-if ! ufw --force enable >>"$LOGFILE" 2>&1; then
-    warn "Échec de l'activation de UFW."
-fi
-ok "UFW configuré."
+run_with_spinner "Ouverture OpenSSH dans UFW" ufw allow OpenSSH
+# run_with_spinner "Ouverture HTTP/HTTPS (80/443)" bash -c 'ufw allow 80/tcp && ufw allow 443/tcp'
+run_with_spinner "Activation de UFW" ufw --force enable
 
 # 🧰 Git (optionnel, non interactif si variables absentes)
-[[ -n "${GIT_EMAIL:-}" ]] && git config --global user.email "$GIT_EMAIL" || warn "Échec de la configuration de l'email Git."
-[[ -n "${GIT_NAME:-}" ]] && git config --global user.name "$GIT_NAME" || warn "Échec de la configuration du nom Git."
+[[ -n "${GIT_EMAIL:-}" ]] && git config --global user.email "$GIT_EMAIL"
+[[ -n "${GIT_NAME:-}"  ]] && git config --global user.name  "$GIT_NAME"
 ok "Configuration Git appliquée (si variables définies)."
+
+# Exemple d’exécution RAW (désactivé par défaut) :
+# run_raw "scripts/ton-script.sh"
+# run_raw "init.ssh"   # ⚠ éviter la récursion si c’est ce fichier
 
 echo -e "\n${MAGENTA}${BOLD}############## Vérification finale ##############${RESET}"
 ok "Groupe ${GROUP_NAME} appliqué à /opt (ACL héritables)."
