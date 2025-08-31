@@ -95,7 +95,8 @@ require_cmd() {
 
 # Demander les informations à l'utilisateur
 read -p "Entrez le nom du groupe à créer : " GROUP_NAME
-read -p "Entrez votre clé API GitHub : " GH_TOKEN
+read -s -p "Entrez votre clé API GitHub : " GH_TOKEN
+echo
 
 # 🚀 Début (aucun code hostname dans cette version)
 require_root
@@ -125,10 +126,14 @@ else
 fi
 
 # Configurer GitHub CLI avec la clé API
-export GH_TOKEN="$GH_TOKEN"
 log "Configuration de GitHub CLI avec la clé API..."
-gh auth setup-git
-gh auth login --with-token < "$GH_TOKEN"
+echo "$GH_TOKEN" | gh auth login --with-token
+
+# Vérifier l'authentification
+if ! gh api user >/dev/null 2>&1; then
+  err "Échec de l'authentification avec la clé API GitHub."
+  exit 1
+fi
 
 # 👥 Téléchargement et exécution de git-wrapper.sh
 GIT_WRAPPER_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh"
@@ -139,6 +144,7 @@ run_with_spinner "Application des permissions sur git-wrapper.sh" chmod +x "$GIT
 
 # Exécution de git-wrapper.sh
 log "Exécution de git-wrapper.sh..."
+export GH_TOKEN="$GH_TOKEN"
 bash "$GIT_WRAPPER_PATH"
 
 # Récupérer l'utilisateur actif
