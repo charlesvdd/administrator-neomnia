@@ -22,16 +22,50 @@ RESET="\033[0m"
 # 📝 Configuration du logging
 LOGFILE="/var/log/neomnia-setup.log"
 
-# Créer le fichier de log si nécessaire
+# Demander les informations nécessaires à l'utilisateur
+ask_user_input() {
+    # Nom du groupe
+    read -p "Entrez le nom du groupe (par défaut : gitusers) : " GROUP_NAME
+    GROUP_NAME="${GROUP_NAME:-gitusers}"
+
+    # Email et nom pour Git
+    read -p "Entrez votre email Git (optionnel) : " GIT_EMAIL
+    read -p "Entrez votre nom pour Git (optionnel) : " GIT_NAME
+
+    export GROUP_NAME GIT_EMAIL GIT_NAME
+}
+
+# Créer le fichier de log et configurer les ACL
 create_logfile() {
+    # Créer le répertoire et le fichier de log
     if ! mkdir -p "$(dirname "$LOGFILE")" 2>/dev/null; then
-        LOGFILE="/tmp/neomnia-setup.log"
-        mkdir -p "/tmp" 2>/dev/null || true
+        err "Impossible de créer le répertoire pour le fichier de log."
+        exit 1
     fi
+
+    # Créer le groupe si nécessaire
+    if ! getent group "$GROUP_NAME" >/dev/null; then
+        if ! groupadd "$GROUP_NAME"; then
+            err "Impossible de créer le groupe $GROUP_NAME."
+            exit 1
+        fi
+        ok "Groupe $GROUP_NAME créé."
+    else
+        warn "Le groupe $GROUP_NAME existe déjà."
+    fi
+
+    # Créer le fichier de log
     touch "$LOGFILE" || {
-        echo "Erreur : Impossible de créer le fichier de log $LOGFILE."
+        err "Impossible de créer le fichier de log $LOGFILE."
         exit 1
     }
+
+    # Configurer les ACL pour le fichier de log
+    if ! setfacl -m g:"$GROUP_NAME":rw "$LOGFILE"; then
+        err "Impossible de configurer les ACL pour $LOGFILE."
+        exit 1
+    fi
+    ok "ACL configurées pour $LOGFILE."
 }
 
 # Fonction pour logger les messages
@@ -165,9 +199,10 @@ run_raw() {
 
 # 🚀 Début du script
 main() {
-    create_logfile
     require_root
     banner
+    ask_user_input
+    create_logfile
 
     typewriter "Initialisation de Neomnia Kickstarter Azure..." 0.03
 
@@ -181,16 +216,6 @@ main() {
     # Vérification des commandes nécessaires
     require_cmd curl jq ufw git setfacl acl
 
-    # Configuration du groupe et des permissions sur /opt
-    local GROUP_NAME="${NEO_GROUP:-gitusers}"
-    log "Configuration du groupe ${BOLD}$GROUP_NAME${RESET}"
-
-    if ! getent group "$GROUP_NAME" >/dev/null; then
-        run_with_spinner "Création du groupe $GROUP_NAME" groupadd "$GROUP_NAME"
-    else
-        warn "Le groupe $GROUP_NAME existe déjà."
-    fi
-
     # Ajout de l'utilisateur Azure au groupe
     local AZ_USER=""
     for user in azureuser admin ubuntu; do
@@ -201,8 +226,11 @@ main() {
     done
 
     if [[ -n "$AZ_USER" ]]; then
-        run_with_spinner "Ajout de $AZ_USER au groupe $GROUP_NAME" \
-            usermod -a -G "$GROUP_NAME" "$AZ_USER"
+        if ! usermod -a -G "$GROUP_NAME" "$AZ_USER"; then
+            err "Impossible d'ajouter $AZ_USER au groupe $GROUP_NAME."
+        else
+            ok "$AZ_USER ajouté au groupe $GROUP_NAME."
+        fi
     else
         warn "Aucun utilisateur Azure (azureuser, admin, ubuntu) trouvé. Ignorer l'ajout au groupe."
     fi
