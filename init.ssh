@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-
 ##########################################################################
 #  Neomnia — Kickstarter Azure (install & setup)                          #
 #  Licence : Charles Van den Driessche                                    #
 #  Auteur  : @neomnia                                                     #
 #  Repo    : https://github.com/charlesvdd/administrator-neomnia/tree/azure
-#  Version : 2025-08-27
+#  Version : 2025-08-31
 ##########################################################################
-
 # 🎨 Couleurs
 RED="\033[31m"; GREEN="\033[32m"; YELLOW="\033[33m"; BLUE="\033[34m"
 MAGENTA="\033[35m"; CYAN="\033[36m"; BOLD="\033[1m"; RESET="\033[0m"
-
 # 📝 Logging (console + fichier), chaque ligne préfixée [Neomnia]
 LOGFILE="/var/log/neomnia-setup.log"
 if ! (mkdir -p "$(dirname "$LOGFILE")" && touch "$LOGFILE" 2>/dev/null); then
@@ -21,61 +18,58 @@ fi
 _log_line(){ local ts; ts="$(date '+%F %T')"; echo -e "${CYAN}[Neomnia]${RESET} $*"; echo -e "[$ts] [Neomnia] $(echo -e "$*" | sed -r 's/\x1B\[[0-9;]*[mK]//g')" >>"$LOGFILE"; }
 log(){ _log_line "$*"; }; ok(){ _log_line "${GREEN}✔${RESET} $*"; }; warn(){ _log_line "${YELLOW}⚠${RESET} $*"; }; err(){ _log_line "${RED}✖${RESET} $*"; }
 trap 'err "Une erreur est survenue (ligne ${BASH_LINENO[0]}). Consulter $LOGFILE."' ERR
-
 # 🌀 Spinner & mini animations
 spinner(){ local pid="$1" delay=0.1 spin='|/-\'; while kill -0 "$pid" 2>/dev/null; do for ((i=0;i<${#spin};i++)); do printf "\r${CYAN}[Neomnia]${RESET} ⏳ %c " "${spin:$i:1}"; sleep "$delay"; done; done; printf "\r${CYAN}[Neomnia]${RESET}    \b\b\b\b"; }
 run_with_spinner(){ local msg="$1"; shift; log "$msg"; ( "$@" >>"$LOGFILE" 2>&1 ) & local pid=$!; spinner "$pid"; wait "$pid"; ok "$msg terminé."; }
 typewriter(){ local text="$1" delay="${2:-0.02}" out=""; for ((i=0;i<${#text};i++)); do out+="${text:$i:1}"; printf "\r${CYAN}[Neomnia]${RESET} %s" "$out"; sleep "$delay"; done; echo; }
 banner(){ cat <<'EOF' | while IFS= read -r line; do log "$line"; done
  _   _                 _       _              _           
-| \ | | ___  _ __  ___| | __ _| |_ __ _ _ __ (_)_ __  ___ 
+| \ | | ___  _ __  ___| | __ _| |_ __ _ _ __ (_)_ __  ___  _
 |  \| |/ _ \| '_ \/ __| |/ _` | __/ _` | '_ \| | '_ \/ __|
 | |\  | (_) | | | \__ \ | (_| | || (_| | | | | | | | \__ \
 |_| \_|\___/|_| |_|___/_|\__,_|\__\__,_|_| |_|_|_| |_|___/
                      Kickstarter • Azure
 EOF
 }
-
 # 🛡️ Prérequis
 require_root(){ if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then err "Ce script doit être exécuté en root (sudo)."; exit 1; fi; }
 require_cmd(){ local miss=(); for c in "$@"; do command -v "$c" >/dev/null 2>&1 || miss+=("$c"); done; if ((${#miss[@]})); then err "Commandes manquantes: ${miss[*]}"; exit 1; fi; }
-
 # 🌐 RAW GitHub helpers (branche azure)
 GITHUB_OWNER="charlesvdd"; GITHUB_REPO="administrator-neomnia"; GITHUB_BRANCH="azure"
 RAW_BASE="https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}"
 fetch_raw(){ local remote="$1" dest="${2:-$(basename "$1")}"; log "Téléchargement RAW : ${BLUE}${RAW_BASE}/${remote}${RESET} → ${dest}"; curl -fsSL "${RAW_BASE}/${remote}" -o "$dest"; ok "Fichier récupéré: $dest"; }
 run_raw(){ local remote="$1" tmp="/tmp/$(basename "$remote")"; fetch_raw "$remote" "$tmp"; chmod +x "$tmp"; log "Exécution du script RAW: ${BLUE}$remote${RESET}"; bash "$tmp"; }
-
 # 🚀 Début (aucun code hostname dans cette version)
 require_root
 banner
 typewriter "Login Neomnia… OK" 0.03
 typewriter "Chargement des modules… OK" 0.02
 typewriter "Initialisation Kickstarter Azure… OK" 0.02
-
 export DEBIAN_FRONTEND=noninteractive
 run_with_spinner "Mise à jour du cache APT" apt-get update -y
 run_with_spinner "Installation des mises à niveau" apt-get upgrade -y
 run_with_spinner "Installation des outils (curl git ufw tree wget jq acl)" apt-get install -y curl git ufw tree wget jq acl
 require_cmd curl jq ufw git setfacl
 
-# 👥 Groupe + ACL /opt (non-interactif)
-GROUP_NAME="${NEO_GROUP:-${GROUP_NAME:-gitusers}}"
-log "Groupe cible: ${BOLD}${GROUP_NAME}${RESET}"
-if getent group "$GROUP_NAME" >/dev/null; then
-  warn "Groupe ${GROUP_NAME} déjà existant."
-else
+# 👥 Groupe + ACL /opt (interactif pour le nom du groupe)
+read -p "Entrez le nom du groupe à créer ou utiliser : " GROUP_NAME
+
+# Créer le groupe s'il n'existe pas
+if ! getent group "$GROUP_NAME" >/dev/null; then
   run_with_spinner "Création du groupe ${GROUP_NAME}" groupadd "$GROUP_NAME"
-fi
-
-AZ_USER=""
-for u in azureuser admin ubuntu; do if id "$u" >/dev/null 2>&1; then AZ_USER="$u"; break; fi; done
-if [[ -n "$AZ_USER" ]]; then
-  run_with_spinner "Ajout de ${AZ_USER} au groupe ${GROUP_NAME}" usermod -a -G "$GROUP_NAME" "$AZ_USER"
 else
-  warn "Aucun utilisateur 'azureuser/admin/ubuntu' détecté — saut de l’ajout au groupe."
+  warn "Groupe ${GROUP_NAME} déjà existant."
 fi
 
+# Ajouter l'utilisateur actif au groupe
+CURRENT_USER="$(whoami)"
+if [[ "$CURRENT_USER" != "root" ]]; then
+  run_with_spinner "Ajout de l'utilisateur actif (${CURRENT_USER}) au groupe ${GROUP_NAME}" usermod -a -G "$GROUP_NAME" "$CURRENT_USER"
+else
+  warn "L'utilisateur actif est root. Il est déjà privilégié."
+fi
+
+# Configurer les ACL pour /opt
 mkdir -p /opt
 run_with_spinner "Application des droits + ACL sur /opt" bash -c "
   chown -R root:'$GROUP_NAME' /opt &&
@@ -100,5 +94,6 @@ ok "Configuration Git appliquée (si variables définies)."
 
 echo -e "\n${MAGENTA}${BOLD}############## Vérification finale ##############${RESET}"
 ok "Groupe ${GROUP_NAME} appliqué à /opt (ACL héritables)."
+ok "L'utilisateur actif (${CURRENT_USER}) a été ajouté au groupe ${GROUP_NAME}."
 ok "Journal : ${LOGFILE}"
 echo -e "${MAGENTA}${BOLD}##############   Setup complet   ##############${RESET}\n"
