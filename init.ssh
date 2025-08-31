@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -o errexit
-set -o nounset
 set -o pipefail
 IFS=$'\n\t'
 
@@ -17,28 +16,25 @@ MAGENTA="\033[35m"; CYAN="\033[36m"; BOLD="\033[1m"; RESET="\033[0m"
 # 📝 Logging (console + fichier), chaque ligne préfixée [Neomnia]
 LOGFILE="/var/log/neomnia-setup.log"
 mkdir -p "$(dirname "$LOGFILE")" || mkdir -p /tmp
-touch "$LOGFILE" || touch /tmp/neomnia-setup.log
-LOGFILE=${LOGFILE:-/tmp/neomnia-setup.log}
+touch "$LOGFILE" || LOGFILE="/tmp/neomnia-setup.log"
 
-_log_line() {
+log() {
     local ts; ts="$(date '+%F %T')"
     echo -e "${CYAN}[Neomnia]${RESET} $*"
-    echo -e "[$ts] [Neomnia] $(echo -e "$*" | sed -r 's/\x1B\[[0-9;]*[mK]//g')" >> "$LOGFILE"
+    echo -e "[$ts] [Neomnia] $*" >> "$LOGFILE"
 }
 
-log() { _log_line "$*"; }
-ok() { _log_line "${GREEN}✔${RESET} $*"; }
-warn() { _log_line "${YELLOW}⚠${RESET} $*"; }
+ok() {
+    log "${GREEN}✔${RESET} $*"
+}
+
+warn() {
+    log "${YELLOW}⚠${RESET} $*"
+}
+
 err() {
-    local line_num=${1:-}
-    shift
-    _log_line "${RED}✖${RESET} $*"
-    if [[ -n "$line_num" ]]; then
-        _log_line "  Erreur à la ligne $line_num."
-    fi
+    log "${RED}✖${RESET} $*"
 }
-
-trap 'err ${LINENO} "Une erreur est survenue. Consulter $LOGFILE."' ERR
 
 # 🌀 Spinner & mini animations
 spinner() {
@@ -55,17 +51,12 @@ spinner() {
 run_with_spinner() {
     local msg="$1"; shift
     log "$msg"
-    "$@" >>"$LOGFILE" 2>&1 &
-    local pid=$!
-    spinner "$pid"
-    wait "$pid"
-    local status=$?
-    if [ $status -eq 0 ]; then
-        ok "$msg terminé."
-    else
-        err ${LINENO} "$msg a échoué."
+    if ! ("$@" >>"$LOGFILE" 2>&1); then
+        err "$msg a échoué."
+        return 1
     fi
-    return $status
+    ok "$msg terminé."
+    return 0
 }
 
 typewriter() {
@@ -91,8 +82,8 @@ EOF
 
 # 🛡️ Prérequis
 require_root() {
-    if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
-        err ${LINENO} "Ce script doit être exécuté en root (sudo)."
+    if [[ "$(id -u)" -ne 0 ]]; then
+        err "Ce script doit être exécuté en root (sudo)."
         exit 1
     fi
 }
@@ -100,10 +91,7 @@ require_root() {
 # Vérifie si un paquet est disponible
 is_package_available() {
     local package="$1"
-    if apt-cache policy "$package" 2>/dev/null | grep -q 'Candidate:'; then
-        return 0
-    fi
-    return 1
+    apt-cache policy "$package" 2>/dev/null | grep -q 'Candidate:'
 }
 
 # Installe un paquet s'il est disponible
@@ -115,7 +103,7 @@ install_package() {
             ok "$package installé avec succès."
             return 0
         else
-            err ${LINENO} "Échec de l'installation de $package."
+            err "Échec de l'installation de $package."
             return 1
         fi
     else
@@ -133,15 +121,13 @@ typewriter "Initialisation Kickstarter Azure… OK" 0.02
 export DEBIAN_FRONTEND=noninteractive
 
 # Mise à jour du cache APT
-log "Mise à jour du cache APT"
 if ! apt-get update -y >>"$LOGFILE" 2>&1; then
-    err ${LINENO} "Échec de la mise à jour du cache APT. Vérifiez votre connexion Internet ou les dépôts APT."
+    err "Échec de la mise à jour du cache APT. Vérifiez votre connexion Internet ou les dépôts APT."
     exit 1
 fi
 ok "Mise à jour du cache APT terminée."
 
 # Installation des mises à niveau
-log "Installation des mises à niveau"
 if ! apt-get upgrade -y >>"$LOGFILE" 2>&1; then
     warn "Certaines mises à niveau ont échoué. Continuons malgré tout..."
 fi
@@ -151,35 +137,29 @@ ok "Installation des mises à niveau terminée."
 log "Vérification et installation des dépendances pour un environnement Python"
 
 # Installation de git
-if ! install_package git; then
-    warn "Git ne sera pas installé."
-fi
+install_package git || warn "Git ne sera pas installé."
 
 # Installation de python3
 if ! install_package python3; then
-    err ${LINENO} "Python3 est requis. Impossible de continuer."
+    err "Python3 est requis. Impossible de continuer."
     exit 1
 fi
 
 # Installation de python3-pip
-if ! install_package python3-pip; then
-    warn "python3-pip ne sera pas installé."
-fi
+install_package python3-pip || warn "python3-pip ne sera pas installé."
 
 # Installation de acl
-if ! install_package acl; then
-    warn "acl ne sera pas installé."
-fi
+install_package acl || warn "acl ne sera pas installé."
 
 # Vérification et installation de python3-venv ou python3.12-venv
 if ! install_package python3.12-venv; then
     if ! install_package python3-venv; then
         warn "Ni python3.12-venv ni python3-venv ne sont disponibles. Installation de venv via ensurepip..."
         if ! python3 -m ensurepip --upgrade >>"$LOGFILE" 2>&1; then
-            err ${LINENO} "Échec de l'installation de ensurepip."
+            err "Échec de l'installation de ensurepip."
         fi
         if ! python3 -m pip install --upgrade virtualenv >>"$LOGFILE" 2>&1; then
-            err ${LINENO} "Échec de l'installation de virtualenv."
+            err "Échec de l'installation de virtualenv."
         else
             ok "virtualenv installé via pip."
         fi
@@ -187,9 +167,8 @@ if ! install_package python3.12-venv; then
 fi
 
 # Mise à jour de pip
-log "Mise à jour de pip"
 if ! python3 -m pip install --upgrade pip >>"$LOGFILE" 2>&1; then
-    err ${LINENO} "Échec de la mise à jour de pip."
+    err "Échec de la mise à jour de pip."
     exit 1
 fi
 ok "Mise à jour de pip terminée."
@@ -199,9 +178,8 @@ read -p "Entrez le nom du groupe à créer ou utiliser : " GROUP_NAME
 
 # Créer le groupe s'il n'existe pas
 if ! getent group "$GROUP_NAME" >/dev/null; then
-    log "Création du groupe ${GROUP_NAME}"
     if ! groupadd "$GROUP_NAME" >>"$LOGFILE" 2>&1; then
-        err ${LINENO} "Échec de la création du groupe ${GROUP_NAME}."
+        err "Échec de la création du groupe ${GROUP_NAME}."
         exit 1
     fi
     ok "Groupe ${GROUP_NAME} créé."
@@ -212,9 +190,8 @@ fi
 # Ajouter l'utilisateur actif au groupe
 CURRENT_USER="$(whoami)"
 if [[ "$CURRENT_USER" != "root" ]]; then
-    log "Ajout de l'utilisateur actif (${CURRENT_USER}) au groupe ${GROUP_NAME}"
     if ! usermod -a -G "$GROUP_NAME" "$CURRENT_USER" >>"$LOGFILE" 2>&1; then
-        err ${LINENO} "Échec de l'ajout de l'utilisateur actif au groupe ${GROUP_NAME}."
+        err "Échec de l'ajout de l'utilisateur actif au groupe ${GROUP_NAME}."
         exit 1
     fi
     ok "Utilisateur actif (${CURRENT_USER}) ajouté au groupe ${GROUP_NAME}."
@@ -224,44 +201,37 @@ fi
 
 # Configurer les ACL pour /opt
 mkdir -p /opt
-log "Application des droits + ACL sur /opt"
 if ! chown -R root:"$GROUP_NAME" /opt >>"$LOGFILE" 2>&1; then
-    err ${LINENO} "Échec de la modification du propriétaire de /opt."
+    err "Échec de la modification du propriétaire de /opt."
     exit 1
 fi
 if ! chmod -R 2775 /opt >>"$LOGFILE" 2>&1; then
-    err ${LINENO} "Échec de la modification des permissions de /opt."
+    err "Échec de la modification des permissions de /opt."
     exit 1
 fi
 if ! setfacl -R -m g:"$GROUP_NAME":rwx /opt >>"$LOGFILE" 2>&1; then
-    err ${LINENO} "Échec de l'application des ACL sur /opt."
+    err "Échec de l'application des ACL sur /opt."
     exit 1
 fi
 if ! setfacl -dR -m g:"$GROUP_NAME":rwx /opt >>"$LOGFILE" 2>&1; then
-    err ${LINENO} "Échec de la configuration des ACL par défaut sur /opt."
+    err "Échec de la configuration des ACL par défaut sur /opt."
     exit 1
 fi
 ok "Droits et ACL appliqués sur /opt."
 
 # 🔥 UFW
-log "Ouverture OpenSSH dans UFW"
 if ! ufw allow OpenSSH >>"$LOGFILE" 2>&1; then
     warn "Échec de l'ouverture du port OpenSSH dans UFW."
 fi
 # Activation de UFW
-log "Activation de UFW"
 if ! ufw --force enable >>"$LOGFILE" 2>&1; then
     warn "Échec de l'activation de UFW."
 fi
 ok "UFW configuré."
 
 # 🧰 Git (optionnel, non interactif si variables absentes)
-if [[ -n "${GIT_EMAIL:-}" ]]; then
-    git config --global user.email "$GIT_EMAIL" || warn "Échec de la configuration de l'email Git."
-fi
-if [[ -n "${GIT_NAME:-}" ]]; then
-    git config --global user.name "$GIT_NAME" || warn "Échec de la configuration du nom Git."
-fi
+[[ -n "${GIT_EMAIL:-}" ]] && git config --global user.email "$GIT_EMAIL" || warn "Échec de la configuration de l'email Git."
+[[ -n "${GIT_NAME:-}" ]] && git config --global user.name "$GIT_NAME" || warn "Échec de la configuration du nom Git."
 ok "Configuration Git appliquée (si variables définies)."
 
 echo -e "\n${MAGENTA}${BOLD}############## Vérification finale ##############${RESET}"
