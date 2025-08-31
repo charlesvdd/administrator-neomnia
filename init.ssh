@@ -89,6 +89,31 @@ require_cmd() {
     fi;
 }
 
+# Vérifie si un paquet est disponible
+is_package_available() {
+    local package="$1"
+    apt-cache policy "$package" | grep -q 'Candidate:' && return 0
+    return 1
+}
+
+# Installe un paquet s'il est disponible
+install_package() {
+    local package="$1"
+    if is_package_available "$package"; then
+        log "Installation de $package"
+        if apt-get install -y "$package" >>"$LOGFILE" 2>&1; then
+            ok "$package installé avec succès."
+            return 0
+        else
+            err "Échec de l'installation de $package."
+            return 1
+        fi
+    else
+        warn "$package n'est pas disponible."
+        return 1
+    fi
+}
+
 # 🚀 Début (aucun code hostname dans cette version)
 require_root
 banner
@@ -113,18 +138,29 @@ fi
 ok "Installation des mises à niveau terminée."
 
 # Installation des dépendances pour un environnement Python standard
-log "Installation des dépendances pour un environnement Python"
-apt-get install -y git python3 python3-pip acl
+log "Vérification et installation des dépendances pour un environnement Python"
 
-# Vérification et installation de python3-venv
-if ! apt-get install -y python3.12-venv >>"$LOGFILE" 2>&1; then
-    warn "python3.12-venv non disponible. Tentative avec python3-venv..."
-    if ! apt-get install -y python3-venv >>"$LOGFILE" 2>&1; then
-        err "Échec de l'installation de python3-venv. Vérifiez votre version de distribution."
-        exit 1
+# Installation de git
+install_package git
+
+# Installation de python3
+install_package python3
+
+# Installation de python3-pip
+install_package python3-pip
+
+# Installation de acl
+install_package acl
+
+# Vérification et installation de python3-venv ou python3.12-venv
+if ! install_package python3.12-venv; then
+    if ! install_package python3-venv; then
+        err "Ni python3.12-venv ni python3-venv ne sont disponibles. Installation de venv via ensurepip..."
+        python3 -m ensurepip --upgrade
+        python3 -m pip install --upgrade virtualenv
+        ok "virtualenv installé via pip."
     fi
 fi
-ok "Installation des dépendances pour un environnement Python terminée."
 
 # Mise à jour de pip
 log "Mise à jour de pip"
