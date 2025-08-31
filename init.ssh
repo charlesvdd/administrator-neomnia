@@ -2,95 +2,100 @@
 set -Eeuo pipefail
 
 ##########################################################################
-#  Neomnia — Kickstarter Azure (install & setup)
-#  Licence : Charles Van den Driessche
-#  Auteur  : @neomnia
-#  Repo    : https://github.com/charlesvdd/administrator-neomnia/tree/azure
+#  Neomnia — Kickstarter Azure (prompts d'abord, actions ensuite)
+#  Licence : Charles Van den Driessche | Auteur : @neomnia
 #  Version : 2025-08-31
 ##########################################################################
 
-# 🎨 Couleurs
-RED="\033[31m"; GREEN="\033[32m"; YELLOW="\033[33m"; BLUE="\033[34m"
-MAGENTA="\033[35m"; CYAN="\033[36m"; BOLD="\033[1m"; RESET="\033[0m"
-
-# 📝 Logging
-LOGFILE="/var/log/neomnia-setup.log"
-mkdir -p "$(dirname "$LOGFILE")"; touch "$LOGFILE" || LOGFILE="/tmp/neomnia-setup.log"
-
+# 🎨 Couleurs & log
+RED="\033[31m"; GREEN="\033[32m"; YELLOW="\033[33m"; CYAN="\033[36m"; BOLD="\033[1m"; RESET="\033[0m"
+LOGFILE="/var/log/neomnia-setup.log"; mkdir -p "$(dirname "$LOGFILE")" 2>/dev/null || true; touch "$LOGFILE" 2>/dev/null || true
 log()  { echo -e "${CYAN}[Neomnia]${RESET} $*"; echo "[$(date '+%F %T')] $*" >>"$LOGFILE"; }
 ok()   { log "${GREEN}✔${RESET} $*"; }
 warn() { log "${YELLOW}⚠${RESET} $*"; }
 err()  { log "${RED}✖${RESET} $*"; }
 
-trap 'err "Erreur (ligne ${BASH_LINENO[0]}). Consulte $LOGFILE."' ERR
+trap 'err "Erreur (ligne ${BASH_LINENO[0]}). Voir $LOGFILE."' ERR
 
-# 🌀 Spinner
-spinner() { local pid=$1; local spin='|/-\'; while kill -0 "$pid" 2>/dev/null; do for c in $spin; do printf "\r${CYAN}[Neomnia]${RESET} ⏳ %c " "$c"; sleep 0.1; done; done; printf "\r"; }
-run_with_spinner() { log "$1"; shift; ("$@" >>"$LOGFILE" 2>&1)& spinner $!; wait $!; ok "$1 terminé."; }
-
-# 🔡 Fonctions input
-ask_nonempty() { local val; while :; do read -rp "$1" val; [[ -n "${val// }" ]] && { echo "$val"; return; }; echo "Valeur requise."; done; }
+# 🔡 Prompts (D’ABORD les variables, rien d’autre)
+ask_nonempty() { local v; while :; do read -rp "$1" v; [[ -n "${v// }" ]] && { echo "$v"; return; }; echo "Valeur requise."; done; }
 ask_secret() { local v1 v2; while :; do read -srp "$1" v1; echo; read -srp "Confirme la clé : " v2; echo; [[ "$v1" == "$v2" && -n "${v1// }" ]] && { echo "$v1"; return; }; echo "Les valeurs ne correspondent pas."; done; }
 
-# 🚀 Demandes utilisateur (toujours en tout début)
 GROUP_NAME="$(ask_nonempty '👉 Nom du groupe à créer : ')"
 GH_TOKEN="$(ask_secret   '👉 Clé API GitHub (masquée) : ')"
 
-# ⚡ Prérequis
-if [[ $EUID -ne 0 ]]; then err "Ce script doit être lancé en root."; exit 1; fi
+# ✅ Maintenant seulement on vérifie/agit
+if [[ $EUID -ne 0 ]]; then err "Ce script doit être exécuté en root (sudo)."; exit 1; fi
 
-export DEBIAN_FRONTEND=noninteractive
-run_with_spinner "Mise à jour APT" apt-get update -y
-run_with_spinner "Upgrade système" apt-get upgrade -y
-run_with_spinner "Installation outils" apt-get install -y curl git ufw tree wget jq acl
+# 🔎 Outils requis (sans APT bruyant : on installe UNIQUEMENT si manquants)
+need_install=()
+command -v gh     >/dev/null 2>&1 || need_install+=("gh")
+command -v curl   >/dev/null 2>&1 || need_install+=("curl")
+command -v jq     >/dev/null 2>&1 || need_install+=("jq")
+command -v setfacl>/dev/null 2>&1 || need_install+=("acl")
 
-# 👥 GitHub CLI
-if ! command -v gh >/dev/null; then
-  run_with_spinner "Installation GitHub CLI" bash -c "
-    apt-get install -y curl gnupg &&
-    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | tee /usr/share/keyrings/githubcli-archive-keyring.gpg >/dev/null &&
-    echo 'deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main' > /etc/apt/sources.list.d/github-cli.list &&
-    apt-get update -y &&
-    apt-get install -y gh
-  "
+if ((${#need_install[@]})); then
+  log "Installation des manquants: ${need_install[*]}"
+  # On évite apt-get upgrade/update global — on installe au plus court
+  apt-get update -y >/dev/null 2>&1 || true
+  apt-get install -y "${need_install[@]}" >/dev/null
+  ok "Dépendances installées: ${need_install[*]}"
+else
+  ok "Dépendances déjà présentes."
 fi
 
-# 🔐 Auth GitHub → via env, pas de blocage
+# 🔐 Auth GitHub SANS interactivité (pas de gh auth login)
 log "Authentification GitHub via token…"
 export GITHUB_TOKEN="$GH_TOKEN"
 
-# Vérif
+# Vérification (gh puis fallback curl)
 if ! gh api user >/dev/null 2>&1; then
   if ! curl -fsS -H "Authorization: token ${GH_TOKEN}" https://api.github.com/user >/dev/null; then
-    err "Échec de l'authentification GitHub."
+    err "Échec de l'auth GitHub. Vérifie le token et les scopes."
     exit 1
   fi
 fi
 ok "Authentification GitHub validée."
 
-# 👥 Groupe
+# ⬇️ Télécharger & lancer git-wrapper.sh
+GIT_WRAPPER_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh"
+GIT_WRAPPER_PATH="/usr/local/bin/git-wrapper.sh"
+
+log "Téléchargement git-wrapper.sh…"
+curl -fsSL "$GIT_WRAPPER_URL" -o "$GIT_WRAPPER_PATH"
+chmod +x "$GIT_WRAPPER_PATH"
+ok "git-wrapper.sh prêt."
+
+log "Exécution git-wrapper.sh…"
+( set +x; GITHUB_TOKEN="$GH_TOKEN" GH_TOKEN="$GH_TOKEN" bash "$GIT_WRAPPER_PATH" ) >>"$LOGFILE" 2>&1 || {
+  err "git-wrapper.sh a échoué (voir $LOGFILE)"; exit 1; }
+ok "git-wrapper.sh exécuté."
+
+# 👥 Groupe (création + ajout de l’utilisateur courant)
 AZ_USER="${SUDO_USER:-$(whoami)}"
 if getent group "$GROUP_NAME" >/dev/null; then
-  warn "Groupe $GROUP_NAME déjà existant."
+  warn "Groupe ${GROUP_NAME} déjà existant."
 else
-  run_with_spinner "Création du groupe $GROUP_NAME" groupadd "$GROUP_NAME"
+  groupadd "$GROUP_NAME"
+  ok "Groupe ${GROUP_NAME} créé."
 fi
-[[ -n "$AZ_USER" ]] && run_with_spinner "Ajout de $AZ_USER au groupe $GROUP_NAME" usermod -a -G "$GROUP_NAME" "$AZ_USER"
 
-# 📁 ACL
+if [[ -n "$AZ_USER" ]]; then
+  usermod -a -G "$GROUP_NAME" "$AZ_USER"
+  ok "Utilisateur ${AZ_USER} ajouté au groupe ${GROUP_NAME}."
+else
+  warn "Impossible d’identifier l’utilisateur courant pour l’ajout au groupe."
+fi
+
+# 📁 ACL utiles sur /opt (facultatif mais pratique)
 mkdir -p /opt
-run_with_spinner "ACL sur /opt" bash -c "
-  chown -R root:${GROUP_NAME} /opt &&
-  chmod -R 2775 /opt &&
-  setfacl -R -m g:${GROUP_NAME}:rwx /opt &&
-  setfacl -dR -m g:${GROUP_NAME}:rwx /opt
-"
+chown -R root:"$GROUP_NAME" /opt
+chmod -R 2775 /opt
+setfacl -R  -m g:"$GROUP_NAME":rwx /opt
+setfacl -dR -m g:"$GROUP_NAME":rwx /opt
+ok "ACL appliquées sur /opt pour ${GROUP_NAME}."
 
-# 🔥 UFW
-ufw allow OpenSSH >/dev/null 2>&1 || true
-ufw --force enable
-
-# ✅ Fin
-ok "Groupe ${GROUP_NAME} prêt."
-ok "GitHub CLI configuré avec token."
-ok "Journal dispo : ${LOGFILE}"
+# ✅ Récap
+echo
+ok "Terminé. Groupe: ${GROUP_NAME} | User: ${AZ_USER}"
+ok "Journal: ${LOGFILE}"
