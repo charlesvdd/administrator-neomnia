@@ -2,9 +2,9 @@
 set -Eeuo pipefail
 
 ##########################################################################
-#  Neomnia — Kickstarter Azure (prompts d'abord, actions ensuite)
+#  Neomnia — Azure bootstrap (prompts d'abord, actions ensuite)
 #  Licence : Charles Van den Driessche | Auteur : @neomnia
-#  Version : 2025-08-31
+#  Version : 2025-08-31 (v3: saisie unique + validation API)
 ##########################################################################
 
 RED="\033[31m"; GREEN="\033[32m"; YELLOW="\033[33m"; CYAN="\033[36m"; BOLD="\033[1m"; RESET="\033[0m"
@@ -16,41 +16,102 @@ err()  { log "${RED}✖${RESET} $*"; }
 
 trap 'err "Erreur (ligne ${BASH_LINENO[0]}). Voir $LOGFILE."' ERR
 
-# ---- TTY pour lecture interactive même en "curl | bash"
+# ---------- Utilitaires ----------
+# Normalise un token collé (supprime espaces, \r, guillemets autour)
+normalize_token() {
+  # 1) enlève \r
+  local t="${1%$'\r'}"
+  # 2) trim début/fin
+  t="${t#"${t%%[![:space:]]*}"}"
+  t="${t%"${t##*[![:space:]]}"}"
+  # 3) supprime tous les espaces/retours invisibles
+  t="$(printf '%s' "$t" | tr -d '[:space:]')"
+  # 4) enlève guillemets entourant éventuels
+  t="${t%\"}"; t="${t#\"}"
+  t="${t%\'}"; t="${t#\'}"
+  printf '%s' "$t"
+}
+
 INPUT_TTY="/dev/tty"
-if ! [ -t 0 ] && ! [ -r "$INPUT_TTY" ]; then
-  err "Pas de TTY disponible pour les prompts. Fournis GROUP_NAME et GITHUB_TOKEN en variables d'env."
-  exit 1
-fi
+have_tty=false
+if [ -t 0 ] || [ -r "$INPUT_TTY" ]; then have_tty=true; fi
 
-# ---- Helpers de saisie (lisent sur /dev/tty)
-ask_nonempty() { local v; while :; do read -rp "$1" v <"$INPUT_TTY"; [[ -n "${v// }" ]] && { echo "$v"; return; }; echo "Valeur requise." >&2; done; }
-ask_secret() { local v1 v2; while :; do read -srp "$1" v1 <"$INPUT_TTY"; echo; read -srp "Confirme la clé : " v2 <"$INPUT_TTY"; echo; [[ "$v1" == "$v2" && -n "${v1// }" ]] && { echo "$v1"; return; }; echo "Les valeurs ne correspondent pas." >&2; done; }
+ask_line_tty() { local p="$1" v=""; read -rp "$p" v <"$INPUT_TTY"; printf '%s' "$(normalize_token "$v")"; }
+ask_secret_tty() { local p="$1" v=""; read -srp "$p" v <"$INPUT_TTY"; echo; printf '%s' "$(normalize_token "$v")"; }
 
-# ---- Prompts d'abord (ou variables d'env si déjà présentes)
-GROUP_NAME="${GROUP_NAME:-}"
-if [[ -z "${GROUP_NAME// }" ]]; then
-  GROUP_NAME="$(ask_nonempty '👉 Nom du groupe à créer : ')"
-fi
+validate_github_token() {
+  local tok="$1"
+  # essai via gh si dispo, sinon via curl
+  if command -v gh >/dev/null 2>&1; then
+    GITHUB_TOKEN="$tok" gh api user >/dev/null 2>&1 && return 0
+  fi
+  curl -fsS -H "Authorization: token ${tok}" https://api.github.com/user >/dev/null 2>&1
+}
 
-# Priorité à GITHUB_TOKEN, sinon GH_TOKEN, sinon prompt
+require_root() { [[ $EUID -eq 0 ]] || { err "Exécuter en root (sudo)."; exit 1; } }
+
+# ---------- Prompts d’abord (ou ENV), zéro action avant ----------
+: "${GROUP_NAME:=}"
 : "${GITHUB_TOKEN:=${GH_TOKEN:-}}"
-if [[ -z "${GITHUB_TOKEN// }" ]]; then
-  GITHUB_TOKEN="$(ask_secret '👉 Clé API GitHub (masquée) : ')"
+
+if [[ -z "${GROUP_NAME// }" ]]; then
+  if $have_tty; then
+    GROUP_NAME="$(ask_line_tty '👉 Nom du groupe à créer : ' )"
+    [[ -n "${GROUP_NAME// }" ]] || { err "GROUP_NAME requis."; exit 1; }
+  else
+    err "Aucun TTY: définis GROUP_NAME en variable d'environnement."; exit 1
+  fi
 fi
 
-# ---- Maintenant seulement on agit
-if [[ $EUID -ne 0 ]]; then err "Ce script doit être exécuté en root (sudo)."; exit 1; fi
+if [[ -z "${GITHUB_TOKEN// }" ]]; then
+  if ! $have_tty; then
+    err "Aucun TTY: définis GITHUB_TOKEN (ou GH_TOKEN) en variable d'environnement."; exit 1
+  fi
+  # 3 tentatives max, saisie masquée UNE SEULE FOIS, validation API
+  attempts=0
+  while (( attempts < 3 )); do
+    attempts=$((attempts+1))
+    local_raw="$(ask_secret_tty '👉 Clé API GitHub (masquée) : ')" || true
+    GITHUB_TOKEN="$(normalize_token "$local_raw")"
+    if [[ -z "${GITHUB_TOKEN// }" ]]; then
+      echo "  (clé vide — réessaie)" >"$INPUT_TTY"
+      continue
+    fi
+    # petit aperçu non sensible
+    echo "  Aperçu: ${GITHUB_TOKEN:0:4}…${GITHUB_TOKEN: -4} (len=${#GITHUB_TOKEN})" >"$INPUT_TTY"
+    if validate_github_token "$GITHUB_TOKEN"; then
+      ok "Token GitHub validé."
+      break
+    else
+      echo "  Échec validation API GitHub — vérifie la clé (scopes) et réessaie." >"$INPUT_TTY"
+    fi
+  done
+  if (( attempts == 3 )) && ! validate_github_token "$GITHUB_TOKEN"; then
+    err "Impossible de valider la clé après 3 essais."
+    exit 1
+  fi
+else
+  # token fourni par ENV — on valide quand même
+  if ! validate_github_token "$GITHUB_TOKEN"; then
+    err "Le token passé en variable d'env est invalide."
+    exit 1
+  fi
+  ok "Token GitHub validé (env)."
+fi
 
-# Dépendances minimales (sans upgrade global)
+export GITHUB_TOKEN
+
+# ---------- À partir d’ici seulement on agit ----------
+require_root
+
+# Dépendances minimales (install qu’en cas de manque)
 need_install=()
-command -v gh     >/dev/null 2>&1 || need_install+=("gh")
 command -v curl   >/dev/null 2>&1 || need_install+=("curl")
 command -v jq     >/dev/null 2>&1 || need_install+=("jq")
+command -v gh     >/dev/null 2>&1 || need_install+=("gh")
 command -v setfacl>/dev/null 2>&1 || need_install+=("acl")
-
 if ((${#need_install[@]})); then
-  log "Installation des manquants: ${need_install[*]}"
+  log "Installation des dépendances manquantes: ${need_install[*]}"
   apt-get update -y >/dev/null 2>&1 || true
   apt-get install -y "${need_install[@]}" >/dev/null
   ok "Dépendances installées: ${need_install[*]}"
@@ -58,34 +119,18 @@ else
   ok "Dépendances déjà présentes."
 fi
 
-# ---- Auth GitHub SANS interactivité
-log "Authentification GitHub via token…"
-export GITHUB_TOKEN  # déjà rempli ci-dessus
-
-# Vérification (gh puis fallback curl)
-if ! gh api user >/dev/null 2>&1; then
-  if ! curl -fsS -H "Authorization: token ${GITHUB_TOKEN}" https://api.github.com/user >/dev/null; then
-    err "Échec de l'auth GitHub. Vérifie le token et les scopes."
-    exit 1
-  fi
-fi
-ok "Authentification GitHub validée."
-
-# ---- Télécharger & lancer git-wrapper.sh
+# Téléchargement & exécution git-wrapper.sh
 GIT_WRAPPER_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh"
 GIT_WRAPPER_PATH="/usr/local/bin/git-wrapper.sh"
-
 log "Téléchargement git-wrapper.sh…"
 curl -fsSL "$GIT_WRAPPER_URL" -o "$GIT_WRAPPER_PATH"
 chmod +x "$GIT_WRAPPER_PATH"
-ok "git-wrapper.sh prêt."
-
 log "Exécution git-wrapper.sh…"
 ( set +u +x; GITHUB_TOKEN="$GITHUB_TOKEN" GH_TOKEN="$GITHUB_TOKEN" bash "$GIT_WRAPPER_PATH" ) >>"$LOGFILE" 2>&1 || {
   err "git-wrapper.sh a échoué (voir $LOGFILE)"; exit 1; }
 ok "git-wrapper.sh exécuté."
 
-# ---- Groupe : création + ajout utilisateur courant
+# Groupe + ajout user courant
 AZ_USER="${SUDO_USER:-$(whoami)}"
 if getent group "$GROUP_NAME" >/dev/null; then
   warn "Groupe ${GROUP_NAME} déjà existant."
@@ -93,15 +138,12 @@ else
   groupadd "$GROUP_NAME"
   ok "Groupe ${GROUP_NAME} créé."
 fi
-
 if [[ -n "$AZ_USER" ]]; then
   usermod -a -G "$GROUP_NAME" "$AZ_USER"
   ok "Utilisateur ${AZ_USER} ajouté au groupe ${GROUP_NAME}."
-else
-  warn "Impossible d’identifier l’utilisateur courant pour l’ajout au groupe."
 fi
 
-# ---- ACL pratiques sur /opt
+# ACL utiles sur /opt
 mkdir -p /opt
 chown -R root:"$GROUP_NAME" /opt
 chmod -R 2775 /opt
@@ -109,5 +151,4 @@ setfacl -R  -m g:"$GROUP_NAME":rwx /opt
 setfacl -dR -m g:"$GROUP_NAME":rwx /opt
 ok "ACL appliquées sur /opt pour ${GROUP_NAME}."
 
-ok "Terminé. Groupe: ${GROUP_NAME} | User: ${AZ_USER}"
-ok "Journal: ${LOGFILE}"
+ok "Terminé. Groupe=${GROUP_NAME} | User=${AZ_USER} | Log=${LOGFILE}"
