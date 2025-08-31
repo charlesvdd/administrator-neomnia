@@ -7,7 +7,6 @@ set -Eeuo pipefail
 #  Version : 2025-08-31
 ##########################################################################
 
-# 🎨 Couleurs & log
 RED="\033[31m"; GREEN="\033[32m"; YELLOW="\033[33m"; CYAN="\033[36m"; BOLD="\033[1m"; RESET="\033[0m"
 LOGFILE="/var/log/neomnia-setup.log"; mkdir -p "$(dirname "$LOGFILE")" 2>/dev/null || true; touch "$LOGFILE" 2>/dev/null || true
 log()  { echo -e "${CYAN}[Neomnia]${RESET} $*"; echo "[$(date '+%F %T')] $*" >>"$LOGFILE"; }
@@ -17,17 +16,33 @@ err()  { log "${RED}✖${RESET} $*"; }
 
 trap 'err "Erreur (ligne ${BASH_LINENO[0]}). Voir $LOGFILE."' ERR
 
-# 🔡 Prompts (D’ABORD les variables, rien d’autre)
-ask_nonempty() { local v; while :; do read -rp "$1" v; [[ -n "${v// }" ]] && { echo "$v"; return; }; echo "Valeur requise."; done; }
-ask_secret() { local v1 v2; while :; do read -srp "$1" v1; echo; read -srp "Confirme la clé : " v2; echo; [[ "$v1" == "$v2" && -n "${v1// }" ]] && { echo "$v1"; return; }; echo "Les valeurs ne correspondent pas."; done; }
+# ---- TTY pour lecture interactive même en "curl | bash"
+INPUT_TTY="/dev/tty"
+if ! [ -t 0 ] && ! [ -r "$INPUT_TTY" ]; then
+  err "Pas de TTY disponible pour les prompts. Fournis GROUP_NAME et GITHUB_TOKEN en variables d'env."
+  exit 1
+fi
 
-GROUP_NAME="$(ask_nonempty '👉 Nom du groupe à créer : ')"
-GH_TOKEN="$(ask_secret   '👉 Clé API GitHub (masquée) : ')"
+# ---- Helpers de saisie (lisent sur /dev/tty)
+ask_nonempty() { local v; while :; do read -rp "$1" v <"$INPUT_TTY"; [[ -n "${v// }" ]] && { echo "$v"; return; }; echo "Valeur requise." >&2; done; }
+ask_secret() { local v1 v2; while :; do read -srp "$1" v1 <"$INPUT_TTY"; echo; read -srp "Confirme la clé : " v2 <"$INPUT_TTY"; echo; [[ "$v1" == "$v2" && -n "${v1// }" ]] && { echo "$v1"; return; }; echo "Les valeurs ne correspondent pas." >&2; done; }
 
-# ✅ Maintenant seulement on vérifie/agit
+# ---- Prompts d'abord (ou variables d'env si déjà présentes)
+GROUP_NAME="${GROUP_NAME:-}"
+if [[ -z "${GROUP_NAME// }" ]]; then
+  GROUP_NAME="$(ask_nonempty '👉 Nom du groupe à créer : ')"
+fi
+
+# Priorité à GITHUB_TOKEN, sinon GH_TOKEN, sinon prompt
+: "${GITHUB_TOKEN:=${GH_TOKEN:-}}"
+if [[ -z "${GITHUB_TOKEN// }" ]]; then
+  GITHUB_TOKEN="$(ask_secret '👉 Clé API GitHub (masquée) : ')"
+fi
+
+# ---- Maintenant seulement on agit
 if [[ $EUID -ne 0 ]]; then err "Ce script doit être exécuté en root (sudo)."; exit 1; fi
 
-# 🔎 Outils requis (sans APT bruyant : on installe UNIQUEMENT si manquants)
+# Dépendances minimales (sans upgrade global)
 need_install=()
 command -v gh     >/dev/null 2>&1 || need_install+=("gh")
 command -v curl   >/dev/null 2>&1 || need_install+=("curl")
@@ -36,7 +51,6 @@ command -v setfacl>/dev/null 2>&1 || need_install+=("acl")
 
 if ((${#need_install[@]})); then
   log "Installation des manquants: ${need_install[*]}"
-  # On évite apt-get upgrade/update global — on installe au plus court
   apt-get update -y >/dev/null 2>&1 || true
   apt-get install -y "${need_install[@]}" >/dev/null
   ok "Dépendances installées: ${need_install[*]}"
@@ -44,20 +58,20 @@ else
   ok "Dépendances déjà présentes."
 fi
 
-# 🔐 Auth GitHub SANS interactivité (pas de gh auth login)
+# ---- Auth GitHub SANS interactivité
 log "Authentification GitHub via token…"
-export GITHUB_TOKEN="$GH_TOKEN"
+export GITHUB_TOKEN  # déjà rempli ci-dessus
 
 # Vérification (gh puis fallback curl)
 if ! gh api user >/dev/null 2>&1; then
-  if ! curl -fsS -H "Authorization: token ${GH_TOKEN}" https://api.github.com/user >/dev/null; then
+  if ! curl -fsS -H "Authorization: token ${GITHUB_TOKEN}" https://api.github.com/user >/dev/null; then
     err "Échec de l'auth GitHub. Vérifie le token et les scopes."
     exit 1
   fi
 fi
 ok "Authentification GitHub validée."
 
-# ⬇️ Télécharger & lancer git-wrapper.sh
+# ---- Télécharger & lancer git-wrapper.sh
 GIT_WRAPPER_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh"
 GIT_WRAPPER_PATH="/usr/local/bin/git-wrapper.sh"
 
@@ -67,11 +81,11 @@ chmod +x "$GIT_WRAPPER_PATH"
 ok "git-wrapper.sh prêt."
 
 log "Exécution git-wrapper.sh…"
-( set +x; GITHUB_TOKEN="$GH_TOKEN" GH_TOKEN="$GH_TOKEN" bash "$GIT_WRAPPER_PATH" ) >>"$LOGFILE" 2>&1 || {
+( set +u +x; GITHUB_TOKEN="$GITHUB_TOKEN" GH_TOKEN="$GITHUB_TOKEN" bash "$GIT_WRAPPER_PATH" ) >>"$LOGFILE" 2>&1 || {
   err "git-wrapper.sh a échoué (voir $LOGFILE)"; exit 1; }
 ok "git-wrapper.sh exécuté."
 
-# 👥 Groupe (création + ajout de l’utilisateur courant)
+# ---- Groupe : création + ajout utilisateur courant
 AZ_USER="${SUDO_USER:-$(whoami)}"
 if getent group "$GROUP_NAME" >/dev/null; then
   warn "Groupe ${GROUP_NAME} déjà existant."
@@ -87,7 +101,7 @@ else
   warn "Impossible d’identifier l’utilisateur courant pour l’ajout au groupe."
 fi
 
-# 📁 ACL utiles sur /opt (facultatif mais pratique)
+# ---- ACL pratiques sur /opt
 mkdir -p /opt
 chown -R root:"$GROUP_NAME" /opt
 chmod -R 2775 /opt
@@ -95,7 +109,5 @@ setfacl -R  -m g:"$GROUP_NAME":rwx /opt
 setfacl -dR -m g:"$GROUP_NAME":rwx /opt
 ok "ACL appliquées sur /opt pour ${GROUP_NAME}."
 
-# ✅ Récap
-echo
 ok "Terminé. Groupe: ${GROUP_NAME} | User: ${AZ_USER}"
 ok "Journal: ${LOGFILE}"
