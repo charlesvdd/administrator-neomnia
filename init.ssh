@@ -21,7 +21,6 @@ RESET="\033[0m"
 
 # 📝 Logging (console + fichier), chaque ligne préfixée [Neomnia]
 LOGFILE="/var/log/neomnia-setup.log"
-
 # Créer le fichier de log si nécessaire
 if ! (mkdir -p "$(dirname "$LOGFILE")" && touch "$LOGFILE" 2>/dev/null); then
     LOGFILE="/tmp/neomnia-setup.log"
@@ -38,19 +37,19 @@ _log_line() {
 }
 
 log() {
-    _log_line "$*"
+    _log_line "$@"
 }
 
 ok() {
-    _log_line "${GREEN}✔${RESET} $*"
+    _log_line "${GREEN}✔${RESET} $@"
 }
 
 warn() {
-    _log_line "${YELLOW}⚠${RESET} $*"
+    _log_line "${YELLOW}⚠${RESET} $@"
 }
 
 err() {
-    _log_line "${RED}✖${RESET} $*"
+    _log_line "${RED}✖${RESET} $@"
 }
 
 # Gestion des erreurs
@@ -102,7 +101,6 @@ banner() {
 |  \| |/ _ \| '_ \/ __| |/ _` | __/ _` | '_ \| | '_ \/ __|
 | |\  | (_) | | | \__ \ | (_| | || (_| | | | | | | | \__ \
 |_| \_|\___/|_| |_|___/_|\__,_|\__\__,_|_| |_|_|_| |_|___/
-
                      Kickstarter • Azure
 EOF
 }
@@ -154,7 +152,6 @@ run_raw() {
 # 🚀 Début du script
 require_root
 banner
-
 typewriter "Login Neomnia… OK" 0.03
 typewriter "Chargement des modules… OK" 0.02
 typewriter "Initialisation Kickstarter Azure… OK" 0.02
@@ -211,10 +208,6 @@ run_with_spinner "Activation de UFW" ufw --force enable
 [[ -n "${GIT_EMAIL:-}" ]] && git config --global user.email "$GIT_EMAIL"
 [[ -n "${GIT_NAME:-}" ]] && git config --global user.name "$GIT_NAME"
 ok "Configuration Git appliquée (si variables définies)."
-
-# Exemple d’exécution RAW (désactivé par défaut)
-# run_raw "scripts/ton-script.sh"
-# run_raw "init.ssh"   # ⚠ éviter la récursion si c’est ce fichier
 
 # Vérification finale
 echo -e "\n${MAGENTA}${BOLD}############## Vérification finale ##############${RESET}"
