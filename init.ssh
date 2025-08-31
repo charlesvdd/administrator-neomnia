@@ -88,8 +88,8 @@ ok "Utilisateur actif: ${ACTIVE_USER}."
 
 # ——————— Groupe ———————
 CURRENT_STEP="création du groupe"
-read -rp "$(echo -e "$(prefix) ${BOLD}Nom du groupe (défaut gitusers) :${RESET} ")" GROUP_NAME
-GROUP_NAME=${GROUP_NAME:-gitusers}
+read -rp "$(echo -e "$(prefix) ${BOLD}Nom du groupe (défaut gitusers) :${RESET} ")" group_name_input
+GROUP_NAME=${group_name_input:-gitusers}
 
 if ! getent group "$GROUP_NAME" >/dev/null; then
   groupadd "$GROUP_NAME"
