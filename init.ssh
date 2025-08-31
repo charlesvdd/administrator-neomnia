@@ -1,111 +1,128 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# ========= Neomnia — Azure mini-setup (prompts d'abord) =========
+###############################################################################
+# Script d'installation et configuration système – Application: inital vps (Azure)
+# Licence : (c) Charles Van den Driessche – @neomnia
+#
+# Permission est accordée d’utiliser, copier, modifier et distribuer ce script,
+# avec mention de l’auteur. Le script est fourni "en l’état", sans garantie d’aucune sorte.
+#
+# Auteur  : @neomnia
+# Version : 1.1 (adapté pour Azure)
+###############################################################################
 
-RED="\033[31m"; GREEN="\033[32m"; YELLOW="\033[33m"; CYAN="\033[36m"; RESET="\033[0m"
-LOGFILE="/var/log/neomnia-setup.log"; mkdir -p "$(dirname "$LOGFILE")" 2>/dev/null || true; touch "$LOGFILE" 2>/dev/null || true
-log(){ echo -e "${CYAN}[Neomnia]${RESET} $*"; echo "[$(date '+%F %T')] $*" >>"$LOGFILE"; }
-ok(){ log "${GREEN}✔${RESET} $*"; }
-warn(){ log "${YELLOW}⚠${RESET} $*"; }
-err(){ log "${RED}✖${RESET} $*"; }
-trap 'err "Une erreur est survenue (ligne ${BASH_LINENO[0]}). Consulter $LOGFILE."' ERR
+# ——————— Paramètres d’app et journalisation ———————
+APP_NAME="inital vps azure"
+BRAND_ONE="Neomnia"
+BRAND_TWO="Neo-inital"
+LOGFILE="/var/log/${APP_NAME// /-}-setup.log"
+START_TS="$(date +%s)"
 
-# --- helpers I/O (marche avec `curl | sudo bash`)
-INPUT_TTY="/dev/tty"; have_tty=false; { [ -t 0 ] || [ -r "$INPUT_TTY" ]; } && have_tty=true
-normalize(){ local s="${1%$'\r'}"; s="${s#"${s%%[![:space:]]*}"}"; s="${s%"${s##*[![:space:]]}"}"; printf '%s' "$s"; }
-ask(){ local p="$1" v=""; read -rp "$p" v <"$INPUT_TTY"; printf '%s' "$(normalize "$v")"; }
-ask_secret(){ local p="$1" v=""; read -srp "$p" v <"$INPUT_TTY"; echo; printf '%s' "$(normalize "$v")"; }
+# Redirection vers log + console
+mkdir -p "$(dirname "$LOGFILE")"
+exec > >(tee -a "$LOGFILE") 2>&1
 
-# --- PROMPTS (ou variables d'env), AVANT toute action
-: "${GROUP_NAME:=}"; : "${GITHUB_TOKEN:=${GH_TOKEN:-}}"
+# ——————— Couleurs ———————
+RED="\033[31m"; GREEN="\033[32m"; YELLOW="\033[33m"; BLUE="\033[34m"
+MAGENTA="\033[35m"; CYAN="\033[36m"; BOLD="\033[1m"; RESET="\033[0m"
 
-if [[ -z "${GROUP_NAME// }" ]]; then
-  $have_tty || { err "Aucun TTY : définis GROUP_NAME en variable d'environnement."; exit 1; }
-  GROUP_NAME="$(ask '👉 Nom du groupe à créer : ')" || true
-  [[ -n "${GROUP_NAME// }" ]] || { err "GROUP_NAME requis."; exit 1; }
+# ——————— Préfixe de log ———————
+prefix() {
+  echo -e "${CYAN}[${BRAND_ONE}]${RESET}${CYAN}[${BRAND_TWO}]${RESET}${CYAN}[${APP_NAME}]${RESET} $(date +%H:%M:%S)"
+}
+
+log()  { echo -e "$(prefix) $*"; }
+ok()   { echo -e "$(prefix) ${GREEN}✔${RESET} $*"; }
+warn() { echo -e "$(prefix) ${YELLOW}⚠${RESET} $*"; }
+err()  { echo -e "$(prefix) ${RED}✖${RESET} $*" >&2; }
+
+# ——————— Gestion d’erreurs & sortie ———————
+CURRENT_STEP="initialisation"
+on_error() {
+  local exit_code=$?
+  local line_no=$1
+  local cmd=${2:-"N/A"}
+  err "Échec pendant l’étape: ${BOLD}${CURRENT_STEP}${RESET} (ligne ${line_no})"
+  err "Dernière commande: ${BOLD}${cmd}${RESET}"
+  err "Journal complet: ${LOGFILE}"
+  echo
+  exit "$exit_code"
+}
+
+on_exit() {
+  local code=$?
+  local end_ts
+  end_ts="$(date +%s)"
+  local duration=$(( end_ts - START_TS ))
+  if [ "$code" -eq 0 ]; then
+    ok "Setup terminé sans erreur ✅ (durée: ${duration}s)."
+    ok "Journal: ${LOGFILE}"
+  else
+    err "Setup terminé avec erreurs ❌ (durée: ${duration}s)."
+    err "Consulte le journal: ${LOGFILE}"
+  fi
+}
+
+trap 'on_error $LINENO "$BASH_COMMAND"' ERR
+trap 'on_exit' EXIT
+
+# ——————— Vérif shell ———————
+if [ -z "${BASH_VERSION:-}" ]; then
+  log "Bash requis → relance sous bash..."
+  exec bash "$0" "$@"
 fi
 
-if [[ -z "${GITHUB_TOKEN// }" ]]; then
-  $have_tty || { err "Aucun TTY : définis GITHUB_TOKEN (ou GH_TOKEN) en env."; exit 1; }
-  GITHUB_TOKEN="$(ask_secret '👉 Clé API GitHub (masquée) : ')" || true
-  [[ -n "${GITHUB_TOKEN// }" ]] || { err "Token vide."; exit 1; }
-fi
-
-# Export des deux noms pour contenter tout le monde (wrapper inclus)
-export GITHUB_TOKEN
-export GH_TOKEN="$GITHUB_TOKEN"
-
-# Optionnel : demander des dépôts pour le wrapper (sinon on saute)
-REPOS=""
-if $have_tty; then
-  REPOS="$(ask '👉 Dépôts pour git-wrapper (owner/repo, séparés par espaces) — laisser vide pour passer : ')" || true
-fi
-
-# --- PRÉREQUIS MINIMAUX
-[[ $EUID -eq 0 ]] || { err "Exécuter en root (sudo)."; exit 1; }
-need=()
-command -v curl >/dev/null 2>&1 || need+=("curl")
-command -v jq   >/dev/null 2>&1 || need+=("jq")
-command -v git  >/dev/null 2>&1 || need+=("git")
-command -v gh   >/dev/null 2>&1 || need+=("gh")
-command -v setfacl >/dev/null 2>&1 || need+=("acl")   # setfacl est dans 'acl' (Ubuntu)
-if ((${#need[@]})); then
-  log "Installation des dépendances: ${need[*]}"
-  apt-get update -y >/dev/null 2>&1 || true
-  apt-get install -y "${need[@]}" >/dev/null
-  ok "Dépendances installées: ${need[*]}"
-else
-  ok "Dépendances déjà présentes."
-fi
-
-# --- VALIDATION TOKEN (sans gh auth login, pas de device flow)
-log "Validation GitHub via token…"
-if ! ( GITHUB_TOKEN="$GITHUB_TOKEN" gh api user >/dev/null 2>&1 || curl -fsS -H "Authorization: token ${GITHUB_TOKEN}" https://api.github.com/user >/dev/null 2>&1 ); then
-  err "Token GitHub invalide (scopes ?)."
+# ——————— Vérif root ———————
+CURRENT_STEP="vérification des privilèges"
+if [ "${EUID:-$(id -u)}" -ne 0 ]; then
+  err "Ce script doit être exécuté en root."
   exit 1
 fi
-ok "Token GitHub validé."
+ok "Privilèges root confirmés."
 
-# --- GROUPE + ajout de l'utilisateur courant
-AZ_USER="${SUDO_USER:-$(whoami)}"
-log "Groupe cible: ${GROUP_NAME}"
-if getent group "$GROUP_NAME" >/dev/null; then
-  warn "Groupe ${GROUP_NAME} déjà existant."
-else
+# ——————— Utilisateur actif ———————
+CURRENT_STEP="utilisation de l'utilisateur actif"
+ACTIVE_USER=$(logname)
+ok "Utilisateur actif: ${ACTIVE_USER}."
+
+# ——————— Groupe ———————
+CURRENT_STEP="création du groupe"
+read -rp "$(echo -e "$(prefix) ${BOLD}Nom du groupe (défaut gitusers) :${RESET} ")" GROUP_NAME
+GROUP_NAME=${GROUP_NAME:-gitusers}
+
+if ! getent group "$GROUP_NAME" >/dev/null; then
   groupadd "$GROUP_NAME"
   ok "Groupe ${GROUP_NAME} créé."
-fi
-if [[ -n "$AZ_USER" ]]; then
-  usermod -a -G "$GROUP_NAME" "$AZ_USER"
-  ok "Utilisateur ${AZ_USER} ajouté à ${GROUP_NAME}."
-fi
-
-# --- ACL /opt
-mkdir -p /opt
-chown -R root:"$GROUP_NAME" /opt
-chmod -R 2775 /opt
-setfacl -R  -m g:"$GROUP_NAME":rwx /opt
-setfacl -dR -m g:"$GROUP_NAME":rwx /opt
-ok "ACL appliquées sur /opt pour ${GROUP_NAME}."
-
-# --- GitHub CLI: ne surtout pas lancer 'gh auth login'
-ok "gh prêt (pas d'auth interactive)."
-
-# --- git-wrapper.sh (SEULEMENT si des dépôts ont été fournis)
-if [[ -n "${REPOS// }" ]]; then
-  GIT_WRAPPER_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh"
-  GIT_WRAPPER_PATH="/usr/local/bin/git-wrapper.sh"
-  log "Téléchargement de git-wrapper.sh"
-  curl -fsSL "$GIT_WRAPPER_URL" -o "$GIT_WRAPPER_PATH"
-  chmod +x "$GIT_WRAPPER_PATH"
-  log "Exécution de git-wrapper.sh…"
-  # Astuce : on peut passer des flags si besoin, ex: --release --bump patch
-  ( set +u +x; GITHUB_TOKEN="$GITHUB_TOKEN" GH_TOKEN="$GITHUB_TOKEN" bash "$GIT_WRAPPER_PATH" $REPOS ) >>"$LOGFILE" 2>&1 || {
-    err "git-wrapper.sh a échoué (voir $LOGFILE)"; exit 1; }
-  ok "git-wrapper.sh exécuté."
 else
-  warn "Aucun dépôt renseigné — git-wrapper non exécuté."
+  warn "Groupe ${GROUP_NAME} déjà existant."
 fi
 
-ok "Terminé. Groupe=${GROUP_NAME} | User=${AZ_USER} | Log=${LOGFILE}"
+# Ajouter l'utilisateur actif au groupe
+usermod -aG "$GROUP_NAME" "$ACTIVE_USER"
+ok "Utilisateur ${ACTIVE_USER} ajouté au groupe ${GROUP_NAME}."
+
+# ——————— Paquets ———————
+CURRENT_STEP="mise à jour système et installation des paquets"
+log "Mise à jour du système..."
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y && apt-get upgrade -y
+ok "Système à jour."
+
+log "Installation des outils (acl, curl, git, tree, telnet)..."
+apt-get install -y acl curl git tree telnet
+ok "Paquets installés."
+
+# ——————— Droits /opt avec ACL ———————
+CURRENT_STEP="configuration des droits /opt avec ACL"
+chown -R root:"$GROUP_NAME" /opt 2>/dev/null || true
+chmod -R 2775 /opt 2>/dev/null || true
+setfacl -R -m g:"$GROUP_NAME":rwx /opt
+ok "ACL appliquées sur /opt pour le groupe ${GROUP_NAME}."
+
+# ——————— Vérification finale ———————
+CURRENT_STEP="vérification finale"
+echo -e "\n${MAGENTA}${BOLD}############## Vérification finale — ${APP_NAME} ##############${RESET}"
+ok "Utilisateur actif: ${ACTIVE_USER}"
+ok "Groupe appliqué à /opt avec ACL: ${GROUP_NAME}"
+echo -e "${MAGENTA}${BOLD}##############   Setup complet   ##############${RESET}\n"
