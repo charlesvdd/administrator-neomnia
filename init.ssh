@@ -1,176 +1,182 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-###############################################################################
-#  Script d’installation et configuration système – Application: inital vps   #
-#  Licence : (c) Charles Van den Driessche – @neomnia                         #
-#                                                                             #
-#  Permission est accordée d’utiliser, copier, modifier et distribuer ce      #
-#  script, avec mention de l’auteur. Le script est fourni "en l’état", sans   #
-#  garantie d’aucune sorte.                                                   #
-#                                                                             #
-#  Auteur  : @neomnia                                                         #
-#  Version : 1.0                                                              #
-###############################################################################
+##########################################################################
+#  Neomnia — Kickstarter Azure (install & setup)                          #
+#  Licence : Charles Van den Driessche                                    #
+#  Auteur  : @neomnia                                                     #
+#  Repo    : https://github.com/charlesvdd/administrator-neomnia/tree/azure
+#  Version : 2025-08-27
+##########################################################################
 
-# ——————— Paramètres d’app et journalisation ———————
-APP_NAME="inital vps"
-BRAND_ONE="Neomnia"
-BRAND_TWO="Neo-inital"
-LOGFILE="/var/log/${APP_NAME// /-}-setup.log"
-START_TS="$(date +%s)"
-
-# Redirection vers log + console
-mkdir -p "$(dirname "$LOGFILE")"
-exec > >(tee -a "$LOGFILE") 2>&1
-
-# ——————— Couleurs ———————
+# 🎨 Couleurs
 RED="\033[31m"; GREEN="\033[32m"; YELLOW="\033[33m"; BLUE="\033[34m"
 MAGENTA="\033[35m"; CYAN="\033[36m"; BOLD="\033[1m"; RESET="\033[0m"
 
-# ——————— Préfixe de log ———————
-prefix() {
-  # [Neomnia][Neo-inital][inital vps] HH:MM:SS
-  echo -e "${CYAN}[${BRAND_ONE}]${RESET}${CYAN}[${BRAND_TWO}]${RESET}${CYAN}[${APP_NAME}]${RESET} $(date +%H:%M:%S)"
+# 📝 Logging (console + fichier), chaque ligne préfixée [Neomnia]
+LOGFILE="/var/log/neomnia-setup.log"
+if ! (mkdir -p "$(dirname "$LOGFILE")" && touch "$LOGFILE" 2>/dev/null); then
+  LOGFILE="/tmp/neomnia-setup.log"; mkdir -p /tmp || true; touch "$LOGFILE" || true
+fi
+
+_log_line() {
+  local ts; ts="$(date '+%F %T')";
+  echo -e "${CYAN}[Neomnia]${RESET} $*";
+  echo -e "[$ts] [Neomnia] $(echo -e "$*" | sed -r 's/\x1B\[[0-9;]*[mK]//g')" >> "$LOGFILE";
 }
 
-log()  { echo -e "$(prefix) $*"; }
-ok()   { echo -e "$(prefix) ${GREEN}✔${RESET} $*"; }
-warn() { echo -e "$(prefix) ${YELLOW}⚠${RESET} $*"; }
-err()  { echo -e "$(prefix) ${RED}✖${RESET} $*" >&2; }
+log() { _log_line "$*"; }
+ok() { _log_line "${GREEN}✔${RESET} $*"; }
+warn() { _log_line "${YELLOW}⚠${RESET} $*"; }
+err() { _log_line "${RED}✖${RESET} $*"; }
 
-# ——————— Gestion d’erreurs & sortie ———————
-CURRENT_STEP="initialisation"
+trap 'err "Une erreur est survenue (ligne ${BASH_LINENO[0]}). Consulter $LOGFILE."' ERR
 
-on_error() {
-  local exit_code=$?
-  local line_no=$1
-  local cmd=${2:-"N/A"}
-  err "Échec pendant l’étape: ${BOLD}${CURRENT_STEP}${RESET} (ligne ${line_no})"
-  err "Dernière commande: ${BOLD}${cmd}${RESET}"
-  err "Journal complet: ${LOGFILE}"
-  echo
-  exit "$exit_code"
+# 🌀 Spinner & mini animations
+spinner() {
+  local pid="$1" delay=0.1 spin='|/-\';
+  while kill -0 "$pid" 2>/dev/null; do
+    for ((i=0; i<${#spin}; i++)); do
+      printf "\r${CYAN}[Neomnia]${RESET} ⏳ %c " "${spin:$i:1}";
+      sleep "$delay";
+    done;
+  done;
+  printf "\r${CYAN}[Neomnia]${RESET}    \b\b\b\b";
 }
 
-on_exit() {
-  local code=$?
-  local end_ts
-  end_ts="$(date +%s)"
-  local duration=$(( end_ts - START_TS ))
-  if [ "$code" -eq 0 ]; then
-    ok "Setup terminé sans erreur ✅ (durée: ${duration}s)."
-    ok "Journal: ${LOGFILE}"
-  else
-    err "Setup terminé avec erreurs ❌ (durée: ${duration}s)."
-    err "Consulte le journal: ${LOGFILE}"
-  fi
+run_with_spinner() {
+  local msg="$1"; shift;
+  log "$msg";
+  ("$@" >> "$LOGFILE" 2>&1) & local pid=$!;
+  spinner "$pid";
+  wait "$pid";
+  ok "$msg terminé.";
 }
 
-trap 'on_error $LINENO "$BASH_COMMAND"' ERR
-trap 'on_exit' EXIT
+typewriter() {
+  local text="$1" delay="${2:-0.02}" out="";
+  for ((i=0; i<${#text}; i++)); do
+    out+="${text:$i:1}";
+    printf "\r${CYAN}[Neomnia]${RESET} %s" "$out";
+    sleep "$delay";
+  done;
+  echo;
+}
 
-# ——————— Vérif shell ———————
-if [ -z "${BASH_VERSION:-}" ]; then
-  log "Bash requis → relance sous bash..."
-  exec bash "$0" "$@"
-fi
+banner() {
+  cat <<'EOF' | while IFS= read -r line; do log "$line"; done
+ _   _                 _       _              _
+| \ | | ___  _ __  ___| | __ _| |_ __ _ _ __ (_)_ __  ___
+|  \| |/ _ \| '_ \/ __| |/ _` | __/ _` | '_ \| | '_ \/ __|
+| |\  | (_) | | | \__ \ | (_| | || (_| | | | | | | | \__ \
+|_| \_|\___/|_| |_|___/_|\__,_|\__\__,_|_| |_|_|_| |_|___/
+                     Kickstarter • Azure
+EOF
+}
 
-# ——————— Vérif root ———————
-CURRENT_STEP="vérification des privilèges"
-if [ "${EUID:-$(id -u)}" -ne 0 ]; then
-  err "Ce script doit être exécuté en root."
-  exit 1
-fi
-ok "Privilèges root confirmés."
+# 🛡️ Prérequis
+require_root() {
+  if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+    err "Ce script doit être exécuté en root (sudo).";
+    exit 1;
+  fi;
+}
 
-# ——————— Hostname ———————
-CURRENT_STEP="configuration du hostname"
-read -rp "$(echo -e "$(prefix) ${BOLD}Nom du nouvel hostname :${RESET} ")" NEW_HOSTNAME
-log "Configuration du hostname → ${NEW_HOSTNAME}"
-hostnamectl set-hostname "$NEW_HOSTNAME"
-if grep -q "^[[:space:]]*127\.0\.1\.1" /etc/hosts; then
-  sed -i "s/^[[:space:]]*127\.0\.1\.1.*/127.0.1.1\t${NEW_HOSTNAME}/" /etc/hosts
-else
-  echo -e "127.0.1.1\t${NEW_HOSTNAME}" >> /etc/hosts
-fi
-ok "Hostname configuré en ${NEW_HOSTNAME}"
+require_cmd() {
+  local miss=();
+  for c in "$@"; do
+    command -v "$c" >/dev/null 2>&1 || miss+=("$c");
+  done;
+  if ((${#miss[@]})); then
+    err "Commandes manquantes: ${miss[*]}";
+    exit 1;
+  fi;
+}
 
-# ——————— Utilisateur & Groupe ———————
-CURRENT_STEP="création utilisateur et groupe"
-read -rp "$(echo -e "$(prefix) ${BOLD}Nom du nouvel utilisateur :${RESET} ")" NEW_USER_NAME
-if id "$NEW_USER_NAME" &>/dev/null; then
-  warn "L’utilisateur ${NEW_USER_NAME} existe déjà."
-else
-  read -srp "$(echo -e "$(prefix) ${BOLD}Mot de passe pour ${NEW_USER_NAME}:${RESET} ")" NEW_USER_PASSWORD; echo
-  useradd -m -s /bin/bash "$NEW_USER_NAME"
-  echo "${NEW_USER_NAME}:${NEW_USER_PASSWORD}" | chpasswd
-  ok "Utilisateur ${NEW_USER_NAME} créé."
-  echo "${NEW_USER_NAME} ALL=(ALL) NOPASSWD:ALL" | tee "/etc/sudoers.d/${NEW_USER_NAME}" >/dev/null
-  ok "Ajout à sudoers."
-fi
+# Demander les noms des groupes à créer
+read -p "Entrez les noms des groupes à créer (séparés par des espaces) : " GROUP_NAMES
 
-read -rp "$(echo -e "$(prefix) ${BOLD}Nom du groupe (défaut gitusers) :${RESET} ")" GROUP_NAME
-GROUP_NAME=${GROUP_NAME:-gitusers}
-if ! getent group "$GROUP_NAME" >/dev/null; then
-  groupadd "$GROUP_NAME"
-  ok "Groupe ${GROUP_NAME} créé."
-else
-  warn "Groupe ${GROUP_NAME} déjà existant."
-fi
-echo "%${GROUP_NAME} ALL=(ALL) NOPASSWD:ALL" | tee "/etc/sudoers.d/${GROUP_NAME}" >/dev/null
-usermod -aG "$GROUP_NAME" "$NEW_USER_NAME"
-ok "Utilisateur ${NEW_USER_NAME} ajouté au groupe ${GROUP_NAME}"
+# 🚀 Début (aucun code hostname dans cette version)
+require_root
+banner
+typewriter "Login Neomnia… OK" 0.03
+typewriter "Chargement des modules… OK" 0.02
+typewriter "Initialisation Kickstarter Azure… OK" 0.02
 
-# ——————— Paquets & UFW ———————
-CURRENT_STEP="mise à jour système et packages"
-log "Mise à jour du système…"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -y && apt-get upgrade -y
-ok "Système à jour."
+run_with_spinner "Mise à jour du cache APT" apt-get update -y
+run_with_spinner "Installation des mises à niveau" apt-get upgrade -y
+run_with_spinner "Installation des outils (curl git ufw tree wget jq acl)" apt-get install -y curl git ufw tree wget jq acl
+require_cmd curl jq ufw git setfacl
 
-log "Installation des outils de base (acl, curl, git, ufw, tree, wget, jq)…"
-apt-get install -y acl curl git ufw tree wget jq
-ok "Paquets installés."
-
-CURRENT_STEP="droits /opt avec ACL"
-chown -R root:"$GROUP_NAME" /opt 2>/dev/null || true
-chmod -R 2775 /opt 2>/dev/null || true
-setfacl -R -m g:"$GROUP_NAME":rwx /opt
-ok "ACL appliquées sur /opt pour le groupe ${GROUP_NAME}"
-
-CURRENT_STEP="pare-feu UFW"
-log "Configuration du pare-feu UFW…"
-ufw allow OpenSSH >/dev/null 2>&1 || true
-ufw --force enable
-ok "Pare-feu activé."
-
-# ——————— Git & GitHub API ———————
-CURRENT_STEP="configuration Git"
-read -rp "$(echo -e "$(prefix) ${BOLD}Email Git :${RESET} ")" GIT_EMAIL
-read -rp "$(echo -e "$(prefix) ${BOLD}Nom Git :${RESET} ")" GIT_CONF_USERNAME
-git config --global user.email "$GIT_EMAIL"
-git config --global user.name "$GIT_CONF_USERNAME"
-ok "Configuration Git appliquée."
-
-CURRENT_STEP="validation clé GitHub"
-read -rp "$(echo -e "$(prefix) ${BOLD}GitHub username:${RESET} ")" GITHUB_USERNAME
-read -srp "$(echo -e "$(prefix) ${BOLD}GitHub API key:${RESET} ")" GITHUB_API_KEY; echo
-log "Vérification des droits GitHub API…"
-RESPONSE="$(curl -sS -H "Authorization: token ${GITHUB_API_KEY}" https://api.github.com/user || true)"
-if echo "$RESPONSE" | jq -e '.login' >/dev/null 2>&1; then
-  USER_LOGIN="$(echo "$RESPONSE" | jq -r '.login')"
-  ok "Connexion GitHub OK → ${USER_LOGIN}"
+# 👥 Installation de GitHub CLI (gh)
+if ! command -v gh >/dev/null 2>&1; then
+  run_with_spinner "Installation de GitHub CLI (gh)" bash -c "
+    apt-get install -y curl gnupg &&
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg &&
+    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg &&
+    echo 'deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main' > /etc/apt/sources.list.d/github-cli.list &&
+    apt-get update -y &&
+    apt-get install -y gh
+  "
 else
-  err "Impossible de valider la clé API GitHub."
-  exit 1
+  log "GitHub CLI (gh) est déjà installé."
 fi
 
-# ——————— Vérification finale ———————
-CURRENT_STEP="vérification finale"
-echo -e "\n${MAGENTA}${BOLD}############## Vérification finale — ${APP_NAME} ##############${RESET}"
-[[ -n "${NEW_HOSTNAME:-}" ]] && ok "Hostname configuré: ${NEW_HOSTNAME}"
-[[ -n "${NEW_USER_NAME:-}" ]] && ok "Utilisateur prêt: ${NEW_USER_NAME}"
-[[ -n "${GROUP_NAME:-}" ]]    && ok "Groupe appliqué à /opt avec ACL: ${GROUP_NAME}"
-[[ -n "${USER_LOGIN:-}" ]]    && ok "GitHub API valide pour: ${USER_LOGIN}"
+# 👥 Téléchargement et exécution de git-wrapper.sh
+GIT_WRAPPER_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh"
+GIT_WRAPPER_PATH="/usr/local/bin/git-wrapper.sh"
+
+run_with_spinner "Téléchargement de git-wrapper.sh" curl -fsSL "$GIT_WRAPPER_URL" -o "$GIT_WRAPPER_PATH"
+run_with_spinner "Application des permissions sur git-wrapper.sh" chmod +x "$GIT_WRAPPER_PATH"
+
+# Exécution de git-wrapper.sh
+log "Exécution de git-wrapper.sh..."
+bash "$GIT_WRAPPER_PATH"
+
+# Récupérer l'utilisateur actif
+AZ_USER="${SUDO_USER:-$(whoami)}"
+
+# Créer les groupes spécifiés
+for group in $GROUP_NAMES; do
+  log "Groupe cible : ${BOLD}${group}${RESET}"
+  if getent group "$group" >/dev/null; then
+    warn "Groupe ${group} déjà existant."
+  else
+    run_with_spinner "Création du groupe ${group}" groupadd "$group"
+  fi
+
+  # Ajouter l'utilisateur actif au groupe
+  if [[ -n "$AZ_USER" ]]; then
+    run_with_spinner "Ajout de ${AZ_USER} au groupe ${group}" usermod -a -G "$group" "$AZ_USER"
+  else
+    warn "Impossible de déterminer l'utilisateur actif pour l'ajouter au groupe ${group}."
+  fi
+done
+
+mkdir -p /opt
+run_with_spinner "Application des droits + ACL sur /opt" bash -c "
+  chown -R root:gitusers /opt &&
+  chmod -R 2775 /opt &&
+  setfacl -R -m g:gitusers:rwx /opt &&
+  setfacl -dR -m g:gitusers:rwx /opt
+"
+
+# 🔥 UFW
+run_with_spinner "Ouverture OpenSSH dans UFW" ufw allow OpenSSH
+run_with_spinner "Activation de UFW" ufw --force enable
+
+# 🧰 Git (optionnel, non interactif si variables absentes)
+[[ -n "${GIT_EMAIL:-}" ]] && git config --global user.email "$GIT_EMAIL"
+[[ -n "${GIT_NAME:-}"  ]] && git config --global user.name  "$GIT_NAME"
+ok "Configuration Git appliquée (si variables définies)."
+
+# Vérification finale
+echo -e "\n${MAGENTA}${BOLD}############## Vérification finale ##############${RESET}"
+ok "GitHub CLI (gh) installé."
+ok "Script git-wrapper.sh téléchargé et exécuté."
+for group in $GROUP_NAMES; do
+  ok "Groupe ${group} créé et utilisateur ajouté."
+done
+ok "Journal : ${LOGFILE}"
 echo -e "${MAGENTA}${BOLD}##############   Setup complet   ##############${RESET}\n"
