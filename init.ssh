@@ -93,8 +93,9 @@ require_cmd() {
   fi;
 }
 
-# Demander les noms des groupes à créer
-read -p "Entrez les noms des groupes à créer (séparés par des espaces) : " GROUP_NAMES
+# Demander les informations à l'utilisateur
+read -p "Entrez le nom du groupe à créer : " GROUP_NAME
+read -p "Entrez votre clé API GitHub : " GH_TOKEN
 
 # 🚀 Début (aucun code hostname dans cette version)
 require_root
@@ -123,6 +124,12 @@ else
   log "GitHub CLI (gh) est déjà installé."
 fi
 
+# Configurer GitHub CLI avec la clé API
+export GH_TOKEN="$GH_TOKEN"
+log "Configuration de GitHub CLI avec la clé API..."
+gh auth setup-git
+gh auth login --with-token < "$GH_TOKEN"
+
 # 👥 Téléchargement et exécution de git-wrapper.sh
 GIT_WRAPPER_URL="https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/api-key-github/git-wrapper.sh"
 GIT_WRAPPER_PATH="/usr/local/bin/git-wrapper.sh"
@@ -137,29 +144,27 @@ bash "$GIT_WRAPPER_PATH"
 # Récupérer l'utilisateur actif
 AZ_USER="${SUDO_USER:-$(whoami)}"
 
-# Créer les groupes spécifiés
-for group in $GROUP_NAMES; do
-  log "Groupe cible : ${BOLD}${group}${RESET}"
-  if getent group "$group" >/dev/null; then
-    warn "Groupe ${group} déjà existant."
-  else
-    run_with_spinner "Création du groupe ${group}" groupadd "$group"
-  fi
+# Créer le groupe spécifié
+log "Groupe cible : ${BOLD}${GROUP_NAME}${RESET}"
+if getent group "$GROUP_NAME" >/dev/null; then
+  warn "Groupe ${GROUP_NAME} déjà existant."
+else
+  run_with_spinner "Création du groupe ${GROUP_NAME}" groupadd "$GROUP_NAME"
+fi
 
-  # Ajouter l'utilisateur actif au groupe
-  if [[ -n "$AZ_USER" ]]; then
-    run_with_spinner "Ajout de ${AZ_USER} au groupe ${group}" usermod -a -G "$group" "$AZ_USER"
-  else
-    warn "Impossible de déterminer l'utilisateur actif pour l'ajouter au groupe ${group}."
-  fi
-done
+# Ajouter l'utilisateur actif au groupe
+if [[ -n "$AZ_USER" ]]; then
+  run_with_spinner "Ajout de ${AZ_USER} au groupe ${GROUP_NAME}" usermod -a -G "$GROUP_NAME" "$AZ_USER"
+else
+  warn "Impossible de déterminer l'utilisateur actif pour l'ajouter au groupe ${GROUP_NAME}."
+fi
 
 mkdir -p /opt
 run_with_spinner "Application des droits + ACL sur /opt" bash -c "
-  chown -R root:gitusers /opt &&
+  chown -R root:${GROUP_NAME} /opt &&
   chmod -R 2775 /opt &&
-  setfacl -R -m g:gitusers:rwx /opt &&
-  setfacl -dR -m g:gitusers:rwx /opt
+  setfacl -R -m g:${GROUP_NAME}:rwx /opt &&
+  setfacl -dR -m g:${GROUP_NAME}:rwx /opt
 "
 
 # 🔥 UFW
@@ -173,10 +178,8 @@ ok "Configuration Git appliquée (si variables définies)."
 
 # Vérification finale
 echo -e "\n${MAGENTA}${BOLD}############## Vérification finale ##############${RESET}"
-ok "GitHub CLI (gh) installé."
+ok "GitHub CLI (gh) installé et configuré avec la clé API."
 ok "Script git-wrapper.sh téléchargé et exécuté."
-for group in $GROUP_NAMES; do
-  ok "Groupe ${group} créé et utilisateur ajouté."
-done
+ok "Groupe ${GROUP_NAME} créé et utilisateur ajouté."
 ok "Journal : ${LOGFILE}"
 echo -e "${MAGENTA}${BOLD}##############   Setup complet   ##############${RESET}\n"
