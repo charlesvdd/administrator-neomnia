@@ -9,7 +9,7 @@ set -Eeuo pipefail
 # avec mention de l’auteur. Le script est fourni "en l’état", sans garantie d’aucune sorte.
 #
 # Auteur  : @neomnia
-# Version : 1.1 (adapté pour Azure)
+# Version : 1.2 (adapté pour Azure)
 ###############################################################################
 
 # ——————— Paramètres d’app et journalisation ———————
@@ -88,8 +88,13 @@ ok "Utilisateur actif: ${ACTIVE_USER}."
 
 # ——————— Groupe ———————
 CURRENT_STEP="création du groupe"
-read -rp "$(echo -e "$(prefix) ${BOLD}Nom du groupe (défaut gitusers) :${RESET} ")" group_name_input
-GROUP_NAME=${group_name_input:-gitusers}
+GROUP_NAME="gitusers"  # Nom de groupe par défaut
+read -rp "$(echo -e "$(prefix) ${BOLD}Nom du groupe (appuyez sur Entrée pour utiliser 'gitusers') :${RESET} ")" custom_group_name
+
+# Utiliser le nom personnalisé si fourni, sinon utiliser 'gitusers'
+if [ -n "$custom_group_name" ]; then
+    GROUP_NAME="$custom_group_name"
+fi
 
 if ! getent group "$GROUP_NAME" >/dev/null; then
   groupadd "$GROUP_NAME"
