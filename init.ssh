@@ -46,14 +46,17 @@ typewriter "Login Neomnia… OK" 0.03
 typewriter "Chargement des modules… OK" 0.02
 typewriter "Initialisation Kickstarter Azure… OK" 0.02
 export DEBIAN_FRONTEND=noninteractive
+
+# Mise à jour du cache APT
 run_with_spinner "Mise à jour du cache APT" apt-get update -y
+
+# Installation des mises à niveau
 run_with_spinner "Installation des mises à niveau" apt-get upgrade -y
 
-# 📦 Installation des dépendances pour LangChain
-run_with_spinner "Installation des dépendances système pour LangChain" apt-get install -y git python3 python3-pip python3.12-venv setfacl
-require_cmd git python3 python3.12-venv setfacl
+# Installation des dépendances pour un environnement Python standard
+run_with_spinner "Installation des dépendances pour un environnement Python" apt-get install -y git python3 python3-pip python3.12-venv acl
 
-# 🐍 Mise à jour de pip
+# Mise à jour de pip
 run_with_spinner "Mise à jour de pip" python3 -m pip install --upgrade pip
 
 # 👥 Groupe + ACL /opt (interactif pour le nom du groupe)
@@ -65,15 +68,6 @@ if ! getent group "$GROUP_NAME" >/dev/null; then
 else
   warn "Groupe ${GROUP_NAME} déjà existant."
 fi
-
-# Ajouter les groupes python et venv au groupe créé
-for group in python venv; do
-  if getent group "$group" >/dev/null; then
-    run_with_spinner "Ajout du groupe $group au groupe ${GROUP_NAME}" gpasswd -a "$group" "$GROUP_NAME" || true
-  else
-    warn "Le groupe $group n'existe pas. Il ne sera pas ajouté."
-  fi
-done
 
 # Ajouter l'utilisateur actif au groupe
 CURRENT_USER="$(whoami)"
@@ -94,7 +88,6 @@ run_with_spinner "Application des droits + ACL sur /opt" bash -c "
 
 # 🔥 UFW
 run_with_spinner "Ouverture OpenSSH dans UFW" ufw allow OpenSSH
-# run_with_spinner "Ouverture HTTP/HTTPS (80/443)" bash -c 'ufw allow 80/tcp && ufw allow 443/tcp'
 run_with_spinner "Activation de UFW" ufw --force enable
 
 # 🧰 Git (optionnel, non interactif si variables absentes)
@@ -102,13 +95,8 @@ run_with_spinner "Activation de UFW" ufw --force enable
 [[ -n "${GIT_NAME:-}"  ]] && git config --global user.name  "$GIT_NAME"
 ok "Configuration Git appliquée (si variables définies)."
 
-# Exemple d’exécution RAW (désactivé par défaut) :
-# run_raw "scripts/ton-script.sh"
-# run_raw "init.ssh"   # ⚠ éviter la récursion si c’est ce fichier
-
 echo -e "\n${MAGENTA}${BOLD}############## Vérification finale ##############${RESET}"
 ok "Groupe ${GROUP_NAME} appliqué à /opt (ACL héritables)."
-ok "Les groupes python et venv ont été associés au groupe ${GROUP_NAME}."
 ok "L'utilisateur actif (${CURRENT_USER}) a été ajouté au groupe ${GROUP_NAME}."
 ok "Journal : ${LOGFILE}"
 echo -e "${MAGENTA}${BOLD}##############   Setup complet   ##############${RESET}\n"
