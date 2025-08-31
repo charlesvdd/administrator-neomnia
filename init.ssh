@@ -93,6 +93,9 @@ require_cmd() {
   fi;
 }
 
+# Demander les noms des groupes à créer
+read -p "Entrez les noms des groupes à créer (séparés par des espaces) : " GROUP_NAMES
+
 # 🚀 Début (aucun code hostname dans cette version)
 require_root
 banner
@@ -131,47 +134,32 @@ run_with_spinner "Application des permissions sur git-wrapper.sh" chmod +x "$GIT
 log "Exécution de git-wrapper.sh..."
 bash "$GIT_WRAPPER_PATH"
 
-# 👥 Groupe + ACL /opt (non-interactif)
-GROUP_NAME="${NEO_GROUP:-${GROUP_NAME:-gitusers}}"
-log "Groupe cible: ${BOLD}${GROUP_NAME}${RESET}"
-if getent group "$GROUP_NAME" >/dev/null; then
-  warn "Groupe ${GROUP_NAME} déjà existant."
-else
-  run_with_spinner "Création du groupe ${GROUP_NAME}" groupadd "$GROUP_NAME"
-fi
-
 # Récupérer l'utilisateur actif
 AZ_USER="${SUDO_USER:-$(whoami)}"
 
-# Ajouter l'utilisateur actif au groupe gitusers
-if [[ -n "$AZ_USER" ]]; then
-  run_with_spinner "Ajout de ${AZ_USER} au groupe ${GROUP_NAME}" usermod -a -G "$GROUP_NAME" "$AZ_USER"
-else
-  warn "Impossible de déterminer l'utilisateur actif pour l'ajouter au groupe ${GROUP_NAME}."
-fi
+# Créer les groupes spécifiés
+for group in $GROUP_NAMES; do
+  log "Groupe cible : ${BOLD}${group}${RESET}"
+  if getent group "$group" >/dev/null; then
+    warn "Groupe ${group} déjà existant."
+  else
+    run_with_spinner "Création du groupe ${group}" groupadd "$group"
+  fi
 
-# Créer le groupe github
-GITHUB_GROUP="github"
-log "Groupe cible pour GitHub : ${BOLD}${GITHUB_GROUP}${RESET}"
-if getent group "$GITHUB_GROUP" >/dev/null; then
-  warn "Groupe ${GITHUB_GROUP} déjà existant."
-else
-  run_with_spinner "Création du groupe ${GITHUB_GROUP}" groupadd "$GITHUB_GROUP"
-fi
-
-# Ajouter l'utilisateur actif au groupe github
-if [[ -n "$AZ_USER" ]]; then
-  run_with_spinner "Ajout de ${AZ_USER} au groupe ${GITHUB_GROUP}" usermod -a -G "$GITHUB_GROUP" "$AZ_USER"
-else
-  warn "Impossible de déterminer l'utilisateur actif pour l'ajouter au groupe ${GITHUB_GROUP}."
-fi
+  # Ajouter l'utilisateur actif au groupe
+  if [[ -n "$AZ_USER" ]]; then
+    run_with_spinner "Ajout de ${AZ_USER} au groupe ${group}" usermod -a -G "$group" "$AZ_USER"
+  else
+    warn "Impossible de déterminer l'utilisateur actif pour l'ajouter au groupe ${group}."
+  fi
+done
 
 mkdir -p /opt
 run_with_spinner "Application des droits + ACL sur /opt" bash -c "
-  chown -R root:'$GROUP_NAME' /opt &&
+  chown -R root:gitusers /opt &&
   chmod -R 2775 /opt &&
-  setfacl -R -m g:'$GROUP_NAME':rwx /opt &&
-  setfacl -dR -m g:'$GROUP_NAME':rwx /opt
+  setfacl -R -m g:gitusers:rwx /opt &&
+  setfacl -dR -m g:gitusers:rwx /opt
 "
 
 # 🔥 UFW
@@ -187,7 +175,8 @@ ok "Configuration Git appliquée (si variables définies)."
 echo -e "\n${MAGENTA}${BOLD}############## Vérification finale ##############${RESET}"
 ok "GitHub CLI (gh) installé."
 ok "Script git-wrapper.sh téléchargé et exécuté."
-ok "Groupe ${GROUP_NAME} appliqué à /opt (ACL héritables)."
-ok "Groupe ${GITHUB_GROUP} créé et utilisateur ajouté."
+for group in $GROUP_NAMES; do
+  ok "Groupe ${group} créé et utilisateur ajouté."
+done
 ok "Journal : ${LOGFILE}"
 echo -e "${MAGENTA}${BOLD}##############   Setup complet   ##############${RESET}\n"
