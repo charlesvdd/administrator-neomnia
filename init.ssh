@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+###############################################################################
+# Script d'installation et configuration système – Application: inital vps (Azure)
+# Licence : (c) Charles Van den Driessche – @neomnia
+#
+# Permission est accordée d’utiliser, copier, modifier et distribuer ce script,
+# avec mention de l’auteur. Le script est fourni "en l’état", sans garantie d’aucune sorte.
+#
+# Auteur  : @neomnia
+# Version : 2.0 (adapté pour Azure et Kubernetes)
+###############################################################################
+
+# ——————— Paramètres d’app et journalisation ———————
+APP_NAME="inital vps azure"
+BRAND_ONE="Neomnia"
+BRAND_TWO="Neo-inital"
+LOGFILE="/var/log/${APP_NAME// /-}-setup.log"
+START_TS="$(date +%s)"
+
+# Redirection vers log + console
+mkdir -p "$(dirname "$LOGFILE")"
+exec > >(tee -a "$LOGFILE") 2>&1
+
+# ——————— Couleurs ———————
+RED="\033[31m"; GREEN="\033[32m"; YELLOW="\033[33m"; BLUE="\033[34m"
+MAGENTA="\033[35m"; CYAN="\033[36m"; BOLD="\033[1m"; RESET="\033[0m"
+
+# ——————— Préfixe de log ———————
+prefix() {
+  echo -e "${CYAN}[${BRAND_ONE}]${RESET}${CYAN}[${BRAND_TWO}]${RESET}${CYAN}[${APP_NAME}]${RESET} $(date +%H:%M:%S)"
+}
+
+log()  { echo -e "$(prefix) $*"; }
+ok()   { echo -e "$(prefix) ${GREEN}✔${RESET} $*"; }
+warn() { echo -e "$(prefix) ${YELLOW}⚠${RESET} $*"; }
+err()  { echo -e "$(prefix) ${RED}✖${RESET} $*" >&2; }
+
+# ——————— Gestion d’erreurs & sortie ———————
+CURRENT_STEP="initialisation"
+on_error() {
+  local exit_code=$?
+  local line_no=$1
+  local cmd=${2:-"N/A"}
+  err "Échec pendant l’étape: ${BOLD}${CURRENT_STEP}${RESET} (ligne ${line_no})"
+  err "Dernière commande: ${BOLD}${cmd}${RESET}"
+  err "Journal complet: ${LOGFILE}"
+  echo
+  exit "$exit_code"
+}
+
+on_exit() {
+  local code=$?
+  local end_ts
+  end_ts="$(date +%s)"
+  local duration=$(( end_ts - START_TS ))
+  if [ "$code" -eq 0 ]; then
+    ok "Setup terminé sans erreur ✅ (durée: ${duration}s)."
+    ok "Journal: ${LOGFILE}"
+  else
+    err "Setup terminé avec erreurs ❌ (durée: ${duration}s)."
+    err "Consulte le journal: ${LOGFILE}"
+  fi
+}
+
+trap 'on_error $LINENO "$BASH_COMMAND"' ERR
+trap 'on_exit' EXIT
+
+# ——————— Vérif shell ———————
+if [ -z "${BASH_VERSION:-}" ]; then
+  log "Bash requis → relance sous bash..."
+  exec bash "$0" "$@"
+fi
+
+# ——————— Vérif root ———————
+CURRENT_STEP="vérification des privilèges"
+if [ "${EUID:-$(id -u)}" -ne 0 ]; then
+  err "Ce script doit être exécuté en root."
+  exit 1
+fi
+ok "Privilèges root confirmés."
+
+# ——————— Utilisateur actif ———————
+CURRENT_STEP="utilisation de l'utilisateur actif"
+ACTIVE_USER=$(logname)
+ok "Utilisateur actif: ${ACTIVE_USER}."
+
+# ——————— Groupe Kubernetes ———————
+CURRENT_STEP="configuration du groupe Kubernetes"
+GROUP_NAME="kubernetes"
+
+# Créer le groupe s'il n'existe pas
+if ! getent group "$GROUP_NAME" >/dev/null; then
+  groupadd "$GROUP_NAME"
+  ok "Groupe ${GROUP_NAME} créé."
+else
+  warn "Groupe ${GROUP_NAME} déjà existant."
+fi
+
+# Ajouter l'utilisateur actif au groupe Kubernetes
+if id "$ACTIVE_USER" | grep -q "$GROUP_NAME"; then
+  warn "L'utilisateur ${ACTIVE_USER} est déjà membre du groupe ${GROUP_NAME}."
+else
+  usermod -aG "$GROUP_NAME" "$ACTIVE_USER"
+  ok "Utilisateur ${ACTIVE_USER} ajouté au groupe ${GROUP_NAME}."
+fi
+
+# ——————— Paquets ———————
+CURRENT_STEP="mise à jour système et installation des paquets"
+log "Mise à jour du système..."
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y && apt-get upgrade -y
+ok "Système à jour."
+
+log "Installation des outils (acl, curl, git, tree, telnet)..."
+apt-get install -y acl curl git tree telnet
+ok "Paquets installés."
+
+# ——————— Droits /opt avec ACL ———————
+CURRENT_STEP="configuration des droits /opt avec ACL"
+mkdir -p /opt
+chown -R root:"$GROUP_NAME" /opt
+chmod -R 2775 /opt
+setfacl -R -m g:"$GROUP_NAME":rwx /opt
+setfacl -R -m u:"$ACTIVE_USER":rwx /opt
+ok "ACL appliquées sur /opt pour le groupe ${GROUP_NAME} et l'utilisateur ${ACTIVE_USER}."
+
+# ——————— Vérification finale ———————
+CURRENT_STEP="vérification finale"
+echo -e "\n${MAGENTA}${BOLD}############## Vérification finale — ${APP_NAME} ##############${RESET}"
+ok "Utilisateur actif: ${ACTIVE_USER}"
+ok "Groupe appliqué à /opt avec ACL: ${GROUP_NAME}"
+
+# Vérification des groupes de l'utilisateur
+log "Vérification des groupes de l'utilisateur ${ACTIVE_USER} :"
+if groups "${ACTIVE_USER}" | grep -q "$GROUP_NAME"; then
+  ok "L'utilisateur ${ACTIVE_USER} est bien membre du groupe ${GROUP_NAME}."
+else
+  warn "L'utilisateur ${ACTIVE_USER} n'apparaît pas encore comme membre du groupe ${GROUP_NAME}."
+  log "Pour appliquer les changements de groupe à la session actuelle, utilisez la commande : newgrp ${GROUP_NAME}"
+fi
+
+echo -e "${MAGENTA}${BOLD}##############   Setup complet   ##############${RESET}\n"
+sudo ~/init_azure_kubernetes.sh
