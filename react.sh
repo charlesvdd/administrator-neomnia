@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # -------------------------------------------------------------------
-#  react.sh — Script d'installation Next.js (TypeScript + ESLint)
-#  🏢 Neomia Studio — Automatisation & Déploiement Intelligent
+#  update-neomia.sh — Outil de mise à jour pour environnements Next.js/React
+#  🏢 Neomia Studio — Maintenance & Optimisation d'Environnements
 #  📜 Licence : Propriétaire — Charles Van den driessche (2025)
-#  Objectif : Installer Next.js en mode utilisateur (sans sudo)
-#             avec TypeScript, ESLint, Prettier et Git.
+#  Objectif : Mettre à jour Node.js, npm, Next.js, React et dépendances.
 # -------------------------------------------------------------------
 
 ### 1. Définitions des couleurs et styles ###
@@ -19,163 +18,243 @@ BOLD='\033[1m'
 DIM='\033[2m'
 RESET='\033[0m'
 NEOMIA="${MAGENTA}⚡ Neomia${RESET}"
+CHECK="${GREEN}✓${RESET}"
+CROSS="${RED}✗${RESET}"
+INFO="${BLUE}ℹ${RESET}"
 
-# Activer l'installation de ESLint/Prettier (désactiver avec "false")
-INSTALL_ESLINT_PRETTIER=true
-
-### 2. Fonction pour comparer les versions de Node.js (portable) ###
-version_ge() {
-    [ "$1" = "$2" ] && return 0
-    local IFS=.
-    local i ver1=($1) ver2=($2)
-    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++)); do
-        ver1[i]=0
+### 2. Fonctions utilitaires ###
+# Barre de progression
+progress_bar() {
+    local duration=${1}
+    local columns=$(tput cols)
+    local space=$((columns - 8))
+    local bar_size=$((space - 4))
+    local elapsed=0
+    while [ $elapsed -lt $duration ]; do
+        local filled=$((elapsed * bar_size / duration))
+        printf "\r${NEOMIA} ["
+        printf "%${filled}s" | tr ' ' '='
+        printf "%$((bar_size - filled))s" | tr ' ' ' '
+        printf "] %3d%%%%" $((elapsed * 100 / duration))
+        sleep 0.1
+        elapsed=$((elapsed + 1))
     done
-    for ((i=0; i<${#ver1[@]}; i++)); do
-        if [[ -z ${ver2[i]} ]]; then
-            ver2[i]=0
-        fi
-        if ((10#${ver1[i]} > 10#${ver2[i]})); then
-            return 0
-        fi
-        if ((10#${ver1[i]} < 10#${ver2[i]})); then
-            return 1
-        fi
-    done
-    return 0
+    printf "\r${NEOMIA} ["
+    printf "%${bar_size}s" | tr ' ' '='
+    printf "] 100%%%%\n"
 }
 
-### 3. Fonction pour installer Prettier/ESLint ###
-install_linters() {
-    echo -e "${NEOMIA} ${DIM}→ Configuration des linters...${RESET}"
-    if ! grep -q '"prettier"' package.json; then
-        echo -e "${BLUE}➜ Installation de Prettier + plugins ESLint...${RESET}"
-        npm install --save-dev prettier eslint-config-prettier eslint-plugin-react eslint-plugin-react-hooks --loglevel=error
-        echo -e "${GREEN}   • ${NEOMIA} Prettier & ESLint installés.${RESET}"
+# Vérifier si un projet Next.js/React est présent
+is_nextjs_project() {
+    [ -f "package.json" ] && grep -q "\"next\"" package.json
+}
+
+is_react_project() {
+    [ -f "package.json" ] && grep -q "\"react\"" package.json
+}
+
+# Récupérer la dernière version stable d'un package npm
+get_latest_version() {
+    local package=$1
+    npm show "$package" version 2>/dev/null || echo "inconnu"
+}
+
+# Sauvegarder le projet
+backup_project() {
+    local backup_dir="neomia_backup_$(date +%Y%m%d_%H%M%S)"
+    echo -e "${NEOMIA} ${DIM}→ Sauvegarde en cours ($backup_dir)...${RESET}"
+    mkdir -p "../$backup_dir"
+    cp -r . "../$backup_dir" >/dev/null 2>&1
+    echo -e "${GREEN}   • ${NEOMIA} Sauvegarde créée : ../$backup_dir${RESET}"
+}
+
+### 3. Détecter les versions actuelles ###
+detect_versions() {
+    echo -e "${NEOMIA} ${BOLD}Analyse de l'environnement...${RESET}"
+
+    # Node.js & npm
+    NODE_CURRENT=$(node -v 2>/dev/null | sed 's/v//' || echo "non installé")
+    NPM_CURRENT=$(npm -v 2>/dev/null || echo "non installé")
+
+    # Projet
+    if [ -f "package.json" ]; then
+        NEXT_CURRENT=$(grep "\"next\"" package.json | awk -F: '{print $2}' | sed 's/[", ]//g' 2>/dev/null || echo "non installé")
+        REACT_CURRENT=$(grep "\"react\"" package.json | awk -F: '{print $2}' | sed 's/[", ]//g' 2>/dev/null || echo "non installé")
+        PROJECT_DIR=$(pwd)
+        PROJECT_NAME=$(basename "$PROJECT_DIR")
     else
-        echo -e "${GREEN}   • ${NEOMIA} Prettier/ESLint déjà présents.${RESET}"
+        echo -e "${RED}❗ ${NEOMIA} Aucun projet détecté (package.json manquant).${RESET}"
+        exit 1
     fi
+
+    # Dernières versions stables (à mettre à jour manuellement si besoin)
+    NODE_LATEST=$(get_latest_version "node")
+    NPM_LATEST=$(get_latest_version "npm")
+    NEXT_LATEST=$(get_latest_version "next")
+    REACT_LATEST=$(get_latest_version "react")
+
+    # Affichage
+    echo -e "
+${NEOMIA} ${BOLD}Rapport des versions actuelles :${RESET}
+---------------------------------------------------
+${INFO} ${DIM}Système :${RESET}
+   • Node.js    : $NODE_CURRENT (dernière: $NODE_LATEST)
+   • npm        : $NPM_CURRENT (dernière: $NPM_LATEST)
+${INFO} ${DIM}Projet $PROJECT_NAME :${RESET}
+   • Next.js    : $NEXT_CURRENT (dernière: $NEXT_LATEST)
+   • React      : $REACT_CURRENT (dernière: $REACT_LATEST)
+---------------------------------------------------
+"
 }
 
-### 4. Bannière Neomia Studio ###
-echo -e "${CYAN}${BOLD}"
-cat << "EOF"
-  _   _ _____ _____ _____ ____  _   _
- | \ | |_   _|_   _|_   _|  _ \| | | |
- |  \| | | |   | |   | | | |_) | | | |
- | |\  | | |   | |   | | |  __/| |_| |
- |_| \_| |_|   |_|   |_| |_|    \___/
-   🚀  NEXT.JS INSTALLER — POWERED BY NEOMIA STUDIO  🚀
-EOF
-echo -e "${RESET}"
-sleep 1
+### 4. Proposer les mises à jour ###
+propose_updates() {
+    local updates_available=0
 
-### 5. Détecter/Installer NVM ###
-echo -e "${NEOMIA} ${DIM}Étape 1/6 : Vérification de NVM...${RESET}"
-if [ -d "$HOME/.nvm" ] && [ -s "$HOME/.nvm/nvm.sh" ]; then
-    echo -e "${GREEN}   • ${NEOMIA} NVM est déjà installé.${RESET}"
-else
+    # Node.js
+    if [ "$NODE_CURRENT" != "$NODE_LATEST" ] && [ "$NODE_CURRENT" != "non installé" ]; then
+        echo -e "${YELLOW}⚠️  ${NEOMIA} Node.js $NODE_CURRENT → $NODE_LATEST${RESET}"
+        updates_available=$((updates_available + 1))
+    fi
+
+    # npm
+    if [ "$NPM_CURRENT" != "$NPM_LATEST" ]; then
+        echo -e "${YELLOW}⚠️  ${NEOMIA} npm $NPM_CURRENT → $NPM_LATEST${RESET}"
+        updates_available=$((updates_available + 1))
+    fi
+
+    # Next.js
+    if [ "$NEXT_CURRENT" != "$NEXT_LATEST" ] && [ "$NEXT_CURRENT" != "non installé" ]; then
+        echo -e "${YELLOW}⚠️  ${NEOMIA} Next.js $NEXT_CURRENT → $NEXT_LATEST${RESET}"
+        updates_available=$((updates_available + 1))
+    fi
+
+    # React
+    if [ "$REACT_CURRENT" != "$REACT_LATEST" ]; then
+        echo -e "${YELLOW}⚠️  ${NEOMIA} React $REACT_CURRENT → $REACT_LATEST${RESET}"
+        updates_available=$((updates_available + 1))
+    fi
+
+    # Dépendances mineures
+    if [ -f "package.json" ]; then
+        local outdated=$(npm outdated --parseable | wc -l)
+        if [ "$outdated" -gt 0 ]; then
+            echo -e "${YELLOW}⚠️  ${NEOMIA} $outdated dépendances obsolètes (voir 'npm outdated')${RESET}"
+            updates_available=$((updates_available + 1))
+        fi
+    fi
+
+    if [ "$updates_available" -eq 0 ]; then
+        echo -e "${GREEN}${CHECK} ${NEOMIA} Tout est à jour !${RESET}"
+        exit 0
+    fi
+
+    # Demander confirmation
+    echo -ne "${NEOMIA} ${BOLD}Voulez-vous mettre à jour ? (o/O pour tout, n/N pour annuler, m/M pour menu) : ${RESET}"
+    read -r choice
+    case "$choice" in
+        o|O) update_all ;;
+        m|M) update_menu ;;
+        *) echo -e "${RED}❌ ${NEOMIA} Annulé.${RESET}"; exit 0 ;;
+    esac
+}
+
+### 5. Mise à jour complète ###
+update_all() {
+    backup_project
+    echo -e "${NEOMIA} ${BOLD}Démarrage des mises à jour...${RESET}"
+
+    # Node.js (via nvm)
+    if [ "$NODE_CURRENT" != "$NODE_LATEST" ]; then
+        echo -e "${NEOMIA} ${DIM}→ Mise à jour de Node.js...${RESET}"
+        nvm install "$NODE_LATEST" --no-progress >/dev/null 2>&1 &
+        progress_bar 15
+        nvm alias default "$NODE_LATEST"
+        echo -e "${GREEN}   • ${NEOMIA} Node.js mis à jour : $(node -v)${RESET}"
+    fi
+
+    # npm
+    if [ "$NPM_CURRENT" != "$NPM_LATEST" ]; then
+        echo -e "${NEOMIA} ${DIM}→ Mise à jour de npm...${RESET}"
+        npm install -g npm@"$NPM_LATEST" >/dev/null 2>&1 &
+        progress_bar 5
+        echo -e "${GREEN}   • ${NEOMIA} npm mis à jour : $(npm -v)${RESET}"
+    fi
+
+    # Next.js & React
+    if [ -f "package.json" ]; then
+        echo -e "${NEOMIA} ${DIM}→ Mise à jour de Next.js et React...${RESET}"
+        npm install next@"$NEXT_LATEST" react@"$REACT_LATEST" --legacy-peer-deps >/dev/null 2>&1 &
+        progress_bar 20
+        echo -e "${GREEN}   • ${NEOMIA} Next.js/React mis à jour.${RESET}"
+    fi
+
+    # Dépendances
+    echo -e "${NEOMIA} ${DIM}→ Mise à jour des dépendances...${RESET}"
+    npm update --legacy-peer-deps >/dev/null 2>&1 &
+    progress_bar 30
+    echo -e "${GREEN}   • ${NEOMIA} Dépendances mises à jour.${RESET}"
+
+    # Nettoyage
+    echo -e "${NEOMIA} ${DIM}→ Nettoyage du cache...${RESET}"
+    npm cache clean --force >/dev/null 2>&1
+    progress_bar 5
+
+    # Rapport final
+    echo -e "\n${NEOMIA} ${BOLD}Rapport de mise à jour :${RESET}"
+    echo -e "---------------------------------------------------"
+    echo -e "${GREEN}${CHECK} Node.js    : $(node -v)${RESET}"
+    echo -e "${GREEN}${CHECK} npm        : $(npm -v)${RESET}"
+    echo -e "${GREEN}${CHECK} Next.js    : $(grep "\"next\"" package.json | awk -F: '{print $2}' | sed 's/[", ]//g')${RESET}"
+    echo -e "${GREEN}${CHECK} React      : $(grep "\"react\"" package.json | awk -F: '{print $2}' | sed 's/[", ]//g')${RESET}"
+    echo -e "---------------------------------------------------"
+    echo -e "${GREEN}✅ ${NEOMIA} Mise à jour terminée !${RESET}"
+    echo -e "${CYAN}   • Redémarrez votre serveur pour appliquer les changements.${RESET}"
+    echo -e "${CYAN}   • Sauvegarde disponible : ../neomia_backup_*${RESET}"
+}
+
+### 6. Menu interactif ###
+update_menu() {
+    while true; do
+        echo -e "\n${NEOMIA} ${BOLD}Menu de mise à jour :${RESET}"
+        echo -e "  1. Mettre à jour Node.js ($NODE_CURRENT → $NODE_LATEST)"
+        echo -e "  2. Mettre à jour npm ($NPM_CURRENT → $NPM_LATEST)"
+        echo -e "  3. Mettre à jour Next.js ($NEXT_CURRENT → $NEXT_LATEST)"
+        echo -e "  4. Mettre à jour React ($REACT_CURRENT → $REACT_LATEST)"
+        echo -e "  5. Mettre à jour toutes les dépendances"
+        echo -e "  6. Tout mettre à jour"
+        echo -e "  0. Quitter"
+        echo -ne "${NEOMIA} ${BOLD}Votre choix : ${RESET}"
+        read -r menu_choice
+        case "$menu_choice" in
+            1) nvm install "$NODE_LATEST"; nvm alias default "$NODE_LATEST" ;;
+            2) npm install -g npm@"$NPM_LATEST" ;;
+            3) npm install next@"$NEXT_LATEST" --legacy-peer-deps ;;
+            4) npm install react@"$REACT_LATEST" --legacy-peer-deps ;;
+            5) npm update --legacy-peer-deps ;;
+            6) update_all; break ;;
+            0) exit 0 ;;
+            *) echo -e "${RED}❗ ${NEOMIA} Choix invalide.${RESET}" ;;
+        esac
+    done
+}
+
+### 7. Vérifications initiales ###
+# Vérifier NVM
+if ! command -v nvm &>/dev/null; then
+    echo -e "${RED}❗ ${NEOMIA} NVM est requis pour mettre à jour Node.js.${RESET}"
     echo -e "${BLUE}➜ Installation de NVM...${RESET}"
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
     export NVM_DIR="$HOME/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-    if ! [ -s "$NVM_DIR/nvm.sh" ]; then
-        echo -e "${RED}❗ ${NEOMIA} Échec de l'installation de NVM.${RESET}"
-        exit 1
-    fi
-    echo -e "${GREEN}   • ${NEOMIA} NVM installé avec succès.${RESET}"
 fi
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-### 6. Installer/Mettre à jour Node.js ###
-echo -e "${NEOMIA} ${DIM}Étape 2/6 : Configuration de Node.js...${RESET}"
-NODE_MIN_VERSION="18.0.0"
-if command -v node &>/dev/null; then
-    CURRENT_NODE_VERSION="$(node -v | sed 's/^v//')"
-    if version_ge "$CURRENT_NODE_VERSION" "$NODE_MIN_VERSION"; then
-        echo -e "${GREEN}   • ${NEOMIA} Node.js v${CURRENT_NODE_VERSION} (≥ ${NODE_MIN_VERSION}) est prêt.${RESET}"
-    else
-        echo -e "${YELLOW}⚠️  ${NEOMIA} Mise à jour de Node.js...${RESET}"
-        nvm install 18 --no-progress
-        nvm alias default 18
-    fi
-else
-    echo -e "${BLUE}➜ Installation de Node.js v18...${RESET}"
-    nvm install 18 --no-progress
-    nvm alias default 18
-fi
-echo -e "${CYAN}   • ${NEOMIA} node: $(node -v)${RESET}    ${CYAN}npm: $(npm -v)${RESET}"
-
-### 7. Demander le nom du projet ###
-echo -e "${NEOMIA} ${DIM}Étape 3/6 : Configuration du projet...${RESET}"
-echo -ne "${MAGENTA}➜ Nom du projet (ex: mon-app) : ${RESET}"
-read -r PROJECT_NAME
-if [ -z "$PROJECT_NAME" ] || ! [[ "$PROJECT_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-    echo -e "${RED}❗ ${NEOMIA} Nom invalide. Utilisez [a-zA-Z0-9_-].${RESET}"
+# Vérifier npm
+if ! command -v npm &>/dev/null; then
+    echo -e "${RED}❗ ${NEOMIA} npm est requis.${RESET}"
     exit 1
 fi
 
-### 8. Préparer le dossier ~/opt/<projet> ###
-echo -e "${NEOMIA} ${DIM}Étape 4/6 : Préparation du dossier...${RESET}"
-BASE_DIR="$HOME/opt"
-PROJECT_DIR="$BASE_DIR/$PROJECT_NAME"
-mkdir -p "$BASE_DIR"
-if [ -d "$PROJECT_DIR" ]; then
-    echo -e "${YELLOW}⚠️  ${NEOMIA} Le dossier '$PROJECT_DIR' existe.${RESET}"
-    if [ -f "$PROJECT_DIR/package.json" ]; then
-        echo -e "${GREEN}   • ${NEOMIA} Projet existant détecté. Mise à jour...${RESET}"
-        cd "$PROJECT_DIR"
-        npm install --loglevel=error
-        install_linters
-        if [ -d ".git" ]; then
-            echo -e "${GREEN}   • ${NEOMIA} Dépôt Git existant.${RESET}"
-        else
-            echo -e "${BLUE}➜ Initialisation Git...${RESET}"
-            git init && git add . && git commit -m "Mise à jour par Neomia Studio" > /dev/null
-        fi
-        echo -e "${GREEN}✅ ${NEOMIA} Projet '$PROJECT_NAME' mis à jour.${RESET}"
-        exit 0
-    else
-        echo -ne "${YELLOW}❓ ${NEOMIA} Supprimer et recréer ? (o/N) : ${RESET}"
-        read -r RESP
-        if [[ "$RESP" =~ ^[oO]$ ]]; then
-            rm -rf "$PROJECT_DIR"
-            echo -e "${GREEN}   • ${NEOMIA} Dossier supprimé.${RESET}"
-        else
-            echo -e "${RED}❌ ${NEOMIA} Abandon.${RESET}"
-            exit 1
-        fi
-    fi
-fi
-
-### 9. Créer le projet Next.js ###
-echo -e "${NEOMIA} ${DIM}Étape 5/6 : Génération du projet...${RESET}"
-cd "$BASE_DIR"
-echo -e "${BLUE}➜ Création du squelette Next.js (TypeScript + ESLint)...${RESET}"
-npx create-next-app@latest "$PROJECT_NAME" --typescript --eslint 2>&1 | grep -v "success" || true
-cd "$PROJECT_DIR"
-npm install --loglevel=error
-install_linters
-
-### 10. Initialiser Git ###
-echo -e "${NEOMIA} ${DIM}Étape 6/6 : Finalisation...${RESET}"
-if [ ! -d ".git" ]; then
-    git init
-    git add .
-    git commit -m "Initial commit — Setup Next.js par Neomia Studio" > /dev/null
-    echo -e "${GREEN}   • ${NEOMIA} Git initialisé.${RESET}"
-fi
-
-### 11. Instructions finales ###
-DEFAULT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
-echo -e "${GREEN}${BOLD}
-✅ ${NEOMIA} Projet '$PROJECT_NAME' prêt dans ~/opt !
-${RESET}"
-echo -e "${CYAN}   • Lancer le serveur :
-    cd ~/opt/$PROJECT_NAME && npm run dev
-   • Ajouter un remote Git :
-    git remote add origin <votre-repo>
-    git push -u origin $DEFAULT_BRANCH
-${RESET}"
-echo -e "${MAGENTA}   🎨 Développé avec amour par Neomia Studio.${RESET}"
+### 8. Lancement ###
+detect_versions
+propose_updates
