@@ -1,17 +1,38 @@
 #!/usr/bin/env bash
 # file: /usr/local/bin/neomnia-next-install.sh
+# purpose: Installer Next.js sous /opt/<project> avec options, ACL, spinner, et lancement dev.
 
 set -euo pipefail
 
-# ------------------ Log & spinner ------------------
+# ------------------ Log & ui ------------------
 LOG_TAG="[ NEOMNIA ]"
 banner() { local t="${1:-NEOMNIA ACSS}"; echo "${LOG_TAG} ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"; printf "%s ┃ %-44s ┃\n" "${LOG_TAG}" "${t}"; echo "${LOG_TAG} ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"; }
 log() { printf "%s %s\n" "${LOG_TAG}" "$*"; }
-run_cmd() { log "→ $*"; set +e; env -u PREFIX -u NPM_CONFIG_PREFIX bash -lc "$*" 2>&1 | while IFS= read -r l; do printf "%s %s\n" "${LOG_TAG}" "$l"; done; local s=${PIPESTATUS[0]}; set -e; return $s; }
-human_size(){ local b=${1:-0}; if((b<1024));then echo "${b}B";elif((b<1048576));then printf "%.0fKB\n" "$(echo "$b/1024"|bc -l)";else printf "%.1fMB\n" "$(echo "$b/1048576"|bc -l)";fi; }
+run_cmd() {
+  log "→ $*"
+  set +e
+  env -u PREFIX -u NPM_CONFIG_PREFIX bash -lc "$*" 2>&1 | while IFS= read -r l; do printf "%s %s\n" "${LOG_TAG}" "$l"; done
+  local s=${PIPESTATUS[0]}
+  set -e
+  return $s
+}
+
+# tailles simples sans bc (arrondi entier)
+human_size(){
+  local b=${1:-0}
+  if (( b < 1024 )); then
+    printf "%dB\n" "$b"
+  elif (( b < 1024*1024 )); then
+    printf "%dKB\n" "$(( (b + 512)/1024 ))"
+  else
+    # 1 décimale approximative sans float: x.y MB -> (10*b/1048576)/10
+    local ten=$(( (10*b + 524288) / 1048576 ))
+    printf "%d.%dMB\n" "$((ten/10))" "$((ten%10))"
+  fi
+}
 fmt_time(){ local s=${1:-0}; printf "%02d:%02d" "$((s/60))" "$((s%60))"; }
 
-# FIX: éviter les affectations multiples avec variables encore inexistantes sous `set -u`
+# ------------------ Spinner (FIX) ------------------
 run_with_spinner(){
   local label="$1"; shift
   local cmd="$1"; shift
@@ -19,26 +40,31 @@ run_with_spinner(){
   :>"${logfile}"
 
   log "→ ${label} (log: ${logfile})"
+
   set +e
   ( env -u PREFIX -u NPM_CONFIG_PREFIX bash -lc "${cmd}" ) \
-    > >(tee -a "${logfile}") 2> >(tee -a "${logfile}" >&2) &
+    > >(tee -a "${logfile}") \
+    2> >(tee -a "${logfile}" >&2) &
   local pid=$!
   set -e
 
-  local start
-  start="$(date +%s)"
+  local start; start="$(date +%s)"
   local frames=( "⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏" )
   local i=0
+
   while kill -0 "${pid}" >/dev/null 2>&1; do
     sleep 2
-    # Séparer les affectations pour ne jamais référencer une var non encore définie
-    local now
+    # tolère variables vides pendant la collecte pour éviter nounset
+    set +u
+    local now elapsed bytes last
     now="$(date +%s)"
-    local elapsed=$(( now - start ))
-    local bytes
-    bytes="$(stat -c%s "${logfile}" 2>/dev/null || echo 0)"
-    local last
+    elapsed=$(( now - start ))
+    if bytes="$(stat -c%s "${logfile}" 2>/dev/null)"; then :; \
+    elif bytes="$(stat -f%z "${logfile}" 2>/dev/null)"; then :; \
+    else bytes="0"; fi
     last="$(tail -n 1 "${logfile}" 2>/dev/null | sed -E 's/[[:cntrl:]]//g')"
+    set -u
+
     printf "%s %s %s | t=%s | log=%s | last: %s\n" \
       "${LOG_TAG}" "${frames[$i]}" "${label}" "$(fmt_time "${elapsed}")" "$(human_size "${bytes}")" "${last:-…}"
     i=$(( (i+1) % ${#frames[@]} ))
@@ -65,7 +91,9 @@ banner "INSTALLATEUR • NEOMNIA ACSS"
 
 if [[ $EUID -ne 0 ]]; then
   if command -v sudo >/dev/null 2>&1; then SUDO="sudo"; else log "Exécutez en root ou installez sudo."; exit 1; fi
-else SUDO=""; fi
+else
+  SUDO=""
+fi
 
 read -rp "${LOG_TAG} Nom du projet (ex: mon-app): " RAW_NAME
 [[ -z "${RAW_NAME// }" ]] && { log "Nom de projet vide."; exit 1; }
@@ -125,7 +153,14 @@ if [[ "$NODE_SELECTED" == "SKIP" ]]; then
   NODE_VER="$(node -v | sed 's/^v//')"; ver_ge "$NODE_VER" "20.9.0" || { log "Node ${NODE_VER} < 20.9."; exit 1; }
   log "Node actif (skip): v${NODE_VER}"
 else
-  ensure_nvm; run_nvm_cmd "nvm install '${NODE_SELECTED}'"; run_nvm_cmd "nvm alias default '${NODE_SELECTED}'"; . "${NVM_DIR:-$HOME/.nvm}/nvm.sh"; unset PREFIX NPM_CONFIG_PREFIX || true; nvm use --silent default >/dev/null; NODE_VER="$(node -v | sed 's/^v//')"; log "Node actif: v${NODE_VER}"
+  ensure_nvm
+  run_nvm_cmd "nvm install '${NODE_SELECTED}'"
+  run_nvm_cmd "nvm alias default '${NODE_SELECTED}'"
+  . "${NVM_DIR:-$HOME/.nvm}/nvm.sh"
+  unset PREFIX NPM_CONFIG_PREFIX || true
+  nvm use --silent default >/dev/null
+  NODE_VER="$(node -v | sed 's/^v//')"
+  log "Node actif: v${NODE_VER}"
 fi
 command -v npx >/dev/null 2>&1 || { log "npx introuvable (npm)."; exit 1; }
 
@@ -142,7 +177,7 @@ if [[ "${ROUTER_CHOICE^^}" == "A" ]]; then CNA_FLAGS+=( "--app" ); else CNA_FLAG
 if [[ "${TAILWIND_CHOICE^^}" == "Y" ]]; then CNA_FLAGS+=( "--tailwind" ); fi
 if [[ "${SRC_CHOICE^^}" == "Y" ]]; then CNA_FLAGS+=( "--src-dir" ); else CNA_FLAGS+=( "--no-src-dir" ); fi
 
-# ------------------ OUTILS (optionnel – raccourci: aucun) ------------------
+# ------------------ OUTILS (optionnel) ------------------
 banner "OUTILS • (optionnel) multi-sélection ex: 1,2,6"
 echo "${LOG_TAG} 1) Prettier | 2) Husky+lint-staged | 3) Vitest | 4) Playwright | 5) Prisma+SQLite | 6) Dockerfile | 7) shadcn/ui"
 read -rp "${LOG_TAG} Vos choix [vide = aucun]: " TOOLS_SEL; TOOLS_SEL="${TOOLS_SEL// /}"
@@ -152,8 +187,15 @@ select_tool(){ [[ ",${TOOLS_SEL}," == *",$1,"* ]]; }
 banner "PRÉPARATION • ${PROJECT_NAME}"
 if getent group "${GROUP_NAME}" >/dev/null 2>&1; then log "Groupe '${GROUP_NAME}' déjà existant."; else run_cmd "${SUDO} groupadd '${GROUP_NAME}'"; fi
 if [[ -n "$TARGET_USER" ]]; then
-  if id -nG "$TARGET_USER" | tr ' ' '\n' | grep -qx "${GROUP_NAME}"; then log "Utilisateur '${TARGET_USER}' déjà dans '${GROUP_NAME}'."; else run_cmd "${SUDO} usermod -aG '${GROUP_NAME}' '${TARGET_USER}'"; log "Utilisateur '${TARGET_USER}' ajouté (⚠ newgrp/relog)."; fi
-else log "Utilisateur cible non détecté pour ajout au groupe."; fi
+  if id -nG "$TARGET_USER" | tr ' ' '\n' | grep -qx "${GROUP_NAME}"; then
+    log "Utilisateur '${TARGET_USER}' déjà dans '${GROUP_NAME}'."
+  else
+    run_cmd "${SUDO} usermod -aG '${GROUP_NAME}' '${TARGET_USER}'"
+    log "Utilisateur '${TARGET_USER}' ajouté (⚠ newgrp/relog)."
+  fi
+else
+  log "Utilisateur cible non détecté pour ajout au groupe."
+fi
 [[ -e "${PROJECT_DIR}" ]] && { log "Le chemin ${PROJECT_DIR} existe déjà. Abandon."; exit 1; }
 
 # ------------------ Staging dir ------------------
@@ -175,9 +217,13 @@ run_with_spinner "Préflight create-next-app@latest --version" "CI=1 npx --yes c
 # ------------------ Scaffold (non-interactif) ------------------
 banner "CRÉATION • Next.js scaffold (staging)"
 run_cmd "mkdir -p '${STAGE_DIR}'"; log "Dossier staging : ${STAGE_DIR}"
-# NOTE: éviter la double-quote autour d'@/*, déjà gérée
 CNA_CMD="CI=1 npx --yes create-next-app@latest '${STAGE_DIR}' ${CNA_FLAGS[*]} --no-git"
 run_with_spinner "Installation des dépendances (create-next-app)" "${CNA_CMD}" "${SCAFF_LOG}"
+
+# (outils optionnels) — placeholders: ajoute tes blocs si besoin
+# if select_tool 1; then :; fi
+# if select_tool 2; then :; fi
+# ...
 
 # ------------------ Déploiement /opt ------------------
 banner "DÉPLOIEMENT • /opt/${PROJECTNAME:-$PROJECT_NAME}"
@@ -202,7 +248,8 @@ find_free_port(){
   local p=3000
   while (( p < 4000 )); do
     if command -v ss >/dev/null 2>&1; then
-      ss -ltn "( sport = :$p )" | tail -n 1 | grep -q . || { echo "$p"; return 0; }
+      # si aucune ligne après l'en-tête -> port libre
+      ss -ltn "( sport = :$p )" | awk 'NR>1{print; exit}' | grep -q . || { echo "$p"; return 0; }
     elif command -v lsof >/dev/null 2>&1; then
       lsof -i TCP:"$p" -sTCP:LISTEN >/dev/null 2>&1 || { echo "$p"; return 0; }
     else
