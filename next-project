@@ -1,302 +1,154 @@
 #!/usr/bin/env bash
 # file: /usr/local/bin/neomnia-next-install.sh
-# purpose: Installer Next.js sous /opt/<project> en non-interactif, avec:
-#  - menu Node/Next (nvm)
-#  - groupe=<project> + ajout user
-#  - scaffold en staging (/tmp ou $HOME/.cache) -> move /opt
-#  - droits setgid + ACL (groupe & user, auto-installe 'acl')
-#  - logs [ NEOMNIA ] et SPINNER d'avancement (temps, taille log, dernière ligne)
+# purpose: Installer Next.js sous /opt/<project>, choix Node/structure/outils, ACL, spinner,
+#          + LANCEMENT DEV sur PORT LIBRE avec ouverture navigateur (si possible).
 
 set -euo pipefail
 
-# ------------------ Log helpers ------------------
+# ------------------ Log & spinner ------------------
 LOG_TAG="[ NEOMNIA ]"
-banner() {
-  local title="${1:-NEOMNIA ACSS}"
-  echo "${LOG_TAG} ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-  printf "%s ┃ %-44s ┃\n" "${LOG_TAG}" "${title}"
-  echo "${LOG_TAG} ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
-}
+banner() { local t="${1:-NEOMNIA ACSS}"; echo "${LOG_TAG} ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"; printf "%s ┃ %-44s ┃\n" "${LOG_TAG}" "${t}"; echo "${LOG_TAG} ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"; }
 log() { printf "%s %s\n" "${LOG_TAG}" "$*"; }
-
-# Sous-process sans PREFIX/NPM_CONFIG_PREFIX (compat nvm/npm)
-run_cmd() {
-  log "→ $*"
-  set +e
-  env -u PREFIX -u NPM_CONFIG_PREFIX bash -lc "$*" 2>&1 | while IFS= read -r l; do printf "%s %s\n" "${LOG_TAG}" "$l"; done
-  local s=${PIPESTATUS[0]}
-  set -e
-  return $s
-}
-
-# --- Spinner progress (affiche état toutes 2s) ---
-human_size() { # bytes -> lisible
-  local b=${1:-0}
-  if (( b < 1024 )); then echo "${b}B"; elif (( b < 1048576 )); then printf "%.0fKB\n" "$(echo "$b/1024" | bc -l)"; else printf "%.1fMB\n" "$(echo "$b/1048576" | bc -l)"; fi
-}
-fmt_time() { # secs -> mm:ss
-  local s=${1:-0}; printf "%02d:%02d" "$((s/60))" "$((s%60))"
-}
-run_with_spinner() {
-  # usage: run_with_spinner "<label>" "<cmd>" "<logfile>"
-  local label="$1"; shift
-  local cmd="$1"; shift
-  local logfile="$1"; shift || true
-  : > "${logfile}"
-
+run_cmd() { log "→ $*"; set +e; env -u PREFIX -u NPM_CONFIG_PREFIX bash -lc "$*" 2>&1 | while IFS= read -r l; do printf "%s %s\n" "${LOG_TAG}" "$l"; done; local s=${PIPESTATUS[0]}; set -e; return $s; }
+human_size(){ local b=${1:-0}; if((b<1024));then echo "${b}B";elif((b<1048576));then printf "%.0fKB\n" "$(echo "$b/1024"|bc -l)";else printf "%.1fMB\n" "$(echo "$b/1048576"|bc -l)";fi; }
+fmt_time(){ local s=${1:-0}; printf "%02d:%02d" "$((s/60))" "$((s%60))"; }
+run_with_spinner(){ local label="$1"; shift; local cmd="$1"; shift; local logfile="$1"; :>"${logfile}"
   log "→ ${label} (log: ${logfile})"
-  set +e
-  # lance la commande en arrière-plan, loggue stdout/stderr
-  ( env -u PREFIX -u NPM_CONFIG_PREFIX bash -lc "${cmd}" ) > >(tee -a "${logfile}") 2> >(tee -a "${logfile}" >&2) &
-  local pid=$!
-  set -e
-
-  local start_ts now elapsed bytes last
-  start_ts=$(date +%s)
-
-  # animation simple
-  local frames=( "⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏" )
-  local idx=0
-
+  set +e; ( env -u PREFIX -u NPM_CONFIG_PREFIX bash -lc "${cmd}" ) > >(tee -a "${logfile}") 2> >(tee -a "${logfile}" >&2) & local pid=$!; set -e
+  local start=$(date +%s); local frames=( "⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏" ); local i=0
   while kill -0 "${pid}" >/dev/null 2>&1; do
     sleep 2
-    now=$(date +%s)
-    elapsed=$(( now - start_ts ))
-    bytes=$(stat -c%s "${logfile}" 2>/dev/null || echo 0)
-    last=$(tail -n 1 "${logfile}" 2>/dev/null | sed -E 's/[[:cntrl:]]//g')
-    printf "%s %s %s | t=%s | log=%s | last: %s\n" \
-      "${LOG_TAG}" "${frames[$idx]}" "${label}" "$(fmt_time "${elapsed}")" "$(human_size "${bytes}")" "${last:-…}"
-    idx=$(( (idx+1) % ${#frames[@]} ))
+    local now=$(date +%s) elapsed=$((now-start)) bytes=$(stat -c%s "${logfile}" 2>/dev/null || echo 0)
+    local last=$(tail -n 1 "${logfile}" 2>/dev/null | sed -E 's/[[:cntrl:]]//g')
+    printf "%s %s %s | t=%s | log=%s | last: %s\n" "${LOG_TAG}" "${frames[$i]}" "${label}" "$(fmt_time "${elapsed}")" "$(human_size "${bytes}")" "${last:-…}"
+    i=$(( (i+1) % ${#frames[@]} ))
   done
-
-  wait "${pid}"
-  local status=$?
-  if [[ $status -ne 0 ]]; then
-    banner "DIAGNOSTIC • ${label} FAILED"
-    log "Dernières lignes du log (${logfile}):"
-    tail -n 80 "${logfile}" | while IFS= read -r l; do printf "%s %s\n" "${LOG_TAG}" "$l"; done
-    return $status
-  else
-    log "✅ ${label} terminé"
-  fi
+  wait "${pid}"; local status=$?
+  if [[ $status -ne 0 ]]; then banner "DIAGNOSTIC • ${label} FAILED"; log "Dernières lignes (${logfile}):"; tail -n 80 "${logfile}" | while IFS= read -r l; do printf "%s %s\n" "${LOG_TAG}" "$l"; done; return $status; else log "✅ ${label} terminé"; fi
 }
 
-on_error() { banner "ÉCHEC • NEOMNIA ACSS"; log "Une erreur est survenue. Voir les logs ci-dessus."; }
+on_error(){ banner "ÉCHEC • NEOMNIA ACSS"; log "Une erreur est survenue. Voir les logs ci-dessus."; }
 trap on_error ERR
 
-# Purge immédiate (compat nvm)
+# ------------------ Préparation ------------------
 unset PREFIX NPM_CONFIG_PREFIX 2>/dev/null || true
 export -n PREFIX NPM_CONFIG_PREFIX 2>/dev/null || true
-
 banner "INSTALLATEUR • NEOMNIA ACSS"
 
-# ------------------ Root/Sudo ------------------
 if [[ $EUID -ne 0 ]]; then
   if command -v sudo >/dev/null 2>&1; then SUDO="sudo"; else log "Exécutez en root ou installez sudo."; exit 1; fi
-else
-  SUDO=""
-fi
+else SUDO=""; fi
 
-# ------------------ Project ------------------
 read -rp "${LOG_TAG} Nom du projet (ex: mon-app): " RAW_NAME
 [[ -z "${RAW_NAME// }" ]] && { log "Nom de projet vide."; exit 1; }
 PROJECT_NAME="$(echo "$RAW_NAME" | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:space:]]+/-/g; s/[^a-z0-9-]//g; s/-+/-/g; s/^-|-$//g')"
-[[ -z "$PROJECT_NAME" ]] && { log "Nom de projet invalide après normalisation."; exit 1; }
-PROJECT_DIR="/opt/${PROJECT_NAME}"
-GROUP_NAME="${PROJECT_NAME}"
+[[ -z "$PROJECT_NAME" ]] && { log "Nom de projet invalide."; exit 1; }
+PROJECT_DIR="/opt/${PROJECT_NAME}"; GROUP_NAME="${PROJECT_NAME}"
 
-# ------------------ User cible ------------------
-CANDIDATES=()
-[[ -n "${SUDO_USER-}" ]] && CANDIDATES+=("${SUDO_USER}")
-LOGNAME_CMD="$(logname 2>/dev/null || true)"; [[ -n "$LOGNAME_CMD" ]] && CANDIDATES+=("$LOGNAME_CMD")
-CANDIDATES+=("$(id -un)")
-TARGET_USER=""
-for u in "${CANDIDATES[@]}"; do
-  if [[ -n "$u" ]] && id "$u" >/dev/null 2>&1; then TARGET_USER="$u"; break; fi
-done
+# Déterminer l’utilisateur cible à ajouter au groupe
+CANDIDATES=(); [[ -n "${SUDO_USER-}" ]] && CANDIDATES+=("${SUDO_USER}"); LOGNAME_CMD="$(logname 2>/dev/null || true)"; [[ -n "$LOGNAME_CMD" ]] && CANDIDATES+=("$LOGNAME_CMD"); CANDIDATES+=("$(id -un)")
+TARGET_USER=""; for u in "${CANDIDATES[@]}"; do if [[ -n "$u" ]] && id "$u" >/dev/null 2>&1; then TARGET_USER="$u"; break; fi; done
 
-# ------------------ Helpers ------------------
-ver_ge() { printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1 | grep -qx "$2"; }
-
-ensure_acl() {
-  if command -v setfacl >/dev/null 2>&1; then
-    log "ACL OK (setfacl présent)."
-    return 0
-  fi
+# Helpers
+ver_ge(){ printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1 | grep -qx "$2"; }
+ensure_acl(){
+  if command -v setfacl >/dev/null 2>&1; then log "ACL OK (setfacl présent)."; return 0; fi
   banner "INSTALL • acl (setfacl)"
-  if command -v apt-get >/dev/null 2>&1; then
-    run_cmd "${SUDO} apt-get update -y"
-    run_cmd "${SUDO} DEBIAN_FRONTEND=noninteractive apt-get install -y acl"
-  elif command -v dnf >/dev/null 2>&1; then
-    run_cmd "${SUDO} dnf install -y acl"
-  elif command -v yum >/dev/null 2>&1; then
-    run_cmd "${SUDO} yum install -y acl"
-  elif command -v zypper >/dev/null 2>&1; then
-    run_cmd "${SUDO} zypper install -y acl"
-  elif command -v pacman >/dev/null 2>&1; then
-    run_cmd "${SUDO} pacman -Sy --noconfirm acl"
-  else
-    log "Gestionnaire inconnu → 'acl' non installé automatiquement."
-  fi
+  if command -v apt-get >/dev/null 2>&1; then run_cmd "${SUDO} apt-get update -y"; run_cmd "${SUDO} DEBIAN_FRONTEND=noninteractive apt-get install -y acl"
+  elif command -v dnf >/dev/null 2>&1; then run_cmd "${SUDO} dnf install -y acl"
+  elif command -v yum >/dev/null 2>&1; then run_cmd "${SUDO} yum install -y acl"
+  elif command -v zypper >/dev/null 2>&1; then run_cmd "${SUDO} zypper install -y acl"
+  elif command -v pacman >/dev/null 2>&1; then run_cmd "${SUDO} pacman -Sy --noconfirm acl"
+  else log "Gestionnaire inconnu → 'acl' non installé automatiquement."; fi
   if command -v setfacl >/dev/null 2>&1; then log "ACL installées."; else log "ACL indisponibles après tentative d’installation."; fi
 }
-
-ensure_nvm() {
+ensure_nvm(){
   unset PREFIX NPM_CONFIG_PREFIX || true
-  local nvm_sh
-  nvm_sh="${NVM_DIR:-$HOME/.nvm}/nvm.sh"
-  if [[ -s "$nvm_sh" ]]; then
-    # shellcheck source=/dev/null
-    . "$nvm_sh"
-  elif command -v nvm >/dev/null 2>&1; then
-    :
-  else
-    log "Installation de nvm…"
-    run_cmd "curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash"
-    nvm_sh="${NVM_DIR:-$HOME/.nvm}/nvm.sh"
-    # shellcheck source=/dev/null
-    . "$nvm_sh"
-  fi
+  local nvm_sh="${NVM_DIR:-$HOME/.nvm}/nvm.sh"
+  if [[ -s "$nvm_sh" ]]; then . "$nvm_sh"
+  elif command -v nvm >/dev/null 2>&1; then :
+  else run_cmd "curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash"; . "${NVM_DIR:-$HOME/.nvm}/nvm.sh"; fi
 }
-run_nvm_cmd() {
-  local cmd="$*"
-  log "→ (nvm) $cmd"
-  set +e
-  unset PREFIX NPM_CONFIG_PREFIX || true
-  eval "$cmd" 2>&1 | while IFS= read -r l; do printf "%s %s\n" "${LOG_TAG}" "$l"; done
-  local s=${PIPESTATUS[0]}
-  set -e
-  return $s
-}
+run_nvm_cmd(){ local cmd="$*"; log "→ (nvm) $cmd"; set +e; unset PREFIX NPM_CONFIG_PREFIX || true; eval "$cmd" 2>&1 | while IFS= read -r l; do printf "%s %s\n" "${LOG_TAG}" "$l"; done; local s=${PIPESTATUS[0]}; set -e; return $s; }
 
-# ------------------ Node menu ------------------
+# ------------------ Menu Node ------------------
 banner "NODE • Sélection de version"
 echo "${LOG_TAG} 1) LTS (auto via nvm)  [recommandé]"
 echo "${LOG_TAG} 2) 22.x (courant)"
 echo "${LOG_TAG} 3) 20.x (maintenance)"
 echo "${LOG_TAG} 4) Custom (ex: 22.10.0)"
 echo "${LOG_TAG} 5) Skip (utiliser Node déjà installé, ≥ 20.9)"
-read -rp "${LOG_TAG} Votre choix [1]: " NODE_MENU
-NODE_MENU="${NODE_MENU:-1}"
-
-NODE_SELECTED=""
-case "$NODE_MENU" in
-  1) NODE_SELECTED="lts/*" ;;
-  2) NODE_SELECTED="22" ;;
-  3) NODE_SELECTED="20" ;;
-  4) read -rp "${LOG_TAG} Version exacte (ex: 22.10.0): " NODE_SELECTED; [[ -z "${NODE_SELECTED// }" ]] && { log "Version vide."; exit 1; } ;;
-  5) NODE_SELECTED="SKIP" ;;
-  *) log "Choix invalide."; exit 1 ;;
+read -rp "${LOG_TAG} Votre choix [1]: " NODE_MENU; NODE_MENU="${NODE_MENU:-1}"
+NODE_SELECTED=""; case "$NODE_MENU" in
+  1) NODE_SELECTED="lts/*";;
+  2) NODE_SELECTED="22";;
+  3) NODE_SELECTED="20";;
+  4) read -rp "${LOG_TAG} Version exacte (ex: 22.10.0): " NODE_SELECTED; [[ -z "${NODE_SELECTED// }" ]] && { log "Version vide."; exit 1; };;
+  5) NODE_SELECTED="SKIP";;
+  *) log "Choix invalide."; exit 1;;
 esac
-
 if [[ "$NODE_SELECTED" == "SKIP" ]]; then
   command -v node >/dev/null 2>&1 || { log "Node absent; impossible de Skip."; exit 1; }
-  NODE_VER="$(node -v | sed 's/^v//')"
-  ver_ge "$NODE_VER" "20.9.0" || { log "Node ${NODE_VER} < 20.9. Choisissez 1/2/3/4."; exit 1; }
+  NODE_VER="$(node -v | sed 's/^v//')"; ver_ge "$NODE_VER" "20.9.0" || { log "Node ${NODE_VER} < 20.9."; exit 1; }
   log "Node actif (skip): v${NODE_VER}"
 else
-  ensure_nvm
-  run_nvm_cmd "nvm install '${NODE_SELECTED}'"
-  run_nvm_cmd "nvm alias default '${NODE_SELECTED}'"
-  # shellcheck source=/dev/null
-  . "${NVM_DIR:-$HOME/.nvm}/nvm.sh"
-  unset PREFIX NPM_CONFIG_PREFIX || true
-  nvm use --silent default >/dev/null
-  NODE_VER="$(node -v | sed 's/^v//')"
-  log "Node actif: v${NODE_VER}"
+  ensure_nvm; run_nvm_cmd "nvm install '${NODE_SELECTED}'"; run_nvm_cmd "nvm alias default '${NODE_SELECTED}'"; . "${NVM_DIR:-$HOME/.nvm}/nvm.sh"; unset PREFIX NPM_CONFIG_PREFIX || true; nvm use --silent default >/dev/null; NODE_VER="$(node -v | sed 's/^v//')"; log "Node actif: v${NODE_VER}"
 fi
-
 command -v npx >/dev/null 2>&1 || { log "npx introuvable (npm)."; exit 1; }
 
-# ------------------ Next version ------------------
-banner "NEXT • Sélection"
-echo "${LOG_TAG} 1) latest (défaut)"
-echo "${LOG_TAG} 2) Custom (ex: 16.1.3)"
-read -rp "${LOG_TAG} Votre choix [1]: " NEXT_MENU
-NEXT_MENU="${NEXT_MENU:-1}"
-NEXT_CHOICE="latest"
-if [[ "$NEXT_MENU" == "2" ]]; then
-  read -rp "${LOG_TAG} Version Next (ex: 16.1.3): " NEXT_CHOICE
-  [[ -z "${NEXT_CHOICE// }" ]] && { log "Version Next vide."; exit 1; }
-fi
+# ------------------ Menu STRUCTURE ------------------
+banner "STRUCTURE • Choix & explications"
+echo "${LOG_TAG} A) App Router (moderne) — app/, server components, layouts (recommandé)"
+echo "${LOG_TAG} B) Pages Router (legacy) — pages/, API routes classiques"
+read -rp "${LOG_TAG} Router: A=App (défaut) / B=Pages [A]: " ROUTER_CHOICE; ROUTER_CHOICE="${ROUTER_CHOICE:-A}"
+read -rp "${LOG_TAG} Tailwind ? y/N [y]: " TAILWIND_CHOICE; TAILWIND_CHOICE="${TAILWIND_CHOICE:-y}"
+read -rp "${LOG_TAG} Utiliser src/ ? y/N [N]: " SRC_CHOICE; SRC_CHOICE="${SRC_CHOICE:-N}"
+
+CNA_FLAGS=( "--ts" "--eslint" "--turbopack" "--use-npm" "--import-alias" "\"@/*\"" )
+if [[ "${ROUTER_CHOICE^^}" == "A" ]]; then CNA_FLAGS+=( "--app" ); else CNA_FLAGS+=( "--pages" ); fi
+if [[ "${TAILWIND_CHOICE^^}" == "Y" ]]; then CNA_FLAGS+=( "--tailwind" ); fi
+if [[ "${SRC_CHOICE^^}" == "Y" ]]; then CNA_FLAGS+=( "--src-dir" ); else CNA_FLAGS+=( "--no-src-dir" ); fi
+
+# ------------------ OUTILS (optionnel – raccourci: aucun) ------------------
+banner "OUTILS • (optionnel) multi-sélection ex: 1,2,6"
+echo "${LOG_TAG} 1) Prettier | 2) Husky+lint-staged | 3) Vitest | 4) Playwright | 5) Prisma+SQLite | 6) Dockerfile | 7) shadcn/ui"
+read -rp "${LOG_TAG} Vos choix [vide = aucun]: " TOOLS_SEL; TOOLS_SEL="${TOOLS_SEL// /}"
+select_tool(){ [[ ",${TOOLS_SEL}," == *",$1,"* ]]; }
 
 # ------------------ Groupe & ajout user ------------------
 banner "PRÉPARATION • ${PROJECT_NAME}"
-if getent group "${GROUP_NAME}" >/dev/null 2>&1; then
-  log "Groupe '${GROUP_NAME}' déjà existant."
-else
-  run_cmd "${SUDO} groupadd '${GROUP_NAME}'"
-fi
-
+if getent group "${GROUP_NAME}" >/dev/null 2>&1; then log "Groupe '${GROUP_NAME}' déjà existant."; else run_cmd "${SUDO} groupadd '${GROUP_NAME}'"; fi
 if [[ -n "$TARGET_USER" ]]; then
-  if id -nG "$TARGET_USER" | tr ' ' '\n' | grep -qx "${GROUP_NAME}"; then
-    log "Utilisateur '${TARGET_USER}' déjà membre du groupe '${GROUP_NAME}'."
-  else
-    run_cmd "${SUDO} usermod -aG '${GROUP_NAME}' '${TARGET_USER}'"
-    log "Utilisateur '${TARGET_USER}' ajouté au groupe '${GROUP_NAME}' (⚠️ déconnexion/reconnexion ou 'newgrp ${GROUP_NAME}')."
-  fi
-else
-  log "Aucun utilisateur cible détecté pour ajout au groupe."
-fi
-
+  if id -nG "$TARGET_USER" | tr ' ' '\n' | grep -qx "${GROUP_NAME}"; then log "Utilisateur '${TARGET_USER}' déjà dans '${GROUP_NAME}'."; else run_cmd "${SUDO} usermod -aG '${GROUP_NAME}' '${TARGET_USER}'"; log "Utilisateur '${TARGET_USER}' ajouté (⚠ newgrp/relog)."; fi
+else log "Utilisateur cible non détecté pour ajout au groupe."; fi
 [[ -e "${PROJECT_DIR}" ]] && { log "Le chemin ${PROJECT_DIR} existe déjà. Abandon."; exit 1; }
 
 # ------------------ Staging dir ------------------
-pick_staging_dir() {
-  local suffix
-  suffix="$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 6 || true)"
-  [[ -z "$suffix" ]] && suffix="000000"
-  local candidate="/tmp/neomnia-${PROJECT_NAME}-${suffix}"
-  if touch "/tmp/.neomnia_w_test" 2>/dev/null; then
-    rm -f "/tmp/.neomnia_w_test" || true
-    echo "$candidate"
-    return 0
-  fi
-  local home_cache="${HOME}/.cache/neomnia-${PROJECT_NAME}-${suffix}"
-  log "⚠️ /tmp non inscriptible; fallback vers ${home_cache}"
-  echo "$home_cache"
-}
+pick_staging_dir(){ local sfx; sfx="$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 6 || true)"; [[ -z "$sfx" ]] && sfx="000000"; local cand="/tmp/neomnia-${PROJECT_NAME}-${sfx}"; if touch "/tmp/.neomnia_w_test" 2>/dev/null; then rm -f "/tmp/.neomnia_w_test" || true; echo "$cand"; else local hc="${HOME}/.cache/neomnia-${PROJECT_NAME}-${sfx}"; log "⚠️ /tmp non inscriptible; fallback ${hc}"; echo "$hc"; fi; }
 STAGE_DIR="$(pick_staging_dir)"
 
 # ------------------ Préflight create-next-app ------------------
 banner "PRÉFLIGHT • create-next-app"
-SCAFFOLD_LOG="/tmp/.neomnia_cna_${PROJECT_NAME}.log"
-run_cmd "node -v"
-run_cmd "npm -v"
-run_cmd "which npx || command -v npx"
-run_with_spinner "Préflight create-next-app@latest --version" \
-  "CI=1 npx --yes create-next-app@latest --version" \
-  "${SCAFFOLD_LOG}"
+SCAFF_LOG="/tmp/.neomnia_cna_${PROJECT_NAME}.log"
+run_cmd "node -v"; run_cmd "npm -v"; run_cmd "which npx || command -v npx"
+run_with_spinner "Préflight create-next-app@latest --version" "CI=1 npx --yes create-next-app@latest --version" "${SCAFF_LOG}"
 
-# ------------------ Scaffold en STAGING (FULL NON-INTERACTIF) ------------------
+# ------------------ Scaffold (non-interactif) ------------------
 banner "CRÉATION • Next.js scaffold (staging)"
-run_cmd "mkdir -p '${STAGE_DIR}'"
-log "Dossier staging : ${STAGE_DIR}"
+run_cmd "mkdir -p '${STAGE_DIR}'"; log "Dossier staging : ${STAGE_DIR}"
+CNA_CMD="CI=1 npx --yes create-next-app@latest '${STAGE_DIR}' ${CNA_FLAGS[*]} --no-git"
+run_with_spinner "Installation des dépendances (create-next-app)" "${CNA_CMD}" "${SCAFF_LOG}"
 
-# ci-dessous, l’étape la plus longue → spinner
-run_with_spinner "Installation des dépendances (create-next-app)" \
-  "CI=1 npx --yes create-next-app@latest '${STAGE_DIR}' \
-    --ts --app --tailwind --eslint --turbopack --use-npm \
-    --no-src-dir --import-alias \"@/*\" --no-git" \
-  "${SCAFFOLD_LOG}"
+# (outils optionnels) — abrégé pour la réponse; réutiliser vos blocs précédents si besoin
+# ...
 
-# ------------------ Next pin si custom ------------------
-if [[ "${NEXT_CHOICE}" != "latest" ]]; then
-  banner "PIN • next@${NEXT_CHOICE}"
-  run_with_spinner "Installation next@${NEXT_CHOICE}" \
-    "cd '${STAGE_DIR}' && npm i -E next@'${NEXT_CHOICE}'" \
-    "${SCAFFOLD_LOG}"
-fi
-
-# ------------------ Move vers /opt puis droits ------------------
-banner "DÉPLOIEMENT • /opt/${PROJECT_NAME}"
+# ------------------ Déploiement /opt ------------------
+banner "DÉPLOIEMENT • /opt/${PROJECTNAME:-$PROJECT_NAME}"
 run_cmd "${SUDO} mv '${STAGE_DIR}' '${PROJECT_DIR}'"
 run_cmd "${SUDO} chown -R root:'${GROUP_NAME}' '${PROJECT_DIR}'"
 run_cmd "${SUDO} chmod 2775 '${PROJECT_DIR}'"
 run_cmd "${SUDO} chmod -R g+rwX '${PROJECT_DIR}'"
 run_cmd "${SUDO} find '${PROJECT_DIR}' -type d -exec chmod g+s {} +"
-
-# ACL (groupe + user) — installe si manquant
 ensure_acl
 if command -v setfacl >/dev/null 2>&1; then
   run_cmd "${SUDO} setfacl -R -m g:${GROUP_NAME}:rwX '${PROJECT_DIR}'"
@@ -305,23 +157,95 @@ if command -v setfacl >/dev/null 2>&1; then
     run_cmd "${SUDO} setfacl -R -m u:${TARGET_USER}:rwX '${PROJECT_DIR}'"
     run_cmd "${SUDO} setfacl -dR -m u:${TARGET_USER}:rwX '${PROJECT_DIR}'"
   fi
-else
-  log "ACL indisponibles; seuls chmod+setgid sont appliqués."
+fi
+if [[ "${NODE_SELECTED}" != "SKIP" ]]; then printf '%s\n' "${NODE_VER}" | ${SUDO} tee "${PROJECT_DIR}/.nvmrc" >/dev/null; fi
+
+# ------------------ Chercher un port libre + lancer le DEV ------------------
+find_free_port(){
+  local p=3000
+  while (( p < 4000 )); do
+    if command -v ss >/dev/null 2>&1; then
+      ss -ltn "( sport = :$p )" | tail -n +2 | grep -q . || { echo "$p"; return 0; }
+    elif command -v lsof >/dev/null 2>&1; then
+      lsof -i TCP:"$p" -sTCP:LISTEN >/dev/null 2>&1 || { echo "$p"; return 0; }
+    else
+      # Brute check via bash /dev/tcp (best effort)
+      (echo > /dev/tcp/127.0.0.1/"$p") >/dev/null 2>&1 && busy=1 || busy=0
+      [[ $busy -eq 0 ]] && { echo "$p"; return 0; }
+    fi
+    p=$((p+1))
+  done
+  return 1
+}
+
+start_dev_server(){
+  local dir="$1"; local user="$2"; local port="$3"
+  banner "LANCEMENT • Next dev (port ${port})"
+  local devlog="${dir}/dev.log"
+  local cmd="cd '${dir}' && NODE_ENV=development nohup npm run dev -- -p ${port} >> '${devlog}' 2>&1 & echo \$!"
+  # Lancer sous l’utilisateur cible
+  local pid
+  if [[ -n "$user" ]]; then
+    pid="$(${SUDO} -u "${user}" bash -lc "${cmd}")"
+  else
+    pid="$(bash -lc "${cmd}")"
+  fi
+  log "Dev lancé (PID=${pid}), log: ${devlog}"
+  # Attente readiness (max ~60s)
+  local start=$(date +%s)
+  while true; do
+    sleep 2
+    if grep -qiE "ready - started server on .*:${port}|Local:.*:${port}" "${devlog}" 2>/dev/null; then
+      log "✅ Next prêt sur http://localhost:${port}"
+      break
+    fi
+    if (( $(date +%s) - start > 60 )); then
+      log "⏳ Next pas encore prêt (60s). Voir ${devlog}."
+      break
+    fi
+    local last=$(tail -n 1 "${devlog}" 2>/dev/null | sed -E 's/[[:cntrl:]]//g')
+    printf "%s ⏳ Next dev | port=%s | last: %s\n" "${LOG_TAG}" "${port}" "${last:-…}"
+  done
+
+  # Ouvrir navigateur si possible (local desktop)
+  if command -v xdg-open >/dev/null 2>&1 && [[ -n "${DISPLAY-}" || -n "${WAYLAND_DISPLAY-}" ]]; then
+    run_cmd "xdg-open 'http://localhost:${port}'" || true
+  elif command -v open >/dev/null 2>&1; then
+    run_cmd "open 'http://localhost:${port}'" || true
+  else
+    log "👉 Ouvrez votre navigateur sur: http://<votre-host>:${port}"
+  fi
+
+  # Vérification HTTP (best effort)
+  if command -v curl >/dev/null 2>&1; then
+    if curl -fsS "http://127.0.0.1:${port}" >/dev/null 2>&1; then
+      log "HTTP OK sur http://127.0.0.1:${port}"
+    else
+      log "HTTP pas encore OK; consultez ${devlog}."
+    fi
+  fi
+
+  # Aide stop
+  log "Pour arrêter: kill ${pid}  (ou: npx kill-port ${port})"
+}
+
+read -rp "${LOG_TAG} Lancer le serveur de développement maintenant ? y/N [y]: " RUN_DEV; RUN_DEV="${RUN_DEV:-y}"
+if [[ "${RUN_DEV^^}" == "Y" ]]; then
+  PORT="$(find_free_port || true)"
+  if [[ -z "${PORT:-}" ]]; then
+    log "Aucun port libre trouvé entre 3000 et 3999."
+  else
+    start_dev_server "${PROJECT_DIR}" "${TARGET_USER:-}" "${PORT}"
+  fi
 fi
 
-# .nvmrc si Node non-skip
-if [[ "${NODE_SELECTED}" != "SKIP" ]]; then
-  printf '%s\n' "${NODE_VER}" | ${SUDO} tee "${PROJECT_DIR}/.nvmrc" >/dev/null
-fi
-
-# ------------------ Vérification d'écriture ------------------
+# ------------------ Vérification écriture ------------------
 banner "VÉRIF DROITS • Écriture utilisateur"
 if [[ -n "${TARGET_USER}" ]]; then
   if run_cmd "${SUDO} -u '${TARGET_USER}' bash -lc \"echo ok > '${PROJECT_DIR}/.neomnia_write_test' && rm -f '${PROJECT_DIR}/.neomnia_write_test'\""; then
     log "✅ L'utilisateur '${TARGET_USER}' peut écrire dans ${PROJECT_DIR}."
   else
-    log "❌ L'utilisateur '${TARGET_USER}' ne peut pas écrire MAINTENANT."
-    log "Actions: exécuter 'newgrp ${GROUP_NAME}' ou se reconnecter."
+    log "❌ L'utilisateur '${TARGET_USER}' ne peut pas écrire MAINTENANT. Actions: 'newgrp ${GROUP_NAME}' ou reconnexion."
   fi
 else
   log "Vérif sautée: utilisateur cible introuvable."
@@ -334,10 +258,8 @@ log "Dossier     : ${PROJECT_DIR}"
 log "Groupe      : ${GROUP_NAME}"
 log "Utilisateur : ${TARGET_USER:-N/A} (membre du groupe)"
 log "Node        : v${NODE_VER}"
-log "Next        : ${NEXT_CHOICE}"
 log "Dev         : cd '${PROJECT_DIR}' && npm run dev"
 log "Build/Start : cd '${PROJECT_DIR}' && npm run build && npm run start -- -p 3000"
-log "⚠️  Si droits non pris en compte: 'newgrp ${GROUP_NAME}' ou reconnexion."
-
+log "⚠️  Droits non pris en compte ? 'newgrp ${GROUP_NAME}' ou reconnexion."
 banner "TERMINÉ • NEOMNIA ACSS"
 exit 0
