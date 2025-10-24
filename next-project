@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # file: /usr/local/bin/neomnia-next-install.sh
-# purpose: Installer Next.js sous /opt/<project> avec menu Node/Next, groupe=projet (+ajout user), scaffold en /tmp, droits & logs NEOMNIA.
+# purpose: Install Next.js under /opt/<project> with Node/Next menu, group=project (+add user), scaffold in /tmp, rights & logs NEOMNIA.
 # fixes:
-#  - Staging dir 100% minuscule pour éviter l’erreur npm (no caps).
-#  - Purge PREFIX/NPM_CONFIG_PREFIX pour compat nvm.
-#  - Corrige 'endac' -> 'esac'.
+#  - Staging dir 100% lowercase to avoid npm error (no caps).
+#  - Purge PREFIX/NPM_CONFIG_PREFIX for nvm compatibility.
+#  - Fixed 'endac' -> 'esac'.
+#  - CRITICAL FIX: Lowercase random suffix generation and project name normalization
 
 set -euo pipefail
 
@@ -18,7 +19,7 @@ banner() {
 }
 log() { printf "%s %s\n" "${LOG_TAG}" "$*"; }
 
-# Sous-process sans PREFIX/NPM_CONFIG_PREFIX
+# Subprocess without PREFIX/NPM_CONFIG_PREFIX
 run_cmd() {
   log "→ $*"
   set +e
@@ -31,7 +32,7 @@ run_cmd() {
 on_error() { banner "ÉCHEC • NEOMNIA ACSS"; log "Une erreur est survenue. Voir les logs ci-dessus."; }
 trap on_error ERR
 
-# Purge immédiate (compat nvm)
+# Immediate purge (nvm compatibility)
 unset PREFIX NPM_CONFIG_PREFIX 2>/dev/null || true
 export -n PREFIX NPM_CONFIG_PREFIX 2>/dev/null || true
 
@@ -45,12 +46,23 @@ else SUDO=""; fi
 # ------------------ Project ------------------
 read -rp "${LOG_TAG} Nom du projet (ex: mon-app): " RAW_NAME
 [[ -z "${RAW_NAME// }" ]] && { log "Nom de projet vide."; exit 1; }
+
+# CRITICAL: Convert to lowercase and sanitize
 PROJECT_NAME="$(echo "$RAW_NAME" | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:space:]]+/-/g; s/[^a-z0-9-]//g; s/-+/-/g; s/^-|-$//g')"
 [[ -z "$PROJECT_NAME" ]] && { log "Nom de projet invalide après normalisation."; exit 1; }
+
+# Validate project name (npm compatible)
+if ! echo "$PROJECT_NAME" | grep -qE '^[a-z0-9][a-z0-9-]*$'; then
+  log "Nom de projet invalide pour npm (doit commencer par a-z0-9, contenir uniquement a-z0-9-)."; 
+  exit 1; 
+fi
+
 PROJECT_DIR="/opt/${PROJECT_NAME}"
 GROUP_NAME="${PROJECT_NAME}"
 
-# ------------------ User cible à ajouter au groupe ------------------
+log "Projet normalisé: ${PROJECT_NAME}"
+
+# ------------------ Target user to add to group ------------------
 CANDIDATES=()
 [[ -n "${SUDO_USER-}" ]] && CANDIDATES+=("${SUDO_USER}")
 LOGNAME_CMD="$(logname 2>/dev/null || true)"; [[ -n "$LOGNAME_CMD" ]] && CANDIDATES+=("$LOGNAME_CMD")
@@ -63,7 +75,7 @@ done
 # ------------------ Helpers ------------------
 ver_ge() { printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1 | grep -qx "$2"; }
 
-# nvm dans le SHELL COURANT
+# nvm in CURRENT SHELL
 ensure_nvm() {
   unset PREFIX NPM_CONFIG_PREFIX || true
   local nvm_sh
@@ -81,6 +93,7 @@ ensure_nvm() {
     . "$nvm_sh"
   fi
 }
+
 run_nvm_cmd() {
   local cmd="$*"
   log "→ (nvm) $cmd"
@@ -143,7 +156,7 @@ if [[ "$NEXT_MENU" == "2" ]]; then
   [[ -z "${NEXT_CHOICE// }" ]] && { log "Version Next vide."; exit 1; }
 fi
 
-# ------------------ Groupe (avant move) ------------------
+# ------------------ Group (before move) ------------------
 banner "PRÉPARATION • ${PROJECT_NAME}"
 if getent group "${GROUP_NAME}" >/dev/null 2>&1; then
   log "Groupe '${GROUP_NAME}' déjà existant."
@@ -151,7 +164,7 @@ else
   run_cmd "${SUDO} groupadd '${GROUP_NAME}'"
 fi
 
-# Ajouter l'utilisateur au groupe
+# Add user to group
 if [[ -n "$TARGET_USER" ]]; then
   if id -nG "$TARGET_USER" | tr ' ' '\n' | grep -qx "${GROUP_NAME}"; then
     log "Utilisateur '${TARGET_USER}' déjà membre du groupe '${GROUP_NAME}'."
@@ -165,32 +178,51 @@ fi
 
 [[ -e "${PROJECT_DIR}" ]] && { log "Le chemin ${PROJECT_DIR} existe déjà. Abandon."; exit 1; }
 
-# ------------------ Scaffold en STAGING (/tmp, nom 100% minuscule) ------------------
+# ------------------ Scaffold in STAGING (/tmp, 100% lowercase name) ------------------
 banner "CRÉATION • Next.js scaffold (staging)"
-# suffixe minuscule [a-z0-9] pour éviter l’erreur npm (no caps)
-RAND_SUFFIX="$(tr -dc 'a-z0-9' </dev/urandom | head -c 6)"
-STAGE_DIR="/tmp/neomnia-${PROJECT_NAME}-${RAND_SUFFIX}"
-run_cmd "mkdir -p '${STAGE_DIR}'"
+
+# CRITICAL FIX: Generate lowercase-only random suffix
+RAND_SUFFIX="$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)"
+
+# Ensure staging dir name is 100% lowercase and npm-compatible
+STAGE_DIR="/tmp/${PROJECT_NAME}-${RAND_SUFFIX}"
+
 log "Dossier staging : ${STAGE_DIR}"
 
-CREATE_CMD="npx --yes create-next-app@latest '${STAGE_DIR}' --ts --app --tailwind --eslint --turbopack --use-npm"
+# Verify staging dir name is lowercase
+if ! echo "$STAGE_DIR" | grep -qE '^[a-z0-9/_-]+$'; then
+  log "ERREUR: Le nom du dossier staging contient des caractères invalides: ${STAGE_DIR}"
+  exit 1
+fi
+
+run_cmd "mkdir -p '${STAGE_DIR}'"
+
+# Create Next.js app with explicit project name (lowercase)
+CREATE_CMD="npx --yes create-next-app@${NEXT_CHOICE} '${STAGE_DIR}' --ts --app --tailwind --eslint --turbopack --use-npm --no-git"
 run_cmd "${CREATE_CMD}"
 
-# Pin Next si custom (dans le staging)
+# Verify package.json has correct name
+if [[ -f "${STAGE_DIR}/package.json" ]]; then
+  log "Vérification du package.json..."
+  # Update package.json name to ensure it's lowercase
+  run_cmd "cd '${STAGE_DIR}' && npm pkg set name='${PROJECT_NAME}'"
+fi
+
+# Pin Next if custom (in staging)
 if [[ "${NEXT_CHOICE}" != "latest" ]]; then
   banner "PIN • next@${NEXT_CHOICE}"
   run_cmd "cd '${STAGE_DIR}' && npm i -E next@'${NEXT_CHOICE}'"
 fi
 
-# ------------------ Move vers /opt puis droits ------------------
+# ------------------ Move to /opt then set rights ------------------
 banner "DÉPLOIEMENT • /opt/${PROJECT_NAME}"
 run_cmd "${SUDO} mv '${STAGE_DIR}' '${PROJECT_DIR}'"
 run_cmd "${SUDO} chown -R root:'${GROUP_NAME}' '${PROJECT_DIR}'"
-run_cmd "${SUDO} chmod 2775 '${PROJECT_DIR}'"               # setgid au dossier racine
-run_cmd "${SUDO} chmod -R g+rwX '${PROJECT_DIR}'"           # droits groupe
-run_cmd "${SUDO} find '${PROJECT_DIR}' -type d -exec chmod g+s {} +"  # setgid partout
+run_cmd "${SUDO} chmod 2775 '${PROJECT_DIR}'"               # setgid on root folder
+run_cmd "${SUDO} chmod -R g+rwX '${PROJECT_DIR}'"           # group rights
+run_cmd "${SUDO} find '${PROJECT_DIR}' -type d -exec chmod g+s {} +"  # setgid everywhere
 
-# ACL (défauts durables)
+# ACL (durable defaults)
 if command -v setfacl >/dev/null 2>&1; then
   run_cmd "${SUDO} setfacl -R -m g:${GROUP_NAME}:rwX '${PROJECT_DIR}'"
   run_cmd "${SUDO} setfacl -dR -m g:${GROUP_NAME}:rwX '${PROJECT_DIR}'"
@@ -198,12 +230,12 @@ else
   log "setfacl indisponible; chmod+setgid appliqués."
 fi
 
-# .nvmrc si Node non-skip
+# .nvmrc if Node non-skip
 if [[ "${NODE_SELECTED}" != "SKIP" ]]; then
   printf '%s\n' "${NODE_VER}" | ${SUDO} tee "${PROJECT_DIR}/.nvmrc" >/dev/null
 fi
 
-# ------------------ Récap ------------------
+# ------------------ Summary ------------------
 banner "RÉCAP • NEOMNIA ACSS"
 log "Projet      : ${PROJECT_NAME}"
 log "Dossier     : ${PROJECT_DIR}"
