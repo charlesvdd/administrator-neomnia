@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # file: /usr/local/bin/neomnia-next-install.sh
-# purpose: Installer Next.js sous /opt/<project> avec menu Node/Next (nvm),
-#          groupe=<project> + ajout user, scaffold en staging (/tmp ou $HOME/.cache),
-#          droits setgid + ACL (groupe & user, auto-installe 'acl'), logs détaillés.
+# purpose: Installer Next.js sous /opt/<project> en full non-interactif:
+#          - menu Node/Next (nvm)
+#          - groupe=<project> + ajout user
+#          - scaffold en staging (/tmp ou $HOME/.cache) -> move /opt
+#          - droits setgid + ACL (groupe & user, auto-installe 'acl')
+#          - logs [ NEOMNIA ] + diag détaillé
+#          - FIX: CI=1 + --import-alias "@/*" pour éviter toute invite
 
 set -euo pipefail
 
@@ -206,28 +210,29 @@ STAGE_DIR="$(pick_staging_dir)"
 # ------------------ Préflight create-next-app ------------------
 banner "PRÉFLIGHT • create-next-app"
 SCAFFOLD_LOG="/tmp/.neomnia_cna_${PROJECT_NAME}.log"
-# Afficher versions pour diag
 run_cmd "node -v"
 run_cmd "npm -v"
 run_cmd "which npx || command -v npx"
-# Teste la résolvabilité du package avant de lancer le scaffold complet
-if ! run_cmd "npx --yes create-next-app@latest --version | tee -a '${SCAFFOLD_LOG}'"; then
+# CI=1 + --version pour vérifier l'accès au package sans prompts
+if ! run_cmd "CI=1 npx --yes create-next-app@latest --version | tee -a '${SCAFFOLD_LOG}'"; then
   banner "DIAGNOSTIC • npx/create-next-app indisponible"
   log "Causes probables: réseau npm/proxy, DNS, npm down, cache npm corrompu."
-  log "Essais manuels possibles:"
-  log "  npm config get registry"
-  log "  npm ping"
-  log "  npx --yes create-next-app@latest --version"
+  log "Essais manuels:"
+  log "  npm config get registry && npm ping"
+  log "  CI=1 npx --yes create-next-app@latest --version"
   exit 1
 fi
 
-# ------------------ Scaffold en STAGING ------------------
+# ------------------ Scaffold en STAGING (FULL NON-INTERACTIF) ------------------
 banner "CRÉATION • Next.js scaffold (staging)"
 run_cmd "mkdir -p '${STAGE_DIR}'"
 log "Dossier staging : ${STAGE_DIR}"
 
 scaffold_next() {
-  local cmd="npx --yes create-next-app@latest '${STAGE_DIR}' --ts --app --tailwind --eslint --turbopack --use-npm"
+  # ⚠️ CI=1 désactive les prompts, --import-alias évite la question “customize alias?”
+  local cmd="CI=1 npx --yes create-next-app@latest '${STAGE_DIR}' \
+    --ts --app --tailwind --eslint --turbopack --use-npm \
+    --no-src-dir --import-alias \"@/*\" --no-git"
   log "→ create-next-app (log: ${SCAFFOLD_LOG})"
   set +e
   env -u PREFIX -u NPM_CONFIG_PREFIX bash -lc "$cmd" > >(tee -a "${SCAFFOLD_LOG}") 2> >(tee -a "${SCAFFOLD_LOG}" >&2)
