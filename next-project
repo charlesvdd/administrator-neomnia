@@ -1,11 +1,7 @@
 #!/usr/bin/env bash
 # file: /usr/local/bin/neomnia-next-install.sh
-# purpose: Install Next.js under /opt/<project> with Node/Next menu, group=project (+add user), scaffold in /tmp, rights & logs NEOMNIA.
-# fixes:
-#  - Staging dir 100% lowercase to avoid npm error (no caps).
-#  - Purge PREFIX/NPM_CONFIG_PREFIX for nvm compatibility.
-#  - Fixed 'endac' -> 'esac'.
-#  - CRITICAL FIX: Lowercase random suffix generation and project name normalization
+# purpose: Installer Next.js sous /opt/<project> avec menu Node/Next, groupe = projet (+ ajout user),
+#          scaffold en /tmp → move, droits groupe + ACL groupe & user, vérif d'écriture, logs NEOMNIA.
 
 set -euo pipefail
 
@@ -19,7 +15,7 @@ banner() {
 }
 log() { printf "%s %s\n" "${LOG_TAG}" "$*"; }
 
-# Subprocess without PREFIX/NPM_CONFIG_PREFIX
+# Sous-process sans PREFIX/NPM_CONFIG_PREFIX (compat nvm)
 run_cmd() {
   log "→ $*"
   set +e
@@ -32,7 +28,7 @@ run_cmd() {
 on_error() { banner "ÉCHEC • NEOMNIA ACSS"; log "Une erreur est survenue. Voir les logs ci-dessus."; }
 trap on_error ERR
 
-# Immediate purge (nvm compatibility)
+# Purge immédiate (compat nvm)
 unset PREFIX NPM_CONFIG_PREFIX 2>/dev/null || true
 export -n PREFIX NPM_CONFIG_PREFIX 2>/dev/null || true
 
@@ -41,28 +37,19 @@ banner "INSTALLATEUR • NEOMNIA ACSS"
 # ------------------ Root/Sudo ------------------
 if [[ $EUID -ne 0 ]]; then
   if command -v sudo >/dev/null 2>&1; then SUDO="sudo"; else log "Exécutez en root ou installez sudo."; exit 1; fi
-else SUDO=""; fi
+else
+  SUDO=""
+fi
 
 # ------------------ Project ------------------
 read -rp "${LOG_TAG} Nom du projet (ex: mon-app): " RAW_NAME
 [[ -z "${RAW_NAME// }" ]] && { log "Nom de projet vide."; exit 1; }
-
-# CRITICAL: Convert to lowercase and sanitize
 PROJECT_NAME="$(echo "$RAW_NAME" | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:space:]]+/-/g; s/[^a-z0-9-]//g; s/-+/-/g; s/^-|-$//g')"
 [[ -z "$PROJECT_NAME" ]] && { log "Nom de projet invalide après normalisation."; exit 1; }
-
-# Validate project name (npm compatible)
-if ! echo "$PROJECT_NAME" | grep -qE '^[a-z0-9][a-z0-9-]*$'; then
-  log "Nom de projet invalide pour npm (doit commencer par a-z0-9, contenir uniquement a-z0-9-)."; 
-  exit 1; 
-fi
-
 PROJECT_DIR="/opt/${PROJECT_NAME}"
 GROUP_NAME="${PROJECT_NAME}"
 
-log "Projet normalisé: ${PROJECT_NAME}"
-
-# ------------------ Target user to add to group ------------------
+# ------------------ User cible à ajouter au groupe ------------------
 CANDIDATES=()
 [[ -n "${SUDO_USER-}" ]] && CANDIDATES+=("${SUDO_USER}")
 LOGNAME_CMD="$(logname 2>/dev/null || true)"; [[ -n "$LOGNAME_CMD" ]] && CANDIDATES+=("$LOGNAME_CMD")
@@ -75,7 +62,7 @@ done
 # ------------------ Helpers ------------------
 ver_ge() { printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1 | grep -qx "$2"; }
 
-# nvm in CURRENT SHELL
+# nvm dans le SHELL COURANT
 ensure_nvm() {
   unset PREFIX NPM_CONFIG_PREFIX || true
   local nvm_sh
@@ -93,7 +80,6 @@ ensure_nvm() {
     . "$nvm_sh"
   fi
 }
-
 run_nvm_cmd() {
   local cmd="$*"
   log "→ (nvm) $cmd"
@@ -156,7 +142,7 @@ if [[ "$NEXT_MENU" == "2" ]]; then
   [[ -z "${NEXT_CHOICE// }" ]] && { log "Version Next vide."; exit 1; }
 fi
 
-# ------------------ Group (before move) ------------------
+# ------------------ Groupe (avant move) ------------------
 banner "PRÉPARATION • ${PROJECT_NAME}"
 if getent group "${GROUP_NAME}" >/dev/null 2>&1; then
   log "Groupe '${GROUP_NAME}' déjà existant."
@@ -164,7 +150,7 @@ else
   run_cmd "${SUDO} groupadd '${GROUP_NAME}'"
 fi
 
-# Add user to group
+# Ajouter l'utilisateur au groupe
 if [[ -n "$TARGET_USER" ]]; then
   if id -nG "$TARGET_USER" | tr ' ' '\n' | grep -qx "${GROUP_NAME}"; then
     log "Utilisateur '${TARGET_USER}' déjà membre du groupe '${GROUP_NAME}'."
@@ -178,64 +164,66 @@ fi
 
 [[ -e "${PROJECT_DIR}" ]] && { log "Le chemin ${PROJECT_DIR} existe déjà. Abandon."; exit 1; }
 
-# ------------------ Scaffold in STAGING (/tmp, 100% lowercase name) ------------------
+# ------------------ Scaffold en STAGING (/tmp, nom 100% minuscule) ------------------
 banner "CRÉATION • Next.js scaffold (staging)"
-
-# CRITICAL FIX: Generate lowercase-only random suffix
-RAND_SUFFIX="$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)"
-
-# Ensure staging dir name is 100% lowercase and npm-compatible
-STAGE_DIR="/tmp/${PROJECT_NAME}-${RAND_SUFFIX}"
-
+RAND_SUFFIX="$(tr -dc 'a-z0-9' </dev/urandom | head -c 6)"
+STAGE_DIR="/tmp/neomnia-${PROJECT_NAME}-${RAND_SUFFIX}"
+run_cmd "mkdir -p '${STAGE_DIR}'"
 log "Dossier staging : ${STAGE_DIR}"
 
-# Verify staging dir name is lowercase
-if ! echo "$STAGE_DIR" | grep -qE '^[a-z0-9/_-]+$'; then
-  log "ERREUR: Le nom du dossier staging contient des caractères invalides: ${STAGE_DIR}"
-  exit 1
-fi
-
-run_cmd "mkdir -p '${STAGE_DIR}'"
-
-# Create Next.js app with explicit project name (lowercase)
-CREATE_CMD="npx --yes create-next-app@${NEXT_CHOICE} '${STAGE_DIR}' --ts --app --tailwind --eslint --turbopack --use-npm --no-git"
+CREATE_CMD="npx --yes create-next-app@latest '${STAGE_DIR}' --ts --app --tailwind --eslint --turbopack --use-npm"
 run_cmd "${CREATE_CMD}"
 
-# Verify package.json has correct name
-if [[ -f "${STAGE_DIR}/package.json" ]]; then
-  log "Vérification du package.json..."
-  # Update package.json name to ensure it's lowercase
-  run_cmd "cd '${STAGE_DIR}' && npm pkg set name='${PROJECT_NAME}'"
-fi
-
-# Pin Next if custom (in staging)
+# Pin Next si custom (dans le staging)
 if [[ "${NEXT_CHOICE}" != "latest" ]]; then
   banner "PIN • next@${NEXT_CHOICE}"
   run_cmd "cd '${STAGE_DIR}' && npm i -E next@'${NEXT_CHOICE}'"
 fi
 
-# ------------------ Move to /opt then set rights ------------------
+# ------------------ Move vers /opt puis droits ------------------
 banner "DÉPLOIEMENT • /opt/${PROJECT_NAME}"
 run_cmd "${SUDO} mv '${STAGE_DIR}' '${PROJECT_DIR}'"
 run_cmd "${SUDO} chown -R root:'${GROUP_NAME}' '${PROJECT_DIR}'"
-run_cmd "${SUDO} chmod 2775 '${PROJECT_DIR}'"               # setgid on root folder
-run_cmd "${SUDO} chmod -R g+rwX '${PROJECT_DIR}'"           # group rights
-run_cmd "${SUDO} find '${PROJECT_DIR}' -type d -exec chmod g+s {} +"  # setgid everywhere
+run_cmd "${SUDO} chmod 2775 '${PROJECT_DIR}'"                # setgid au dossier racine
+run_cmd "${SUDO} chmod -R g+rwX '${PROJECT_DIR}'"            # droits groupe
+run_cmd "${SUDO} find '${PROJECT_DIR}' -type d -exec chmod g+s {} +"  # setgid partout
 
-# ACL (durable defaults)
+# ACL (défauts durables) — Groupe + Utilisateur
 if command -v setfacl >/dev/null 2>&1; then
+  # Groupe
   run_cmd "${SUDO} setfacl -R -m g:${GROUP_NAME}:rwX '${PROJECT_DIR}'"
   run_cmd "${SUDO} setfacl -dR -m g:${GROUP_NAME}:rwX '${PROJECT_DIR}'"
+  # Utilisateur (écriture immédiate même sans relog)
+  if [[ -n "${TARGET_USER}" ]]; then
+    run_cmd "${SUDO} setfacl -R -m u:${TARGET_USER}:rwX '${PROJECT_DIR}'"
+    run_cmd "${SUDO} setfacl -dR -m u:${TARGET_USER}:rwX '${PROJECT_DIR}'"
+  fi
 else
-  log "setfacl indisponible; chmod+setgid appliqués."
+  log "setfacl indisponible; chmod+setgid appliqués. (installez 'acl' pour des droits persistants par défaut)"
 fi
 
-# .nvmrc if Node non-skip
+# .nvmrc si Node non-skip
 if [[ "${NODE_SELECTED}" != "SKIP" ]]; then
   printf '%s\n' "${NODE_VER}" | ${SUDO} tee "${PROJECT_DIR}/.nvmrc" >/dev/null
 fi
 
-# ------------------ Summary ------------------
+# ------------------ Vérification d'écriture ------------------
+banner "VÉRIF DROITS • Écriture utilisateur"
+if [[ -n "${TARGET_USER}" ]]; then
+  if run_cmd "${SUDO} -u '${TARGET_USER}' bash -lc \"echo ok > '${PROJECT_DIR}/.neomnia_write_test' && rm -f '${PROJECT_DIR}/.neomnia_write_test'\""; then
+    log "✅ L'utilisateur '${TARGET_USER}' peut écrire dans ${PROJECT_DIR}."
+  else
+    log "❌ L'utilisateur '${TARGET_USER}' ne peut pas écrire MAINTENANT."
+    log "Actions possibles :"
+    log "  - Exécuter: newgrp '${GROUP_NAME}'    # activer le groupe dans la session courante"
+    log "  - Ou se déconnecter/reconnecter"
+    log "  - Vérifier que 'acl' est installé: sudo apt-get install -y acl"
+  fi
+else
+    log "Vérif sautée: utilisateur cible introuvable."
+fi
+
+# ------------------ Récap ------------------
 banner "RÉCAP • NEOMNIA ACSS"
 log "Projet      : ${PROJECT_NAME}"
 log "Dossier     : ${PROJECT_DIR}"
@@ -245,7 +233,7 @@ log "Node        : v${NODE_VER}"
 log "Next        : ${NEXT_CHOICE}"
 log "Dev         : cd '${PROJECT_DIR}' && npm run dev"
 log "Build/Start : cd '${PROJECT_DIR}' && npm run build && npm run start -- -p 3000"
-log "⚠️  Déconnexion/reconnexion nécessaire pour l'ajout au groupe."
+log "⚠️  Si droits non pris en compte: exécuter 'newgrp ${GROUP_NAME}' ou se reconnecter."
 
 banner "TERMINÉ • NEOMNIA ACSS"
 exit 0
