@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # file: /usr/local/bin/neomnia-next-install.sh
-# purpose: Installer Next.js sous /opt/<project>, menu Node/Next, groupe = projet, ajouter l'utilisateur au groupe, droits complets, logs NEOMNIA.
+# purpose: Installer Next.js sous /opt/<project> avec menu Node/Next, groupe=projet (+ajout user), scaffold en /tmp, droits & logs NEOMNIA.
+# note: Fix npm naming — dossier staging en minuscules uniquement.
 
 set -euo pipefail
 
@@ -47,7 +48,6 @@ PROJECT_DIR="/opt/${PROJECT_NAME}"
 GROUP_NAME="${PROJECT_NAME}"
 
 # ------------------ User cible à ajouter au groupe ------------------
-# Priorité : SUDO_USER > logname > user courant ; on évite "" ; ajouter root n'est pas nocif.
 CANDIDATES=()
 [[ -n "${SUDO_USER-}" ]] && CANDIDATES+=("${SUDO_USER}")
 LOGNAME_CMD="$(logname 2>/dev/null || true)"; [[ -n "$LOGNAME_CMD" ]] && CANDIDATES+=("$LOGNAME_CMD")
@@ -56,7 +56,6 @@ TARGET_USER=""
 for u in "${CANDIDATES[@]}"; do
   if [[ -n "$u" ]] && id "$u" >/dev/null 2>&1; then TARGET_USER="$u"; break; fi
 done
-[[ -z "$TARGET_USER" ]] && { log "Impossible de déterminer l'utilisateur courant pour l'ajouter au groupe."; TARGET_USER=""; }
 
 # ------------------ Helpers ------------------
 ver_ge() { printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1 | grep -qx "$2"; }
@@ -108,7 +107,7 @@ case "$NODE_MENU" in
   4) read -rp "${LOG_TAG} Version exacte (ex: 22.10.0): " NODE_SELECTED; [[ -z "${NODE_SELECTED// }" ]] && { log "Version vide."; exit 1; } ;;
   5) NODE_SELECTED="SKIP" ;;
   *) log "Choix invalide."; exit 1 ;;
-esac
+endac
 
 if [[ "$NODE_SELECTED" == "SKIP" ]]; then
   command -v node >/dev/null 2>&1 || { log "Node absent; impossible de Skip."; exit 1; }
@@ -149,7 +148,7 @@ else
   run_cmd "${SUDO} groupadd '${GROUP_NAME}'"
 fi
 
-# Ajouter l'utilisateur au groupe (si déterminé)
+# Ajouter l'utilisateur au groupe
 if [[ -n "$TARGET_USER" ]]; then
   if id -nG "$TARGET_USER" | tr ' ' '\n' | grep -qx "${GROUP_NAME}"; then
     log "Utilisateur '${TARGET_USER}' déjà membre du groupe '${GROUP_NAME}'."
@@ -158,15 +157,19 @@ if [[ -n "$TARGET_USER" ]]; then
     log "Utilisateur '${TARGET_USER}' ajouté au groupe '${GROUP_NAME}' (⚠️ déconnexion/reconnexion requise)."
   fi
 else
-  log "Aucun utilisateur cible n'a été ajouté au groupe (non détecté)."
+  log "Aucun utilisateur cible détecté pour ajout au groupe."
 fi
 
 [[ -e "${PROJECT_DIR}" ]] && { log "Le chemin ${PROJECT_DIR} existe déjà. Abandon."; exit 1; }
 
-# ------------------ Scaffold en STAGING (/tmp) ------------------
+# ------------------ Scaffold en STAGING (/tmp, nom 100% minuscule) ------------------
 banner "CRÉATION • Next.js scaffold (staging)"
-STAGE_DIR="$(mktemp -d -t neomnia-${PROJECT_NAME}-XXXXXX)"
+# Génère un suffixe aléatoire minuscule [a-z0-9], évite les majuscules rejetées par npm
+RAND_SUFFIX="$(LC_ALL=C tr -dc 'a-z0-9' </dev/urandom | head -c 6)"
+STAGE_DIR="/tmp/neomnia-${PROJECT_NAME}-${RAND_SUFFIX}"
+run_cmd "mkdir -p '${STAGE_DIR}'"
 log "Dossier staging : ${STAGE_DIR}"
+
 CREATE_CMD="npx --yes create-next-app@latest '${STAGE_DIR}' --ts --app --tailwind --eslint --turbopack --use-npm"
 run_cmd "${CREATE_CMD}"
 
@@ -181,10 +184,10 @@ banner "DÉPLOIEMENT • /opt/${PROJECT_NAME}"
 run_cmd "${SUDO} mv '${STAGE_DIR}' '${PROJECT_DIR}'"
 run_cmd "${SUDO} chown -R root:'${GROUP_NAME}' '${PROJECT_DIR}'"
 run_cmd "${SUDO} chmod 2775 '${PROJECT_DIR}'"               # setgid au dossier racine
-run_cmd "${SUDO} chmod -R g+rwX '${PROJECT_DIR}'"           # full RWX groupe (fichiers: rw, dossiers: rwx)
-run_cmd "${SUDO} find '${PROJECT_DIR}' -type d -exec chmod g+s {} +"  # setgid sur tous les dossiers
+run_cmd "${SUDO} chmod -R g+rwX '${PROJECT_DIR}'"           # droits groupe
+run_cmd "${SUDO} find '${PROJECT_DIR}' -type d -exec chmod g+s {} +"  # setgid partout
 
-# ACL (défauts pour la pérennité des droits)
+# ACL (défauts)
 if command -v setfacl >/dev/null 2>&1; then
   run_cmd "${SUDO} setfacl -R -m g:${GROUP_NAME}:rwX '${PROJECT_DIR}'"
   run_cmd "${SUDO} setfacl -dR -m g:${GROUP_NAME}:rwX '${PROJECT_DIR}'"
@@ -206,4 +209,8 @@ log "Utilisateur : ${TARGET_USER:-N/A} (membre du groupe)"
 log "Node        : v${NODE_VER}"
 log "Next        : ${NEXT_CHOICE}"
 log "Dev         : cd '${PROJECT_DIR}' && npm run dev"
-log "Build/Start : cd '${PROJE
+log "Build/Start : cd '${PROJECT_DIR}' && npm run build && npm run start -- -p 3000"
+log "⚠️  Déconnexion/reconnexion nécessaire pour l'ajout au groupe."
+
+banner "TERMINÉ • NEOMNIA ACSS"
+exit 0
