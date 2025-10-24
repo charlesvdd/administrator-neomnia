@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # file: /usr/local/bin/neomnia-next-install.sh
-# purpose: Installer Next.js sous /opt/<project> avec menu Node/Next, groupe = projet (+ ajout user),
-#          scaffold en /tmp → move, droits groupe + ACL groupe & user, vérif d'écriture, logs NEOMNIA.
+# purpose: Installer Next.js sous /opt/<project> avec:
+#  - menu Node/Next (nvm)
+#  - création groupe = <project> + ajout user
+#  - scaffold en /tmp (lowercase) puis move
+#  - droits: setgid + ACL groupe & user (auto-installe 'acl' si manquant)
+#  - logs formatés [ NEOMNIA ] + diagnostic en cas d’échec scaffold
 
 set -euo pipefail
 
@@ -15,7 +19,7 @@ banner() {
 }
 log() { printf "%s %s\n" "${LOG_TAG}" "$*"; }
 
-# Sous-process sans PREFIX/NPM_CONFIG_PREFIX (compat nvm)
+# Exécution sous-process en nettoyant des variables cassant nvm
 run_cmd() {
   log "→ $*"
   set +e
@@ -49,7 +53,7 @@ PROJECT_NAME="$(echo "$RAW_NAME" | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:spa
 PROJECT_DIR="/opt/${PROJECT_NAME}"
 GROUP_NAME="${PROJECT_NAME}"
 
-# ------------------ User cible à ajouter au groupe ------------------
+# ------------------ User cible ------------------
 CANDIDATES=()
 [[ -n "${SUDO_USER-}" ]] && CANDIDATES+=("${SUDO_USER}")
 LOGNAME_CMD="$(logname 2>/dev/null || true)"; [[ -n "$LOGNAME_CMD" ]] && CANDIDATES+=("$LOGNAME_CMD")
@@ -61,6 +65,35 @@ done
 
 # ------------------ Helpers ------------------
 ver_ge() { printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1 | grep -qx "$2"; }
+
+ensure_acl() {
+  if command -v setfacl >/dev/null 2>&1; then
+    log "ACL déjà disponibles (setfacl présent)."
+    return 0
+  fi
+  banner "INSTALL • acl (setfacl)"
+  # Détection simple du gestionnaire de paquets
+  if command -v apt-get >/dev/null 2>&1; then
+    run_cmd "${SUDO} apt-get update -y"
+    run_cmd "${SUDO} DEBIAN_FRONTEND=noninteractive apt-get install -y acl"
+  elif command -v dnf >/dev/null 2>&1; then
+    run_cmd "${SUDO} dnf install -y acl"
+  elif command -v yum >/dev/null 2>&1; then
+    run_cmd "${SUDO} yum install -y acl"
+  elif command -v zypper >/dev/null 2>&1; then
+    run_cmd "${SUDO} zypper install -y acl"
+  elif command -v pacman >/dev/null 2>&1; then
+    run_cmd "${SUDO} pacman -Sy --noconfirm acl"
+  else
+    log "Impossible d’installer 'acl' automatiquement (gestionnaire inconnu)."
+  fi
+
+  if command -v setfacl >/dev/null 2>&1; then
+    log "ACL installées avec succès."
+  else
+    log "ACL non disponibles. Le script appliquera chmod+setgid sans ACL."
+  fi
+}
 
 # nvm dans le SHELL COURANT
 ensure_nvm() {
@@ -142,7 +175,7 @@ if [[ "$NEXT_MENU" == "2" ]]; then
   [[ -z "${NEXT_CHOICE// }" ]] && { log "Version Next vide."; exit 1; }
 fi
 
-# ------------------ Groupe (avant move) ------------------
+# ------------------ Groupe & ajout user ------------------
 banner "PRÉPARATION • ${PROJECT_NAME}"
 if getent group "${GROUP_NAME}" >/dev/null 2>&1; then
   log "Groupe '${GROUP_NAME}' déjà existant."
@@ -150,13 +183,12 @@ else
   run_cmd "${SUDO} groupadd '${GROUP_NAME}'"
 fi
 
-# Ajouter l'utilisateur au groupe
 if [[ -n "$TARGET_USER" ]]; then
   if id -nG "$TARGET_USER" | tr ' ' '\n' | grep -qx "${GROUP_NAME}"; then
     log "Utilisateur '${TARGET_USER}' déjà membre du groupe '${GROUP_NAME}'."
   else
     run_cmd "${SUDO} usermod -aG '${GROUP_NAME}' '${TARGET_USER}'"
-    log "Utilisateur '${TARGET_USER}' ajouté au groupe '${GROUP_NAME}' (⚠️ déconnexion/reconnexion requise)."
+    log "Utilisateur '${TARGET_USER}' ajouté au groupe '${GROUP_NAME}' (⚠️ déconnexion/reconnexion ou 'newgrp ${GROUP_NAME}')."
   fi
 else
   log "Aucun utilisateur cible détecté pour ajout au groupe."
@@ -164,15 +196,33 @@ fi
 
 [[ -e "${PROJECT_DIR}" ]] && { log "Le chemin ${PROJECT_DIR} existe déjà. Abandon."; exit 1; }
 
-# ------------------ Scaffold en STAGING (/tmp, nom 100% minuscule) ------------------
+# ------------------ Scaffold en STAGING (/tmp, lowercase) ------------------
 banner "CRÉATION • Next.js scaffold (staging)"
 RAND_SUFFIX="$(tr -dc 'a-z0-9' </dev/urandom | head -c 6)"
 STAGE_DIR="/tmp/neomnia-${PROJECT_NAME}-${RAND_SUFFIX}"
 run_cmd "mkdir -p '${STAGE_DIR}'"
 log "Dossier staging : ${STAGE_DIR}"
 
-CREATE_CMD="npx --yes create-next-app@latest '${STAGE_DIR}' --ts --app --tailwind --eslint --turbopack --use-npm"
-run_cmd "${CREATE_CMD}"
+SCAFFOLD_LOG="/tmp/.neomnia_cna_${PROJECT_NAME}_${RAND_SUFFIX}.log"
+scaffold_next() {
+  local cmd="npx --yes create-next-app@latest '${STAGE_DIR}' --ts --app --tailwind --eslint --turbopack --use-npm"
+  log "→ create-next-app (log: ${SCAFFOLD_LOG})"
+  set +e
+  env -u PREFIX -u NPM_CONFIG_PREFIX bash -c "$cmd" > >(tee -a "${SCAFFOLD_LOG}") 2> >(tee -a "${SCAFFOLD_LOG}" >&2)
+  local status=$?
+  set -e
+  if [[ $status -ne 0 ]]; then
+    banner "DIAGNOSTIC • create-next-app FAILED"
+    log "Dernières lignes du log (${SCAFFOLD_LOG}):"
+    tail -n 60 "${SCAFFOLD_LOG}" | while IFS= read -r l; do printf "%s %s\n" "${LOG_TAG}" "$l"; done
+    log "Pistes: réseau npm, proxy/firewall, droits sur /tmp, version de npx."
+    return $status
+  fi
+}
+
+if ! scaffold_next; then
+  exit 1
+fi
 
 # Pin Next si custom (dans le staging)
 if [[ "${NEXT_CHOICE}" != "latest" ]]; then
@@ -184,22 +234,21 @@ fi
 banner "DÉPLOIEMENT • /opt/${PROJECT_NAME}"
 run_cmd "${SUDO} mv '${STAGE_DIR}' '${PROJECT_DIR}'"
 run_cmd "${SUDO} chown -R root:'${GROUP_NAME}' '${PROJECT_DIR}'"
-run_cmd "${SUDO} chmod 2775 '${PROJECT_DIR}'"                # setgid au dossier racine
-run_cmd "${SUDO} chmod -R g+rwX '${PROJECT_DIR}'"            # droits groupe
-run_cmd "${SUDO} find '${PROJECT_DIR}' -type d -exec chmod g+s {} +"  # setgid partout
+run_cmd "${SUDO} chmod 2775 '${PROJECT_DIR}'"
+run_cmd "${SUDO} chmod -R g+rwX '${PROJECT_DIR}'"
+run_cmd "${SUDO} find '${PROJECT_DIR}' -type d -exec chmod g+s {} +"
 
-# ACL (défauts durables) — Groupe + Utilisateur
+# ACL (groupe + user) — installe si manquant
+ensure_acl
 if command -v setfacl >/dev/null 2>&1; then
-  # Groupe
   run_cmd "${SUDO} setfacl -R -m g:${GROUP_NAME}:rwX '${PROJECT_DIR}'"
   run_cmd "${SUDO} setfacl -dR -m g:${GROUP_NAME}:rwX '${PROJECT_DIR}'"
-  # Utilisateur (écriture immédiate même sans relog)
   if [[ -n "${TARGET_USER}" ]]; then
     run_cmd "${SUDO} setfacl -R -m u:${TARGET_USER}:rwX '${PROJECT_DIR}'"
     run_cmd "${SUDO} setfacl -dR -m u:${TARGET_USER}:rwX '${PROJECT_DIR}'"
   fi
 else
-  log "setfacl indisponible; chmod+setgid appliqués. (installez 'acl' pour des droits persistants par défaut)"
+  log "ACL indisponibles; seuls chmod+setgid sont appliqués."
 fi
 
 # .nvmrc si Node non-skip
@@ -214,13 +263,10 @@ if [[ -n "${TARGET_USER}" ]]; then
     log "✅ L'utilisateur '${TARGET_USER}' peut écrire dans ${PROJECT_DIR}."
   else
     log "❌ L'utilisateur '${TARGET_USER}' ne peut pas écrire MAINTENANT."
-    log "Actions possibles :"
-    log "  - Exécuter: newgrp '${GROUP_NAME}'    # activer le groupe dans la session courante"
-    log "  - Ou se déconnecter/reconnecter"
-    log "  - Vérifier que 'acl' est installé: sudo apt-get install -y acl"
+    log "Actions: exécuter 'newgrp ${GROUP_NAME}' ou se reconnecter."
   fi
 else
-    log "Vérif sautée: utilisateur cible introuvable."
+  log "Vérif sautée: utilisateur cible introuvable."
 fi
 
 # ------------------ Récap ------------------
@@ -233,7 +279,7 @@ log "Node        : v${NODE_VER}"
 log "Next        : ${NEXT_CHOICE}"
 log "Dev         : cd '${PROJECT_DIR}' && npm run dev"
 log "Build/Start : cd '${PROJECT_DIR}' && npm run build && npm run start -- -p 3000"
-log "⚠️  Si droits non pris en compte: exécuter 'newgrp ${GROUP_NAME}' ou se reconnecter."
+log "⚠️  Si droits non pris en compte: 'newgrp ${GROUP_NAME}' ou reconnexion."
 
 banner "TERMINÉ • NEOMNIA ACSS"
 exit 0
