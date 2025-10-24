@@ -1,23 +1,24 @@
 #!/usr/bin/env bash
 # file: /usr/local/bin/neomnia-next-install.sh
-# purpose: Installer un projet Next.js sous /opt/<project>, choisir versions Node (via nvm) & Next, config groupe & droits, logs NEOMNIA.
+# purpose: Installer un projet Next.js sous /opt/<project>, choisir versions Node (via nvm) & Next.
+# notes: Corrige le conflit nvm/PREFIX en remplaçant PREFIX par LOG_TAG et en unset PREFIX.
 
 set -euo pipefail
 
 # ------------------ Log helpers ------------------
-PREFIX="[ NEOMNIA ]"
+LOG_TAG="[ NEOMNIA ]"
 banner() {
   local title="${1:-NEOMNIA ACSS}"
-  echo "${PREFIX} ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-  printf "%s ┃ %-44s ┃\n" "${PREFIX}" "${title}"
-  echo "${PREFIX} ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
+  echo "${LOG_TAG} ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+  printf "%s ┃ %-44s ┃\n" "${LOG_TAG}" "${title}"
+  echo "${LOG_TAG} ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
 }
-log() { printf "%s %s\n" "${PREFIX}" "$*"; }
+log() { printf "%s %s\n" "${LOG_TAG}" "$*"; }
 
 run_cmd() { # Prefixed live-logging
   log "→ $*"
   set +e
-  bash -c "$*" 2>&1 | while IFS= read -r line; do printf "%s %s\n" "${PREFIX}" "${line}"; done
+  bash -c "$*" 2>&1 | while IFS= read -r line; do printf "%s %s\n" "${LOG_TAG}" "${line}"; done
   local status=${PIPESTATUS[0]}
   set -e
   return $status
@@ -28,6 +29,9 @@ on_error() {
   log "Une erreur est survenue. Voir les logs ci-dessus."
 }
 trap on_error ERR
+
+# Assure qu'on ne pollue pas nvm avec une variable d'env 'PREFIX'
+unset PREFIX || true
 
 banner "INSTALLATEUR • NEOMNIA ACSS"
 
@@ -44,7 +48,7 @@ else
 fi
 
 # ------------------ Read project name ------------------
-read -rp "${PREFIX} Nom du projet (ex: mon-app): " RAW_NAME
+read -rp "${LOG_TAG} Nom du projet (ex: mon-app): " RAW_NAME
 if [[ -z "${RAW_NAME// }" ]]; then
   log "Nom de projet vide."
   exit 1
@@ -64,12 +68,12 @@ log "Choix version Node:"
 log "  - Tapez 'latest-lts' pour installer la dernière LTS via nvm (défaut)"
 log "  - Tapez une version précise (ex: 22.10.0)"
 log "  - Tapez 'skip' pour utiliser Node déjà présent (doit être ≥ 20.9)"
-read -rp "${PREFIX} Version Node [latest-lts]: " NODE_CHOICE
+read -rp "${LOG_TAG} Version Node [latest-lts]: " NODE_CHOICE
 NODE_CHOICE="${NODE_CHOICE:-latest-lts}"
 
-# Install or ensure Node with nvm when needed/desired
 ensure_nvm() {
-  if ! command -v bash >/dev/null 2>&1; then log "bash manquant"; exit 1; fi
+  # nvm nécessite que la variable d'env PREFIX ne soit pas définie
+  unset PREFIX || true
   if [[ -s "${HOME}/.nvm/nvm.sh" ]]; then
     # shellcheck source=/dev/null
     . "${HOME}/.nvm/nvm.sh"
@@ -86,6 +90,7 @@ ensure_nvm() {
 use_node_with_nvm() {
   local wanted="$1"
   ensure_nvm
+  unset PREFIX || true
   if [[ "$wanted" == "latest-lts" ]]; then
     run_cmd "nvm install --lts"
     run_cmd "nvm alias default 'lts/*'"
@@ -134,7 +139,7 @@ fi
 log "Choix version Next:"
 log "  - Tapez 'latest' pour prendre la dernière version (défaut)"
 log "  - Tapez une version précise (ex: 16.1.3)"
-read -rp "${PREFIX} Version Next [latest]: " NEXT_CHOICE
+read -rp "${LOG_TAG} Version Next [latest]: " NEXT_CHOICE
 NEXT_CHOICE="${NEXT_CHOICE:-latest}"
 
 # ------------------ Groupe & dossier ------------------
