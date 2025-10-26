@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # File: next-project
-# Scope: Ajustements minimaux, comportement d'origine conservé (pas d'auto-sudo).
-# Why-comments: uniquement là où l'intention peut surprendre.
+# Scope: Ajustements minimes (no default project, Node 25 option, confirmation).
 
 set -euo pipefail
 
@@ -11,15 +10,17 @@ log() { printf "%s %s\n" "$PREFIX" "$*" >&2; }
 die() { printf "%s ERROR: %s\n" "$PREFIX" "$*" >&2; exit 1; }
 cmd_exists() { command -v "$1" >/dev/null 2>&1; }
 need_root() { [ "${EUID:-$(id -u)}" -eq 0 ] || die "Ce script requiert root. Relance avec sudo."; }
+
 ask() { local r; read -r -p "$1" r; printf "%s" "$r"; }
 confirm() { local p="${1:-Confirmer ? [yes/no] }" a; read -r -p "$p" a; case "$a" in y|Y|yes|YES) return 0;; *) return 1;; esac; }
 
 normalize_kebab() { tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-{2,}/-/g'; }
+
 semver_to_int() { local s="${1:-0.0.0}" M m p; IFS='.' read -r M m p <<<"$s"; printf "%d\n" "$(( ${M:-0}*1000000 + ${m:-0}*1000 + ${p:-0} ))"; }
 
 require_min_node() {
   local min="20.9.0"
-  cmd_exists node || die "Node introuvable et option 'skip' sélectionnée. Choisis LTS/25/exact."
+  cmd_exists node || die "Node introuvable et option 'skip' sélectionnée. Choisis LTS / 25.x / version précise."
   local ver; ver="$(node -v | sed -E 's/^v//')"
   [ -n "$ver" ] || die "Impossible de déterminer la version de Node."
   local have need; have="$(semver_to_int "$ver")"; need="$(semver_to_int "$min")"
@@ -29,7 +30,7 @@ require_min_node() {
 }
 
 ensure_nvm() {
-  # Why: on privilégie /root/.nvm sous sudo pour cohérence d'environnement.
+  # WHY: privilégier un NVM_DIR stable sous sudo pour un environnement cohérent
   if [ -d "/root/.nvm" ]; then export NVM_DIR="/root/.nvm"
   elif [ -n "${SUDO_USER:-}" ] && [ -d "/home/$SUDO_USER/.nvm" ]; then export NVM_DIR="/home/$SUDO_USER/.nvm"
   else export NVM_DIR="${HOME}/.nvm"; fi
@@ -51,11 +52,25 @@ install_use_node_with_nvm() {
   local strategy="${1:-lts}"
   ensure_nvm
   case "$strategy" in
-    lts)     log "Node LTS via nvm…";  nvm install --lts >/dev/null; nvm use --lts >/dev/null ;;
-    node25)  log "Node 25.x via nvm…"; nvm install 25     >/dev/null; nvm use 25      >/dev/null ;;
-    exact:*) local v="${strategy#exact:}"; [ -n "$v" ] || die "Version Node vide."
-             log "Node $v via nvm…";    nvm install "$v"  >/dev/null; nvm use "$v"    >/dev/null ;;
-    *)       die "Stratégie Node inconnue: $strategy" ;;
+    lts)
+      log "Node LTS via nvm…"
+      nvm install --lts >/dev/null
+      nvm use --lts >/dev/null
+      ;;
+    node25)
+      log "Node 25.x via nvm…"
+      nvm install 25 >/dev/null
+      nvm use 25 >/dev/null
+      ;;
+    exact:*)
+      local v="${strategy#exact:}"; [ -n "$v" ] || die "Version Node vide."
+      log "Node $v via nvm…"
+      nvm install "$v" >/dev/null
+      nvm use "$v" >/dev/null
+      ;;
+    *)
+      die "Stratégie Node inconnue: $strategy"
+      ;;
   esac
   log "Node actif: $(node -v)"
   command -v npx >/dev/null || die "npx introuvable après installation Node."
@@ -78,8 +93,12 @@ apply_permissions() {
 
 create_group_if_needed() {
   local group="$1"
-  if getent group "$group" >/dev/null 2>&1; then log "Groupe '${group}' déjà présent."
-  else log "Création du groupe '${group}'…"; groupadd "$group"; fi
+  if getent group "$group" >/dev/null 2>&1; then
+    log "Groupe '${group}' déjà présent."
+  else
+    log "Création du groupe '${group}'…"
+    groupadd "$group"
+  fi
 }
 
 scaffold_next_app() {
@@ -99,16 +118,17 @@ pin_next_version_if_requested() {
 write_nvmrc_if_available() {
   local dir="$1"
   if cmd_exists node; then
-    local v; v="$(node -v)"; echo "${v#v}" > "${dir}/.nvmrc"; log ".nvmrc écrit (${v})."
+    local v; v="$(node -v)"
+    echo "${v#v}" > "${dir}/.nvmrc"
+    log ".nvmrc écrit (${v})."
   fi
 }
 
 # ===================== MAIN =====================
 need_root
-log "NEOMNIA ACSS — Ajustements minimes appliqués."
-log "Aucune valeur par défaut, confirmations obligatoires."
+log "NEOMNIA ACSS — Ajustements minimes appliqués (pas de valeur par défaut; confirmation requise)."
 
-# Nom de projet (aucun défaut; pas de 'neosaas-dev')
+# -- Pas de valeur par défaut: on exige une saisie explicite
 project_input="$(ask "Nom du projet (kebab-case, ex: mon-app) : ")"
 project_normalized="$(printf "%s" "$project_input" | normalize_kebab)"
 [ -n "$project_normalized" ] || die "Nom de projet vide ou invalide."
@@ -121,10 +141,9 @@ log "Projet      : ${PROJECT_NAME}"
 log "Chemin      : ${PROJECT_DIR}"
 log "Groupe unix : ${GROUP_NAME}"
 
-# Confirmation explicite
 confirm "Créer le groupe '${GROUP_NAME}' et ${PROJECT_DIR} ? [yes/no] " || die "Opération annulée."
 
-# Choix Node (ajout de 25.x)
+# --- Node: LTS / 25.x / version précise / skip
 log "Sélection de la version de Node (via nvm):"
 echo "  [1] latest-lts (recommandé)"
 echo "  [2] 25.x (proposé)"
@@ -144,7 +163,7 @@ case "$choice" in
   *)     die "Choix Node invalide." ;;
 esac
 
-# Choix Next (inchangé)
+# --- Next: latest / version précise
 echo "Next.js version:"
 echo "  [1] latest"
 echo "  [2] version précise (ex: 16.1.3)"
@@ -159,14 +178,14 @@ case "$nchoice" in
   *)     die "Choix Next invalide." ;;
 esac
 
-# Node via nvm (ou validation skip)
+# --- Node
 if [ "$NODE_STRATEGY" = "skip" ]; then
   require_min_node
 else
   install_use_node_with_nvm "$NODE_STRATEGY"
 fi
 
-# Groupe + dossier (inchangé)
+# --- Groupe + dossier
 create_group_if_needed "$GROUP_NAME"
 [ -e "$PROJECT_DIR" ] && die "Le dossier ${PROJECT_DIR} existe déjà. Abandon."
 log "Création de ${PROJECT_DIR}…"
@@ -174,19 +193,20 @@ mkdir -p "$PROJECT_DIR"
 chown "root:${GROUP_NAME}" "$PROJECT_DIR"
 chmod 2775 "$PROJECT_DIR"
 
-# Scaffold + deps
+# --- Scaffold + deps
 log "Scaffold du projet Next.js…"
 scaffold_next_app "$PROJECT_DIR"
+
 log "Installation des dépendances npm…"
 ( cd "$PROJECT_DIR" && npm install )
 
-# Pin Next si demandé
+# --- Pin Next (optionnel)
 pin_next_version_if_requested "$PROJECT_DIR" "$NEXT_VERSION_PIN"
 
-# Permissions + ACL
+# --- Permissions + ACL
 apply_permissions "$PROJECT_DIR" "$GROUP_NAME"
 
-# .nvmrc si Node choisi avec nvm
+# --- .nvmrc (si Node via nvm)
 [ "$NODE_STRATEGY" != "skip" ] && write_nvmrc_if_available "$PROJECT_DIR"
 
 log "Installation terminée."
