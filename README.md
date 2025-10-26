@@ -1,108 +1,198 @@
-# NEOMNIA™ Git-Wrapper
-
-![Git-Wrapper v1.0.0 – Secure GitOps Ready™](https://img.shields.io/badge/Git--Wrapper_v1.0.0-Secure_GitOps_Ready%E2%84%A2-blue)
-
-> **Secure GitHub Backup & Wrapper Tool**
-> Version **1.0.0** – © NEOMNIA 2025
+**TL;DR** : voici un **README prêt à publier** pour ton script d’installation Next.js (NEOMNIA ACSS), incluant le **lancement “RAW”** direct depuis GitHub pour la branche `install-next-project`.
 
 ---
 
-## 🚀 Présentation
+### Plan (pseudocode)
 
-**NEOMNIA™ Git-Wrapper** est un script Bash élégant et sécurisé qui permet de **cloner** ou **mettre à jour** en masse vos dépôts GitHub tout en protégeant votre Personal Access Token grâce à un chiffrement AES-256. Il intègre :
+* Titre + résumé.
+* One-liner exécution RAW (curl / wget).
+* Fonctionnalités.
+* Prérequis.
+* Ce que fait le script (étapes).
+* Saisie des versions **Node** & **Next**.
+* Permissions & sécurité (groupe, ACL, setgid).
+* Utilisation détaillée + exemples.
+* Post-install (dev, build, prod).
+* Désinstallation.
+* Dépannage (FAQ rapide).
+* Licence & attributions.
 
-* 🔒 Chiffrement du token GitHub (PAT) avec OpenSSL
-* 🛡️ Authentification automatique via GitHub CLI
-* 📁 Clonage OU mise à jour (`git pull`) de plusieurs dépôts
-* 🧾 Journalisation pas-à-pas avec emoji et logo NEOMNIA™
-* 🔐 Permissions sécurisées (770) sur le dossier de sauvegarde
-* 🔢 Versioning interne (`VERSION=1.0.0`)
+````markdown
+# NEOMNIA ACSS — Installateur Next.js sous /opt
+
+> Installe un projet **Next.js** dans **/opt/<projet>**, crée un **groupe** homonyme avec **droits complets** (ACL + setgid), et **journalise** chaque ligne avec le préfixe `[ NEOMNIA ]`. Sélection guidée des **versions Node** (via **nvm**) et **Next**.
 
 ---
 
-## 📦 Installation rapide
+## 🚀 Lancement “RAW” (exécution directe)
+
+> Branche : `install-next-project` — dépôt : `charlesvdd/administrator-neomnia`
+
+**curl**
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/install-next-project/next-project)
+````
+
+**wget**
 
 ```bash
-# Exécution directe depuis GitHub RAW
-bash <(curl -s https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/main/git-wrapper.sh) owner/repo [owner2/repo2 ...]
+bash <(wget -qO- https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/install-next-project/next-project)
 ```
 
-> Remplace `owner/repo` par le ou les dépôts que tu souhaites sauvegarder.
+> Astuce : ajoute `-S` pour un mode “strict” sur `curl`/`wget` si tu veux échouer plus fort sur HTTP.
 
 ---
 
-## 🛠️ Installation locale classique
+## ✨ Fonctionnalités
+
+* Création d’un **projet Next.js** (App Router, TS, Tailwind, ESLint, Turbopack) dans `/opt/<projet>`.
+* Demande interactive du **nom de projet** → normalisation (`kebab-case`).
+* **Node** via **nvm** : `latest-lts` (défaut), version précise (`22.10.0`…), ou `skip` (utiliser Node existant).
+* **Next** : `latest` (défaut) ou version précise (`16.x.y`).
+* **Groupe Unix** homonyme au projet, **setgid** sur les dossiers, **ACL** par défaut si `setfacl` présent.
+* **Logs** alignés et préfixés `[ NEOMNIA ]` + **bannières** “NEOMNIA ACSS”.
+
+---
+
+## ✅ Prérequis
+
+* Système : Ubuntu/Debian-like (root ou `sudo` requis).
+* Réseau sortant vers GitHub (pour **nvm** et **create-next-app**).
+* Outils : `bash`, `sed`, `curl`/`wget`, `setfacl` (optionnel mais recommandé).
+
+---
+
+## 🧩 Ce que fait le script (overview)
+
+1. Vérifie `root/sudo`.
+2. Demande **nom de projet** → définit `PROJECT_DIR=/opt/<projet>` et `GROUP_NAME=<projet>`.
+3. **Node** : selon ton choix
+
+   * `latest-lts` via **nvm** (installé auto si absent)
+   * **version précise** via nvm
+   * `skip` (exige Node ≥ 20.9)
+4. Vérifie `npx`.
+5. **Next** : `latest` ou version précise.
+6. Crée **groupe** `<projet>` et **dossier** `/opt/<projet>` (owner `root:<groupe>`, `chmod 2775`).
+7. Scaffold `create-next-app@latest` dans `/opt/<projet>`.
+8. Si version de **Next** spécifique : `npm i -E next@<version>`.
+9. Applique **permissions** : `chown -R root:<groupe>`, `chmod -R g+rwX`, `setgid` sur dossiers, **ACL** par défaut si dispo.
+10. Affiche **récap** + commandes utiles.
+
+---
+
+## 🔢 Choix des versions
+
+* **Node**
+
+  * `latest-lts` *(défaut)* : installe et active la dernière LTS via **nvm**.
+  * `22.10.0` *(exemple)* : installe/active cette version précise.
+  * `skip` : n’installe pas Node (tu dois déjà avoir **Node ≥ 20.9** + **npx**).
+
+* **Next**
+
+  * `latest` *(défaut)*
+  * `16.1.3` *(exemple)* : le script “pin” `next@16.1.3` après le scaffold.
+
+---
+
+## 🔐 Permissions & sécurité
+
+* **Groupe** `<projet>` créé si absent.
+* Dossier `/opt/<projet>` : `chmod 2775` → **setgid** pour que tous les nouveaux fichiers héritent du groupe.
+* **ACL** (si `setfacl` présent) : règles par défaut `g:<projet>:rwX` → droits de groupe persistants.
+* Ajout d’un utilisateur au groupe :
+
+  ```bash
+  sudo usermod -aG <projet> <user> && echo "Reconnexion requise pour prendre effet"
+  ```
+
+---
+
+## 🛠️ Utilisation
+
+### 1) Exécution interactive
 
 ```bash
-# 1. Clone le dépôt
-git clone https://github.com/charlesvdd/administrator-neomnia.git
+# Méthode RAW recommandée
+bash <(curl -fsSL https://raw.githubusercontent.com/charlesvdd/administrator-neomnia/install-next-project/next-project)
+```
+
+Tu répondras aux invites :
+
+* **Nom du projet** (ex. `mon-app` → `/opt/mon-app` + groupe `mon-app`)
+* **Version Node** (`latest-lts` / `22.10.0` / `skip`)
+* **Version Next** (`latest` / `16.1.3`)
+
+### 2) Exécution locale
+
+```bash
+# Cloner (optionnel)
+git clone -b install-next-project https://github.com/charlesvdd/administrator-neomnia.git
 cd administrator-neomnia
-
-# 2. Rends le script exécutable
-chmod +x git-wrapper.sh
-
-# 3. Lance-le
-./git-wrapper.sh owner/repo [owner2/repo2 ...]
+chmod +x next-project
+sudo ./next-project
 ```
 
 ---
 
-## 📋 Modes de fonctionnement
+## ▶️ Post-installation
 
-1. **Première exécution** :
-   • Demande d’une passphrase → création du fichier `~/.config/neomnia/.passphrase`
-   • Demande d’un token GitHub → chiffrement dans `~/.config/neomnia/.token.enc`
-2. **Exécutions suivantes** :
-   • Déchiffrement transparent du token
-   • Authentification silencieuse (`gh auth login --with-token`)
-   • Clonage ou `pull` sur chaque dépôt passé en argument
-3. **Logs** : un fichier horodaté est créé dans `$HOME/github-backups`.
+* **Dev**
+
+  ```bash
+  cd /opt/<projet>
+  npm run dev
+  ```
+
+* **Build + Start (prod simple)**
+
+  ```bash
+  cd /opt/<projet>
+  npm run build
+  npm run start -- -p 3000
+  ```
+
+> Besoin d’un **service systemd** (PM2 ou `node`) ? Voir “Aller plus loin”.
 
 ---
 
-## 🖥️ Exemple de sortie
+## 🧹 Désinstallation
 
-```
- _   _ ______ ______ ___  __  __ _ _           
-| \ | |  ____|  ____|__ \|  \/  (_) |          
-|  \| | |__  | |__     ) | \  / |_| | ___  ___ 
-| . ` |  __| |  __|   / /| |\/| | | |/ _ \/ __|
-| |\  | |____| |____ / /_| |  | | | |  __/\__ \
-|_| \_|______|______|____|_|  |_|_|_|\___||___/
-
-        🚀 GitHub Wrapper v1.0.0 - by NEOMNIA™
-
-🧩 ÉTAPE 1/5 – Vérification de la passphrase … ✅
-🧩 ÉTAPE 2/5 – Chargement du token GitHub … ✅
-🧩 ÉTAPE 3/5 – Authentification GitHub CLI … ✅
-🧩 ÉTAPE 4/5 – Récupération des dépôts … ✅
-🧩 ÉTAPE 5/5 – Ajustement des permissions … ✅
-🎉 NEOMNIA: Sauvegarde complétée avec succès.
+```bash
+sudo systemctl stop <service> 2>/dev/null || true
+sudo rm -rf /opt/<projet>
+# Optionnel : supprimer le groupe (si plus utilisé)
+sudo groupdel <projet> 2>/dev/null || true
 ```
 
 ---
 
-## 💡 Bonnes pratiques
+## 🩺 Dépannage rapide
 
-* **Ne publie jamais** le fichier `~/.config/neomnia/.token.enc` : il est local.
-* Donne uniquement les **scopes nécessaires** à ton PAT (souvent `repo`, `workflow`, `read:org`).
-* Configure un **cron** ou un **systemd timer** pour automatiser les sauvegardes.
-* Incrémente la variable `VERSION` du script pour chaque release majeure.
+* **Node non trouvé / version < 20.9**
+  → Relance le script et choisis `latest-lts` (installe/active via nvm).
 
----
+* **`setfacl` absent**
+  → Les ACL ne seront pas posées (les droits `chmod + setgid` restent en place).
+  → Installer : `sudo apt-get install acl`.
 
-## 🗺️ Roadmap
-
-* [ ] Menu TUI (dialog/whiptail)
-* [ ] Notifications Slack/Discord/email
-* [ ] Support multi-utilisateur & multi-token
-* [ ] Intégration GitOps pour déploiement continu
+* **`/opt/<projet>` existe déjà**
+  → Le script s’arrête pour éviter l’écrasement. Supprime ou choisis un autre nom.
 
 ---
 
-## 📜 Licence
+## 📜 Licence & attributions
 
-Ce projet est distribué sous licence **MIT**.
-Copyright © 2025 **NEOMNIA™**
+* Basé sur le dépôt **administrator-neomnia** (branche `install-next-project`).
+* Exécution RAW et structure référencées depuis GitHub.
+* Licence du dépôt : MIT.
 
-Pour toute question : [contact@neomnia.company](mailto:contact@neomnia.net)
+```
+
+> Source du dépôt/branche pour l’exécution RAW : :contentReference[oaicite:0]{index=0}
+
+**a.** Tu veux que je **génère le `README.md` dans le repo** (avec un bloc “systemd/PM2” prêt à l’emploi) ?  
+**b.** On ajoute une **section sécurité** (audit sudoers, `umask`, `.nvmrc`, `.npmrc` lock) + **exemples pnpm/yarn/bun** ?
+::contentReference[oaicite:1]{index=1}
+```
