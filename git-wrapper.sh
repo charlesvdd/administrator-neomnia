@@ -120,7 +120,8 @@ add_account_key() {
 
 add_deploy_key() {
   log "Ajout d'une Deploy Key..."
-  read -p "${NEOMIA} ${CYAN}Slug du dépôt (ex: org/repo): ${RESET}" REPO_SLUG
+  echo -e -n "\n${NEOMIA} ${CYAN}Slug du dépôt (ex: org/repo): ${RESET}"
+  read REPO_SLUG
   [ -z "$REPO_SLUG" ] && err "Slug requis"
 
   setup_ssh
@@ -147,7 +148,8 @@ show_menu() {
   echo "  1. SSH - Clé compte (accès global)"
   echo "  2. SSH - Deploy Key (accès repo)"
   echo "  3. HTTPS + PAT"
-  read -p "${NEOMIA} ${CYAN}Votre choix [1-3]: ${RESET}" choice
+  echo -e -n "\n${NEOMIA} ${CYAN}Votre choix [1-3]: ${RESET}"
+  read choice
 
   case "$choice" in
     1) add_account_key ;;
@@ -162,10 +164,10 @@ main() {
   log "Licence: Charles Van den driessche"
   install_deps
   show_menu
-  ok "Configuration terminée.
-Utilisez:
-  ${CYAN}ssh -T git@github.com${RESET}   # Test SSH
-  ${CYAN}gh auth status${RESET}          # Vérifier l'auth"
+  ok "Configuration terminée."
+  echo -e "\nUtilisez:"
+  echo -e "  ${CYAN}ssh -T git@github.com${RESET}   # Test SSH"
+  echo -e "  ${CYAN}gh auth status${RESET}          # Vérifier l'auth"
 }
 
 main
